@@ -32,6 +32,7 @@ export class OpenAIImageProvider implements ImageProvider {
       method: "POST",
       headers: {
         Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`,
+        Accept: "application/json",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -44,7 +45,7 @@ export class OpenAIImageProvider implements ImageProvider {
       })
     });
 
-    return parseOpenAIResponse(await response.json(), response.status);
+    return parseOpenAIResponse(response);
   }
 
   private async generateEdit(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
@@ -73,12 +74,13 @@ export class OpenAIImageProvider implements ImageProvider {
     const response = await fetch(openAIUrl("/v1/images/edits", config.openaiBaseUrl), {
       method: "POST",
       headers: {
+        Accept: "application/json",
         Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`
       },
       body: form
     });
 
-    return parseOpenAIResponse(await response.json(), response.status);
+    return parseOpenAIResponse(response);
   }
 }
 
@@ -103,9 +105,11 @@ function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string
   return `${baseUrl}${path}`;
 }
 
-function parseOpenAIResponse(body: OpenAIImageResponse, status: number): GeneratedImage[] {
-  if (status >= 400) {
-    throw new Error(body.error?.message || `OpenAI image request failed: ${status}`);
+async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]> {
+  const body = await readOpenAIJson(response);
+
+  if (response.status >= 400) {
+    throw new Error(body.error?.message || `OpenAI image request failed: ${response.status}`);
   }
 
   const images = body.data
@@ -122,4 +126,15 @@ function parseOpenAIResponse(body: OpenAIImageResponse, status: number): Generat
   }
 
   return images;
+}
+
+async function readOpenAIJson(response: Response): Promise<OpenAIImageResponse> {
+  const text = await response.text();
+
+  try {
+    return JSON.parse(text) as OpenAIImageResponse;
+  } catch {
+    const contentType = response.headers.get("content-type") || "unknown content type";
+    throw new Error(`图像网关返回了非 JSON 响应（${response.status}, ${contentType}），请稍后重试`);
+  }
 }

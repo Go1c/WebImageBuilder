@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
+import { downloadGeneratedImage } from "./imageDownload";
 
 type AssetRef = {
   key: string;
@@ -40,6 +41,8 @@ type GeneratedImage = {
   mimeType: string;
 };
 
+type ResultViewMode = "single" | "grid";
+
 const modes: Array<{ key: GenerationMode; label: string; note: string; summary: string }> = [
   { key: "text-to-image", label: "文生图", note: "V1", summary: "从文字生成完整画面" },
   { key: "image-to-image", label: "参考图", note: "V1", summary: "基于参考图重新创作" },
@@ -77,6 +80,7 @@ export function ImageStudio() {
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [resultView, setResultView] = useState<ResultViewMode>("single");
   const [loading, setLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -201,10 +205,10 @@ export function ImageStudio() {
         throw new Error(await readApiError(response));
       }
 
-      const result = (await response.json()) as {
+      const result = await readApiJson<{
         images: GeneratedImage[];
         quota: QuotaResponse["quota"];
-      };
+      }>(response, "生成接口返回了非 JSON 响应，请刷新页面后重试");
 
       setImages(result.images);
       setQuota((current) => (current ? { ...current, quota: result.quota } : current));
@@ -219,6 +223,26 @@ export function ImageStudio() {
     } finally {
       window.clearTimeout(timeoutId);
       setLoading(false);
+    }
+  }
+
+  function handleResultViewChange(nextView: ResultViewMode) {
+    setResultView(nextView);
+    setCount(nextView === "grid" ? 4 : 1);
+  }
+
+  function handleCountChange(value: number) {
+    const nextCount = Math.min(4, Math.max(1, value));
+    setCount(nextCount);
+    setResultView(nextCount > 1 ? "grid" : "single");
+  }
+
+  async function handleDownloadImage(image: GeneratedImage, index: number) {
+    try {
+      await downloadGeneratedImage(image, index);
+      setMessage("图片已开始保存");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "保存图片失败");
     }
   }
 
@@ -336,7 +360,7 @@ export function ImageStudio() {
                 min={1}
                 max={4}
                 value={count}
-                onChange={(event) => setCount(Math.min(4, Math.max(1, Number(event.target.value))))}
+                onChange={(event) => handleCountChange(Number(event.target.value))}
               />
             </label>
           </div>
@@ -397,10 +421,28 @@ export function ImageStudio() {
               <span className="eyebrow">Output</span>
               <h2>生成结果</h2>
             </div>
-            <span className="preview-meta">{images.length > 0 ? `${images.length} 张` : "待生成"}</span>
+            <div className="preview-actions">
+              <div className="result-view-toggle" role="group" aria-label="结果布局">
+                <button
+                  type="button"
+                  className={resultView === "single" ? "is-active" : ""}
+                  onClick={() => handleResultViewChange("single")}
+                >
+                  单页
+                </button>
+                <button
+                  type="button"
+                  className={resultView === "grid" ? "is-active" : ""}
+                  onClick={() => handleResultViewChange("grid")}
+                >
+                  4宫格
+                </button>
+              </div>
+              <span className="preview-meta">{images.length > 0 ? `${images.length} 张` : "待生成"}</span>
+            </div>
           </div>
 
-          <div className={images.length === 0 ? "result-stage is-empty" : "result-stage"}>
+          <div className={images.length === 0 ? "result-stage is-empty" : `result-stage is-${resultView}`}>
             {images.length === 0 ? (
               <div className="empty-canvas">
                 <span>Preview</span>
@@ -413,9 +455,9 @@ export function ImageStudio() {
                   <img src={image.url} alt={`生成结果 ${index + 1}`} />
                   <figcaption>
                     <span>Result {index + 1}</span>
-                    <a href={image.url} target="_blank" rel="noreferrer">
-                      打开原图
-                    </a>
+                    <button className="download-action" type="button" onClick={() => void handleDownloadImage(image, index)}>
+                      保存图片
+                    </button>
                   </figcaption>
                 </figure>
               ))
@@ -477,6 +519,14 @@ async function readApiError(response: Response): Promise<string> {
     return body.error?.message || `请求失败：${response.status}`;
   } catch {
     return `请求失败：${response.status}`;
+  }
+}
+
+async function readApiJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new Error(fallbackMessage);
   }
 }
 

@@ -34,6 +34,29 @@ describe("OpenAI image provider", () => {
       expect.objectContaining({ method: "POST" })
     );
   });
+
+  it("reports non-JSON image gateway responses clearly", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("<!DOCTYPE html><html></html>", {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8" }
+          })
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      "图像网关返回了非 JSON 响应"
+    );
+  });
 });
 
 function buildInput(): NormalizedGenerationInput {

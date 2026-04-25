@@ -557,12 +557,58 @@ textarea:focus-visible {
   gap: 16px;
 }
 
+.preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.result-view-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 128px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  background: rgba(245, 245, 247, 0.78);
+}
+
+.result-view-toggle button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.result-view-toggle button.is-active {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: 0 1px 8px rgba(29, 29, 31, 0.1);
+}
+
 .result-stage {
   min-height: 520px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 12px;
   align-content: start;
+}
+
+.result-stage.is-single {
+  grid-template-columns: minmax(0, min(100%, 560px));
+  justify-content: center;
+}
+
+.result-stage.is-grid {
+  grid-template-columns: repeat(2, minmax(220px, 360px));
+  justify-content: center;
 }
 
 .result-stage.is-empty {
@@ -624,7 +670,7 @@ textarea:focus-visible {
 }
 
 .result-tile figcaption span,
-.result-tile a {
+.download-action {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -636,27 +682,53 @@ textarea:focus-visible {
   font-weight: 800;
 }
 
-.result-tile a {
+.download-action {
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: var(--blue-strong);
   font-size: 13px;
   font-weight: 800;
-  text-decoration: none;
+}
+
+.download-action:hover {
+  color: var(--blue);
 }
 
 .history-panel {
   min-height: 0;
+  max-height: calc(100vh - 110px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
+  position: sticky;
+  top: 24px;
 }
 
 .history-list {
   min-height: 0;
+  max-height: calc(100vh - 190px);
   display: flex;
   flex-direction: column;
   gap: 8px;
   overflow: auto;
   padding-right: 2px;
+  overscroll-behavior: contain;
+  scrollbar-color: #c9ccd4 transparent;
+  scrollbar-width: thin;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: #c9ccd4;
+}
+
+.history-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .history-item {
@@ -722,9 +794,12 @@ textarea:focus-visible {
   .history-panel {
     grid-column: 1 / -1;
     min-height: 260px;
+    max-height: none;
+    position: static;
   }
 
   .history-list {
+    max-height: 260px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     align-content: start;
@@ -771,6 +846,15 @@ textarea:focus-visible {
   .empty-canvas {
     min-height: 360px;
   }
+
+  .preview-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .preview-actions {
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 560px) {
@@ -792,5 +876,13 @@ textarea:focus-visible {
 
   .result-stage {
     grid-template-columns: 1fr;
+  }
+
+  .result-stage.is-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-view-toggle {
+    width: 100%;
   }
 }
