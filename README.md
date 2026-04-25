@@ -108,6 +108,7 @@ Database schema applied
 - `The server does not support SSL connections`：设置 `DATABASE_SSL=false` 后重启服务。
 - `relation "anonymous_devices" does not exist`：数据库表未创建，执行 `npm run db:migrate`。
 - `Cannot find module '/app/scripts/migrate.mjs'`：运行镜像缺少迁移脚本，重新部署最新 `main` 分支。
+- 主站域名返回 `HTTP ERROR 502`，部署平台显示容器端口 `8080`：确认部署的是最新 Dockerfile，应用运行端口应为 `8080`。
 - `请求失败：502`：查看 Zeabur Logs。常见原因是图像接口超时、`OPENAI_API_KEY` 缺失、S3/R2 环境变量缺失或上游网关返回非 JSON 错误。Zeabur 约 50 秒断开长请求，保持 `IMAGE_PROVIDER_TIMEOUT_MS=40000` 可以让应用先返回可读错误。
 - 构建日志出现 `npm update -g npm`：确认部署的是最新 `main` 分支，并使用仓库根目录的 `Dockerfile` 构建。
 
