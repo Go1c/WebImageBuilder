@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
+import { readApiError, readApiJson } from "./apiErrors";
 import { downloadGeneratedImage } from "./imageDownload";
 
 type AssetRef = {
@@ -511,23 +512,6 @@ export function ImageStudio() {
       </div>
     </main>
   );
-}
-
-async function readApiError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { error?: { message?: string } };
-    return body.error?.message || `请求失败：${response.status}`;
-  } catch {
-    return `请求失败：${response.status}`;
-  }
-}
-
-async function readApiJson<T>(response: Response, fallbackMessage: string): Promise<T> {
-  try {
-    return (await response.json()) as T;
-  } catch {
-    throw new Error(fallbackMessage);
-  }
 }
 
 function formatHistoryDate(value: string): string {

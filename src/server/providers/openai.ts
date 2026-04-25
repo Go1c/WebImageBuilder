@@ -17,7 +17,7 @@ type OpenAIImageResponse = {
   };
 };
 
-const openAIRequestTimeoutMs = 80_000;
+const defaultImageRequestTimeoutMs = 40_000;
 
 export class OpenAIImageProvider implements ImageProvider {
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
@@ -109,7 +109,7 @@ function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string
 
 async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), openAIRequestTimeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), getImageRequestTimeoutMs());
 
   try {
     return await fetch(url, {
@@ -125,6 +125,12 @@ async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function getImageRequestTimeoutMs(): number {
+  const raw = process.env.IMAGE_PROVIDER_TIMEOUT_MS;
+  const parsed = raw ? Number(raw) : defaultImageRequestTimeoutMs;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultImageRequestTimeoutMs;
 }
 
 async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]> {

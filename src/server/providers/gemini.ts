@@ -7,6 +7,8 @@ import {
   type ImageProvider
 } from "./types";
 
+const defaultImageRequestTimeoutMs = 40_000;
+
 type GeminiResponse = {
   candidates?: Array<{
     content?: {
@@ -59,7 +61,7 @@ export class GeminiImageProvider implements ImageProvider {
       requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY")
     )}`;
 
-    const response = await fetch(url, {
+    const response = await fetchGemini(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -79,6 +81,32 @@ export class GeminiImageProvider implements ImageProvider {
 
     return parseGeminiResponse((await response.json()) as GeminiResponse, response.status);
   }
+}
+
+async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), getImageRequestTimeoutMs());
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("图像网关超时，请稍后重试或降低图片数量");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function getImageRequestTimeoutMs(): number {
+  const raw = process.env.IMAGE_PROVIDER_TIMEOUT_MS;
+  const parsed = raw ? Number(raw) : defaultImageRequestTimeoutMs;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultImageRequestTimeoutMs;
 }
 
 function buildPrompt(input: NormalizedGenerationInput): string {

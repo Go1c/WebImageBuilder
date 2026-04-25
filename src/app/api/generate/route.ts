@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const response = jsonOk(result);
     return applyContextCookies(response, context);
   } catch (error) {
+    console.error("[api/generate] request failed", error);
     return jsonError(error);
   }
 }
