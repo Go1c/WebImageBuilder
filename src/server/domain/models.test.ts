@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import {
+  getGenerationModeCapabilities,
+  getModelOption,
+  normalizeGenerationInput
+} from "./models";
+
+describe("model and generation request rules", () => {
+  it("keeps GPT Image and Gemini behind stable UI model keys", () => {
+    expect(getModelOption("gpt-image-2")).toMatchObject({
+      key: "gpt-image-2",
+      provider: "openai",
+      label: "GPT Image 2"
+    });
+
+    expect(getModelOption("gemini-image")).toMatchObject({
+      key: "gemini-image",
+      provider: "gemini",
+      label: "Gemini"
+    });
+  });
+
+  it("requires reference images for image editing modes", () => {
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "make it cinematic",
+        mode: "image-to-image",
+        model: "gemini-image",
+        count: 1,
+        size: "1024x1024",
+        referenceAssets: []
+      })
+    ).toThrow(/reference image/i);
+  });
+
+  it("normalizes limits before requests reach provider adapters", () => {
+    const input = normalizeGenerationInput({
+      prompt: "  A red robot holding a skateboard  ",
+      mode: "text-to-image",
+      model: "gpt-image-2",
+      count: 9,
+      size: "1024x1536",
+      quality: "high"
+    });
+
+    expect(input.prompt).toBe("A red robot holding a skateboard");
+    expect(input.count).toBe(4);
+    expect(input.provider).toBe("openai");
+    expect(input.providerModel).toBeDefined();
+  });
+
+  it("documents V1 and V1.1 capabilities separately", () => {
+    expect(getGenerationModeCapabilities("text-to-image").release).toBe("v1");
+    expect(getGenerationModeCapabilities("image-to-image").release).toBe("v1");
+    expect(getGenerationModeCapabilities("inpaint").release).toBe("v1.1");
+    expect(getGenerationModeCapabilities("variation").release).toBe("v1.1");
+  });
+});
