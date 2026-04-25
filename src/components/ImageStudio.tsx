@@ -40,16 +40,27 @@ type GeneratedImage = {
   mimeType: string;
 };
 
-const modes: Array<{ key: GenerationMode; label: string; note: string }> = [
-  { key: "text-to-image", label: "文生图", note: "V1" },
-  { key: "image-to-image", label: "参考图", note: "V1" },
-  { key: "inpaint", label: "局部重绘", note: "V1.1" },
-  { key: "variation", label: "变体", note: "V1.1" }
+const modes: Array<{ key: GenerationMode; label: string; note: string; summary: string }> = [
+  { key: "text-to-image", label: "文生图", note: "V1", summary: "从文字生成完整画面" },
+  { key: "image-to-image", label: "参考图", note: "V1", summary: "基于参考图重新创作" },
+  { key: "inpaint", label: "局部重绘", note: "V1.1", summary: "使用遮罩替换局部区域" },
+  { key: "variation", label: "变体", note: "V1.1", summary: "延展同一视觉方向" }
 ];
 
-const modelOptions: Array<{ key: ModelKey; label: string }> = [
-  { key: "gpt-image-2", label: "GPT Image 2" },
-  { key: "gemini-image", label: "Gemini" }
+const modelOptions: Array<{ key: ModelKey; label: string; provider: string }> = [
+  { key: "gpt-image-2", label: "GPT Image 2", provider: "OpenAI" },
+  { key: "gemini-image", label: "Gemini", provider: "Google" }
+];
+
+const sizeOptions = [
+  { value: "1024x1024", label: "1:1", detail: "1024 x 1024" },
+  { value: "1024x1536", label: "2:3", detail: "1024 x 1536" },
+  { value: "1536x1024", label: "3:2", detail: "1536 x 1024" }
+];
+
+const qualityOptions = [
+  { value: "standard", label: "标准" },
+  { value: "high", label: "高质量" }
 ];
 
 export function ImageStudio() {
@@ -69,11 +80,18 @@ export function ImageStudio() {
 
   const needsReference = mode !== "text-to-image";
   const needsMask = mode === "inpaint";
-  const disabled = loading || !prompt.trim() || (needsReference && !referenceFiles?.length);
+  const disabled = loading || !prompt.trim() || (needsReference && !referenceFiles?.length) || (needsMask && !maskFile);
+  const activeMode = modes.find((item) => item.key === mode) || modes[0];
+  const activeSize = sizeOptions.find((item) => item.value === size) || sizeOptions[0];
+  const activeQuality = qualityOptions.find((item) => item.value === quality) || qualityOptions[0];
+  const referenceFileNames = useMemo(() => Array.from(referenceFiles || []).map((file) => file.name), [referenceFiles]);
+  const promptLength = prompt.trim().length;
 
   useEffect(() => {
-    void refreshData();
-    void claimInviteFromUrl();
+    void (async () => {
+      await claimInviteFromUrl();
+      await refreshData();
+    })();
   }, []);
 
   async function refreshData() {
@@ -188,124 +206,121 @@ export function ImageStudio() {
   }, [quota]);
 
   return (
-    <main className="studio-shell">
-      <aside className="studio-sidebar">
-        <div className="brand">
+    <main className="studio-page">
+      <header className="topbar">
+        <a className="brand" href="/" aria-label="Lumio Image Studio">
           <span className="brand-mark">L</span>
-          <div>
-            <strong>Lumio Image Studio</strong>
-            <small>公开生成工作台</small>
+          <div className="brand-copy">
+            <span>Lumio</span>
+            <strong>Image Studio</strong>
           </div>
-        </div>
+        </a>
 
-        <section className="quota-panel">
-          <div>
-            <span className="eyebrow">当前额度</span>
+        <div className="topbar-actions">
+          <div className="quota-summary">
+            <span>可用额度</span>
             <strong>{quotaText}</strong>
           </div>
           <a
-            className="login-link"
+            className="account-link"
             href={process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/"}
             target="_blank"
             rel="noreferrer"
           >
             登录 / 购买
           </a>
-        </section>
+        </div>
+      </header>
 
-        <section className="history-list">
-          <div className="section-title">历史记录</div>
-          {history.length === 0 ? (
-            <p className="muted">暂无历史</p>
-          ) : (
-            history.map((item) => (
-              <button
-                key={item.id}
-                className="history-item"
-                type="button"
-                onClick={() => {
-                  setPrompt(item.prompt);
-                  setImages(
-                    (item.assets || [])
-                      .filter((asset) => asset.type === "result")
-                      .map((asset) => ({
-                        key: asset.url,
-                        url: asset.url,
-                        mimeType: "image/png"
-                      }))
-                  );
-                }}
-              >
-                <span>{item.prompt}</span>
-                <small>
-                  {item.modelKey} · {item.status}
-                </small>
-              </button>
-            ))
-          )}
-        </section>
-      </aside>
+      <div className="studio-layout">
+        <section className="composer-panel" aria-label="图像创作">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Create</span>
+              <h1>生成一张新图片</h1>
+            </div>
+            <span className="mode-badge">{activeMode.note}</span>
+          </div>
 
-      <section className="workspace">
-        <div className="toolbar">
-          <div className="segmented">
+          <div className="model-switch" role="group" aria-label="选择模型">
             {modelOptions.map((option) => (
               <button
                 key={option.key}
                 type="button"
-                className={model === option.key ? "active" : ""}
+                className={model === option.key ? "is-active" : ""}
                 onClick={() => setModel(option.key)}
               >
-                {option.label}
+                <span>{option.label}</span>
+                <small>{option.provider}</small>
               </button>
             ))}
           </div>
 
-          <div className="toolbar-controls">
-            <select value={size} onChange={(event) => setSize(event.target.value)}>
-              <option value="1024x1024">1:1</option>
-              <option value="1024x1536">2:3</option>
-              <option value="1536x1024">3:2</option>
-            </select>
-            <select value={quality} onChange={(event) => setQuality(event.target.value)}>
-              <option value="standard">标准</option>
-              <option value="high">高质量</option>
-            </select>
-            <input
-              aria-label="数量"
-              type="number"
-              min={1}
-              max={4}
-              value={count}
-              onChange={(event) => setCount(Number(event.target.value))}
-            />
+          <div className="mode-grid" role="group" aria-label="选择生成模式">
+            {modes.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={mode === item.key ? "is-active" : ""}
+                onClick={() => setMode(item.key)}
+              >
+                <span>{item.label}</span>
+                <small>{item.summary}</small>
+              </button>
+            ))}
           </div>
-        </div>
 
-        <div className="mode-tabs">
-          {modes.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={mode === item.key ? "active" : ""}
-              onClick={() => setMode(item.key)}
-            >
-              <span>{item.label}</span>
-              <small>{item.note}</small>
-            </button>
-          ))}
-        </div>
+          <label className="prompt-field">
+            <span>提示词</span>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="描述主体、风格、光线、镜头、材质和画面氛围"
+            />
+            <small>{promptLength} / 4000</small>
+          </label>
 
-        <section className="prompt-area">
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="输入要生成或编辑的图像描述"
-          />
+          <div className="settings-grid">
+            <label>
+              <span>画幅</span>
+              <select value={size} onChange={(event) => setSize(event.target.value)}>
+                {sizeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} - {option.detail}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="asset-row">
-            <label className={needsReference ? "asset-input required" : "asset-input"}>
-              <span>参考图</span>
+            <label>
+              <span>质量</span>
+              <select value={quality} onChange={(event) => setQuality(event.target.value)}>
+                {qualityOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>数量</span>
+              <input
+                aria-label="生成数量"
+                type="number"
+                min={1}
+                max={4}
+                value={count}
+                onChange={(event) => setCount(Math.min(4, Math.max(1, Number(event.target.value))))}
+              />
+            </label>
+          </div>
+
+          <div className="upload-grid">
+            <label className={needsReference ? "upload-target is-required" : "upload-target"}>
+              <span className="upload-title">参考图</span>
+              <strong>{referenceFileNames.length > 0 ? `${referenceFileNames.length} 个文件` : needsReference ? "必选" : "可选"}</strong>
+              <small>{referenceFileNames.length > 0 ? referenceFileNames.join(" / ") : "PNG、JPG 或 WebP"}</small>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -313,8 +328,11 @@ export function ImageStudio() {
                 onChange={(event) => setReferenceFiles(event.target.files)}
               />
             </label>
-            <label className={needsMask ? "asset-input required" : "asset-input"}>
-              <span>遮罩图</span>
+
+            <label className={needsMask ? "upload-target is-required" : "upload-target"}>
+              <span className="upload-title">遮罩图</span>
+              <strong>{maskFile ? "已选择" : needsMask ? "必选" : "可选"}</strong>
+              <small>{maskFile?.name || "局部重绘时使用"}</small>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -323,35 +341,101 @@ export function ImageStudio() {
             </label>
           </div>
 
-          <div className="action-row">
+          <div className="action-bar">
+            <div className="run-summary">
+              <strong>{activeMode.label}</strong>
+              <span>
+                {activeSize.label} · {activeQuality.label} · {count} 张
+              </span>
+            </div>
             <button className="primary-action" type="button" disabled={disabled} onClick={handleGenerate}>
-              {loading ? "生成中" : "生成图片"}
+              {loading ? "生成中..." : "生成图片"}
             </button>
-            {message ? <span className="status-message">{message}</span> : null}
+          </div>
+
+          {message ? (
+            <p className={message === "生成完成" ? "status-message is-success" : "status-message"} aria-live="polite">
+              {message}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="preview-panel" aria-label="生成结果">
+          <div className="panel-heading preview-heading">
+            <div>
+              <span className="eyebrow">Output</span>
+              <h2>生成结果</h2>
+            </div>
+            <span className="preview-meta">{images.length > 0 ? `${images.length} 张` : "待生成"}</span>
+          </div>
+
+          <div className={images.length === 0 ? "result-stage is-empty" : "result-stage"}>
+            {images.length === 0 ? (
+              <div className="empty-canvas">
+                <span>Preview</span>
+                <strong>结果会显示在这里</strong>
+              </div>
+            ) : (
+              images.map((image, index) => (
+                <figure key={image.key} className="result-tile">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image.url} alt={`生成结果 ${index + 1}`} />
+                  <figcaption>
+                    <span>Result {index + 1}</span>
+                    <a href={image.url} target="_blank" rel="noreferrer">
+                      打开原图
+                    </a>
+                  </figcaption>
+                </figure>
+              ))
+            )}
           </div>
         </section>
 
-        <section className="result-grid">
-          {images.length === 0 ? (
-            <div className="empty-state">
-              <strong>结果区域</strong>
-              <span>生成图片后会显示在这里</span>
+        <aside className="history-panel" aria-label="历史记录">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">Recent</span>
+              <h2>历史记录</h2>
             </div>
-          ) : (
-            images.map((image) => (
-              <figure key={image.key} className="result-tile">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt="生成结果" />
-                <figcaption>
-                  <a href={image.url} target="_blank" rel="noreferrer">
-                    打开原图
-                  </a>
-                </figcaption>
-              </figure>
-            ))
-          )}
-        </section>
-      </section>
+            <span className="history-count">{history.length}</span>
+          </div>
+
+          <div className="history-list">
+            {history.length === 0 ? (
+              <div className="empty-history">
+                <strong>暂无历史</strong>
+                <span>生成后的任务会出现在这里</span>
+              </div>
+            ) : (
+              history.map((item) => (
+                <button
+                  key={item.id}
+                  className="history-item"
+                  type="button"
+                  onClick={() => {
+                    setPrompt(item.prompt);
+                    setImages(
+                      (item.assets || [])
+                        .filter((asset) => asset.type === "result")
+                        .map((asset) => ({
+                          key: asset.url,
+                          url: asset.url,
+                          mimeType: "image/png"
+                        }))
+                    );
+                  }}
+                >
+                  <span>{item.prompt}</span>
+                  <small>
+                    {item.modelKey} · {item.status} · {formatHistoryDate(item.createdAt)}
+                  </small>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }
@@ -363,4 +447,19 @@ async function readApiError(response: Response): Promise<string> {
   } catch {
     return `请求失败：${response.status}`;
   }
+}
+
+function formatHistoryDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
