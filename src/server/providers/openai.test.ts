@@ -57,6 +57,23 @@ describe("OpenAI image provider", () => {
       "图像网关返回了非 JSON 响应"
     );
   });
+
+  it("reports gateway timeout responses clearly", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 524 }))
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      "图像网关超时"
+    );
+  });
 });
 
 function buildInput(): NormalizedGenerationInput {

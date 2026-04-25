@@ -17,6 +17,8 @@ type OpenAIImageResponse = {
   };
 };
 
+const openAIRequestTimeoutMs = 80_000;
+
 export class OpenAIImageProvider implements ImageProvider {
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     if (input.mode === "text-to-image") {
@@ -28,7 +30,7 @@ export class OpenAIImageProvider implements ImageProvider {
 
   private async generateTextToImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     const config = getAppConfig();
-    const response = await fetch(openAIUrl("/v1/images/generations", config.openaiBaseUrl), {
+    const response = await fetchOpenAI(openAIUrl("/v1/images/generations", config.openaiBaseUrl), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`,
@@ -71,7 +73,7 @@ export class OpenAIImageProvider implements ImageProvider {
     }
 
     const config = getAppConfig();
-    const response = await fetch(openAIUrl("/v1/images/edits", config.openaiBaseUrl), {
+    const response = await fetchOpenAI(openAIUrl("/v1/images/edits", config.openaiBaseUrl), {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -105,10 +107,34 @@ function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string
   return `${baseUrl}${path}`;
 }
 
+async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), openAIRequestTimeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error("图像网关超时，请稍后重试或先使用单页生成");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]> {
   const body = await readOpenAIJson(response);
 
   if (response.status >= 400) {
+    if (response.status === 524 || response.status === 504 || response.status === 408) {
+      throw new Error("图像网关超时，请稍后重试或先使用单页生成");
+    }
+
     throw new Error(body.error?.message || `OpenAI image request failed: ${response.status}`);
   }
 
@@ -137,4 +163,8 @@ async function readOpenAIJson(response: Response): Promise<OpenAIImageResponse> 
     const contentType = response.headers.get("content-type") || "unknown content type";
     throw new Error(`图像网关返回了非 JSON 响应（${response.status}, ${contentType}），请稍后重试`);
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }
