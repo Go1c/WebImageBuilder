@@ -33,6 +33,15 @@ function getBucket(): string {
   return requireEnv(getAppConfig().s3.bucket, "S3_BUCKET");
 }
 
+function hasS3Config(): boolean {
+  const config = getAppConfig();
+  return Boolean(config.s3.bucket && config.s3.accessKeyId && config.s3.secretAccessKey);
+}
+
+function shouldUseLocalStorage(): boolean {
+  return getAppConfig().localMode && !hasS3Config();
+}
+
 export function getPublicAssetUrl(key: string): string {
   const config = getAppConfig();
   if (config.s3.publicBaseUrl) {
@@ -77,6 +86,14 @@ export async function uploadBuffer(input: {
 }): Promise<StoredAsset> {
   const extension = input.mimeType.split("/")[1] || "bin";
   const key = `${input.prefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+  if (shouldUseLocalStorage()) {
+    return {
+      key: `local/${key}`,
+      url: `data:${input.mimeType};base64,${input.buffer.toString("base64")}`,
+      mimeType: input.mimeType
+    };
+  }
+
   const commandInput: PutObjectCommandInput = {
     Bucket: getBucket(),
     Key: key,

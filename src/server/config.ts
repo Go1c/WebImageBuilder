@@ -3,6 +3,7 @@ export type AppConfig = {
   jwtSecret?: string;
   jwtPublicKey?: string;
   databaseUrl?: string;
+  localMode: boolean;
   openaiApiKey?: string;
   openaiBaseUrl: string;
   geminiApiKey?: string;
@@ -22,6 +23,7 @@ export function getAppConfig(env = process.env): AppConfig {
     jwtSecret: env.JWT_SECRET,
     jwtPublicKey: env.JWT_PUBLIC_KEY,
     databaseUrl: env.DATABASE_URL,
+    localMode: env.LUMIO_LOCAL_MODE === "true",
     openaiApiKey: env.OPENAI_API_KEY,
     openaiBaseUrl: normalizeBaseUrl(env.OPENAI_BASE_URL || "https://api.openai.com"),
     geminiApiKey: env.GEMINI_API_KEY,

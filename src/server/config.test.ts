@@ -10,4 +10,9 @@ describe("app config", () => {
 
     expect(config.openaiBaseUrl).toBe("https://img.fkcodex.com");
   });
+
+  it("keeps local fallback mode opt-in", () => {
+    expect(getAppConfig({}).localMode).toBe(false);
+    expect(getAppConfig({ LUMIO_LOCAL_MODE: "true" }).localMode).toBe(true);
+  });
 });

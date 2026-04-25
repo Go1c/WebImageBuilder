@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { query, transaction } from "./client";
 import type { Actor, DbQuotaState } from "./types";
 import type { AuthenticatedUser } from "../auth";
+import { getAppConfig } from "../config";
 import { getQuotaConfig } from "../domain/quota";
 import type { NormalizedGenerationInput } from "../domain/models";
 import type { SpendSource } from "../domain/quota";
@@ -19,11 +20,74 @@ type AssetInput = {
   height?: number | null;
 };
 
+type LocalTask = {
+  id: string;
+  actor: Actor;
+  generation: NormalizedGenerationInput;
+  status: "running" | "succeeded" | "failed";
+  errorMessage: string | null;
+  spendSource: SpendSource | null;
+  assets: Array<AssetInput & { id: string }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type LocalQuotaBalance = {
+  loginUsed: number;
+  inviteCredits: number;
+  paidCredits: number;
+};
+
+type LocalRepository = {
+  tasks: LocalTask[];
+  userBalances: Map<string, LocalQuotaBalance>;
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var lumioLocalRepository: LocalRepository | undefined;
+}
+
+function shouldUseLocalRepository(): boolean {
+  const config = getAppConfig();
+  return config.localMode && !config.databaseUrl;
+}
+
+function getLocalRepository(): LocalRepository {
+  if (!globalThis.lumioLocalRepository) {
+    globalThis.lumioLocalRepository = {
+      tasks: [],
+      userBalances: new Map()
+    };
+  }
+
+  return globalThis.lumioLocalRepository;
+}
+
 export async function resolveActor(input: {
   authUser: AuthenticatedUser | null;
   deviceId: string;
   ipHash: string;
 }): Promise<Actor> {
+  if (shouldUseLocalRepository()) {
+    if (input.authUser) {
+      return {
+        type: "user",
+        userId: `local-user-${input.authUser.externalUserId}`,
+        externalUserId: input.authUser.externalUserId,
+        deviceId: input.deviceId,
+        ipHash: input.ipHash
+      };
+    }
+
+    return {
+      type: "anonymous",
+      anonymousDeviceId: `local-anon-${input.deviceId}`,
+      deviceId: input.deviceId,
+      ipHash: input.ipHash
+    };
+  }
+
   if (input.authUser) {
     const result = await query<{ id: string }>(
       `
@@ -76,6 +140,43 @@ export async function resolveActor(input: {
 }
 
 export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
+  if (shouldUseLocalRepository()) {
+    const store = getLocalRepository();
+    const today = new Date().toISOString().slice(0, 10);
+    const ipDailyUsed = store.tasks.filter(
+      (task) =>
+        task.actor.type === "anonymous" &&
+        task.actor.ipHash === actor.ipHash &&
+        task.createdAt.slice(0, 10) === today
+    ).length;
+
+    if (actor.type === "anonymous") {
+      return {
+        actorType: "anonymous",
+        anonymousUsed: store.tasks.filter(
+          (task) =>
+            task.actor.type === "anonymous" &&
+            task.actor.anonymousDeviceId === actor.anonymousDeviceId &&
+            task.status === "succeeded"
+        ).length,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        ipDailyUsed
+      };
+    }
+
+    const balance = getLocalUserBalance(actor.userId);
+    return {
+      actorType: "user",
+      anonymousUsed: 0,
+      loginUsed: balance.loginUsed,
+      inviteCredits: balance.inviteCredits,
+      paidCredits: balance.paidCredits,
+      ipDailyUsed
+    };
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const ipResult = await query<{ count: string }>(
     `
@@ -148,6 +249,22 @@ export async function createTask(input: {
   generation: NormalizedGenerationInput;
 }): Promise<string> {
   const id = randomUUID();
+  if (shouldUseLocalRepository()) {
+    const now = new Date().toISOString();
+    getLocalRepository().tasks.unshift({
+      id,
+      actor: input.actor,
+      generation: input.generation,
+      status: "running",
+      errorMessage: null,
+      spendSource: null,
+      assets: [],
+      createdAt: now,
+      updatedAt: now
+    });
+    return id;
+  }
+
   await query(
     `
       insert into generation_tasks (
@@ -188,6 +305,35 @@ export async function markTaskSucceeded(input: {
   spendSource: SpendSource;
   assets: AssetInput[];
 }): Promise<void> {
+  if (shouldUseLocalRepository()) {
+    const task = findLocalTask(input.actor, input.taskId);
+    if (task) {
+      task.status = "succeeded";
+      task.spendSource = input.spendSource;
+      task.updatedAt = new Date().toISOString();
+      task.assets = input.assets.map((asset) => ({
+        ...asset,
+        id: randomUUID(),
+        taskId: input.taskId,
+        userId: input.actor.type === "user" ? input.actor.userId : null,
+        anonymousDeviceId:
+          input.actor.type === "anonymous" ? input.actor.anonymousDeviceId : null
+      }));
+    }
+
+    if (input.actor.type === "user") {
+      const balance = getLocalUserBalance(input.actor.userId);
+      if (input.spendSource === "login") {
+        balance.loginUsed += 1;
+      } else if (input.spendSource === "invite") {
+        balance.inviteCredits = Math.max(0, balance.inviteCredits - 1);
+      } else if (input.spendSource === "paid") {
+        balance.paidCredits = Math.max(0, balance.paidCredits - 1);
+      }
+    }
+    return;
+  }
+
   await transaction(async (client) => {
     await client.query(
       `
@@ -239,6 +385,16 @@ export async function markTaskSucceeded(input: {
 }
 
 export async function markTaskFailed(taskId: string, message: string): Promise<void> {
+  if (shouldUseLocalRepository()) {
+    const task = getLocalRepository().tasks.find((item) => item.id === taskId);
+    if (task) {
+      task.status = "failed";
+      task.errorMessage = message.slice(0, 1000);
+      task.updatedAt = new Date().toISOString();
+    }
+    return;
+  }
+
   await query(
     `
       update generation_tasks
@@ -250,6 +406,10 @@ export async function markTaskFailed(taskId: string, message: string): Promise<v
 }
 
 export async function listHistory(actor: Actor): Promise<unknown[]> {
+  if (shouldUseLocalRepository()) {
+    return getLocalRepository().tasks.filter((task) => ownsLocalTask(actor, task)).map(localTaskToRow);
+  }
+
   const ownerClause =
     actor.type === "user" ? "user_id = $1" : "anonymous_device_id = $1";
   const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
@@ -292,6 +452,11 @@ export async function listHistory(actor: Actor): Promise<unknown[]> {
 }
 
 export async function getTask(actor: Actor, taskId: string): Promise<unknown | null> {
+  if (shouldUseLocalRepository()) {
+    const task = findLocalTask(actor, taskId);
+    return task ? localTaskToRow(task) : null;
+  }
+
   const ownerClause =
     actor.type === "user" ? "t.user_id = $2" : "t.anonymous_device_id = $2";
   const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
@@ -330,6 +495,10 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
 }
 
 export async function recordUploadedAsset(input: AssetInput): Promise<string> {
+  if (shouldUseLocalRepository()) {
+    return randomUUID();
+  }
+
   return transaction((client) => insertAsset(client, input));
 }
 
@@ -365,6 +534,10 @@ export async function claimInvite(input: {
   deviceFingerprint: string;
   ipHash: string;
 }): Promise<void> {
+  if (shouldUseLocalRepository()) {
+    return;
+  }
+
   await query(
     `
       insert into invites (
@@ -389,6 +562,10 @@ export async function claimInvite(input: {
 }
 
 export async function settleInviteReward(inviteeUserId: string): Promise<void> {
+  if (shouldUseLocalRepository()) {
+    return;
+  }
+
   const config = getQuotaConfig();
   await query(
     `
@@ -408,4 +585,55 @@ export async function settleInviteReward(inviteeUserId: string): Promise<void> {
     `,
     [inviteeUserId, config.inviteRewardGenerations]
   );
+}
+
+function getLocalUserBalance(userId: string): LocalQuotaBalance {
+  const store = getLocalRepository();
+  let balance = store.userBalances.get(userId);
+  if (!balance) {
+    balance = {
+      loginUsed: 0,
+      inviteCredits: 0,
+      paidCredits: 0
+    };
+    store.userBalances.set(userId, balance);
+  }
+
+  return balance;
+}
+
+function ownsLocalTask(actor: Actor, task: LocalTask): boolean {
+  if (actor.type === "user") {
+    return task.actor.type === "user" && task.actor.userId === actor.userId;
+  }
+
+  return (
+    task.actor.type === "anonymous" &&
+    task.actor.anonymousDeviceId === actor.anonymousDeviceId
+  );
+}
+
+function findLocalTask(actor: Actor, taskId: string): LocalTask | undefined {
+  return getLocalRepository().tasks.find((task) => task.id === taskId && ownsLocalTask(actor, task));
+}
+
+function localTaskToRow(task: LocalTask): unknown {
+  return {
+    id: task.id,
+    mode: task.generation.mode,
+    modelKey: task.generation.model,
+    provider: task.generation.provider,
+    prompt: task.generation.prompt,
+    status: task.status,
+    errorMessage: task.errorMessage,
+    resultCount: task.generation.count,
+    createdAt: task.createdAt,
+    assets: task.assets.map((asset) => ({
+      id: asset.id,
+      type: asset.assetType,
+      url: asset.url,
+      width: asset.width ?? null,
+      height: asset.height ?? null
+    }))
+  };
 }
