@@ -10,7 +10,8 @@ describe("model and generation request rules", () => {
     expect(getModelOption("gpt-image-2")).toMatchObject({
       key: "gpt-image-2",
       provider: "openai",
-      label: "GPT Image 2"
+      label: "GPT Image 2",
+      providerModel: "gpt-image-2"
     });
 
     expect(getModelOption("gemini-image")).toMatchObject({

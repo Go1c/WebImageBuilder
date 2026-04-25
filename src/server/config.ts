@@ -4,6 +4,7 @@ export type AppConfig = {
   jwtPublicKey?: string;
   databaseUrl?: string;
   openaiApiKey?: string;
+  openaiBaseUrl: string;
   geminiApiKey?: string;
   s3: {
     endpoint?: string;
@@ -22,6 +23,7 @@ export function getAppConfig(env = process.env): AppConfig {
     jwtPublicKey: env.JWT_PUBLIC_KEY,
     databaseUrl: env.DATABASE_URL,
     openaiApiKey: env.OPENAI_API_KEY,
+    openaiBaseUrl: normalizeBaseUrl(env.OPENAI_BASE_URL || "https://api.openai.com"),
     geminiApiKey: env.GEMINI_API_KEY,
     s3: {
       endpoint: env.S3_ENDPOINT,
@@ -40,4 +42,8 @@ export function requireEnv(value: string | undefined, name: string): string {
   }
 
   return value;
+}
+
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/+$/, "");
 }

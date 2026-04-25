@@ -27,10 +27,11 @@ export class OpenAIImageProvider implements ImageProvider {
   }
 
   private async generateTextToImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const config = getAppConfig();
+    const response = await fetch(openAIUrl("/v1/images/generations", config.openaiBaseUrl), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${requireEnv(getAppConfig().openaiApiKey, "OPENAI_API_KEY")}`,
+        Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -68,10 +69,11 @@ export class OpenAIImageProvider implements ImageProvider {
       form.set("mask", new Blob([toArrayBuffer(mask.buffer)], { type: mask.mimeType }), "mask.png");
     }
 
-    const response = await fetch("https://api.openai.com/v1/images/edits", {
+    const config = getAppConfig();
+    const response = await fetch(openAIUrl("/v1/images/edits", config.openaiBaseUrl), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${requireEnv(getAppConfig().openaiApiKey, "OPENAI_API_KEY")}`
+        Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`
       },
       body: form
     });
@@ -95,6 +97,10 @@ function buildEditPrompt(input: NormalizedGenerationInput): string {
   }
 
   return input.prompt;
+}
+
+function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string {
+  return `${baseUrl}${path}`;
 }
 
 function parseOpenAIResponse(body: OpenAIImageResponse, status: number): GeneratedImage[] {

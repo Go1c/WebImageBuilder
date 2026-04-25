@@ -46,7 +46,7 @@ const modelOptions: Record<ModelKey, ModelOption> = {
     key: "gpt-image-2",
     label: "GPT Image 2",
     provider: "openai",
-    providerModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5",
+    providerModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
     description: "适合高质量文生图、参考图和编辑。真实模型 ID 由 OPENAI_IMAGE_MODEL 配置。"
   },
   "gemini-image": {
