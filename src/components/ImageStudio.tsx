@@ -63,6 +63,8 @@ const qualityOptions = [
   { value: "high", label: "高质量" }
 ];
 
+const generationTimeoutMs = 120_000;
+
 export function ImageStudio() {
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
   const [model, setModel] = useState<ModelKey>("gpt-image-2");
@@ -76,6 +78,7 @@ export function ImageStudio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
 
   const needsReference = mode !== "text-to-image";
@@ -93,6 +96,20 @@ export function ImageStudio() {
       await refreshData();
     })();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingSeconds(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      setLoadingSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loading]);
 
   async function refreshData() {
     const [quotaResponse, historyResponse] = await Promise.allSettled([
@@ -155,6 +172,8 @@ export function ImageStudio() {
   async function handleGenerate() {
     setLoading(true);
     setMessage(null);
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
 
     try {
       const references = needsReference
@@ -165,6 +184,7 @@ export function ImageStudio() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           prompt,
           mode,
@@ -191,8 +211,13 @@ export function ImageStudio() {
       setMessage("生成完成");
       await refreshData();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "生成失败");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setMessage("生成超时，请稍后重试");
+      } else {
+        setMessage(error instanceof Error ? error.message : "生成失败");
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }
@@ -349,9 +374,15 @@ export function ImageStudio() {
               </span>
             </div>
             <button className="primary-action" type="button" disabled={disabled} onClick={handleGenerate}>
-              {loading ? "生成中..." : "生成图片"}
+              {loading ? `生成中 ${loadingSeconds}s` : "生成图片"}
             </button>
           </div>
+
+          {loading && !message ? (
+            <p className="status-message" aria-live="polite">
+              正在连接模型，通常需要 20-60 秒，请保持页面打开
+            </p>
+          ) : null}
 
           {message ? (
             <p className={message === "生成完成" ? "status-message is-success" : "status-message"} aria-live="polite">
