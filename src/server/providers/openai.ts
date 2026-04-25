@@ -17,7 +17,7 @@ type OpenAIImageResponse = {
   };
 };
 
-const defaultImageRequestTimeoutMs = 40_000;
+const defaultImageRequestTimeoutMs = 48_000;
 
 export class OpenAIImageProvider implements ImageProvider {
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {

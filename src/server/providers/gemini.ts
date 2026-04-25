@@ -7,7 +7,7 @@ import {
   type ImageProvider
 } from "./types";
 
-const defaultImageRequestTimeoutMs = 40_000;
+const defaultImageRequestTimeoutMs = 48_000;
 
 type GeminiResponse = {
   candidates?: Array<{

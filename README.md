@@ -47,12 +47,12 @@ OpenAI：
 OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://api.openai.com
 OPENAI_IMAGE_MODEL=gpt-image-2
-IMAGE_PROVIDER_TIMEOUT_MS=40000
+IMAGE_PROVIDER_TIMEOUT_MS=48000
 ```
 
 `OPENAI_BASE_URL` 默认是 `https://api.openai.com`，使用官方 OpenAI 时可以不填。使用中转服务时填写中转根地址，不要带 `/v1`，代码会自动请求 `/v1/images/generations` 和 `/v1/images/edits`。
 
-`IMAGE_PROVIDER_TIMEOUT_MS` 控制图像模型请求超时时间。Zeabur 网关约 50 秒会断开长请求，建议保持 `40000`，让应用先返回可读错误。
+`IMAGE_PROVIDER_TIMEOUT_MS` 控制图像模型请求超时时间。Zeabur 网关约 50 秒会断开长请求，建议保持 `48000`，给图像网关尽量多的响应时间，同时仍由应用先返回可读错误。
 
 Gemini：
 
@@ -109,7 +109,7 @@ Database schema applied
 - `relation "anonymous_devices" does not exist`：数据库表未创建，执行 `npm run db:migrate`。
 - `Cannot find module '/app/scripts/migrate.mjs'`：运行镜像缺少迁移脚本，重新部署最新 `main` 分支。
 - 主站域名返回 `HTTP ERROR 502`，部署平台显示容器端口 `8080`：确认部署的是最新 Dockerfile，应用运行端口应为 `8080`。
-- `请求失败：502`：查看 Zeabur Logs。常见原因是图像接口超时、`OPENAI_API_KEY` 缺失、S3/R2 环境变量缺失或上游网关返回非 JSON 错误。Zeabur 约 50 秒断开长请求，保持 `IMAGE_PROVIDER_TIMEOUT_MS=40000` 可以让应用先返回可读错误。
+- `请求失败：502`：查看 Zeabur Logs。常见原因是图像接口超时、`OPENAI_API_KEY` 缺失、S3/R2 环境变量缺失或上游网关返回非 JSON 错误。Zeabur 约 50 秒断开长请求，保持 `IMAGE_PROVIDER_TIMEOUT_MS=48000` 可以让应用先返回可读错误。
 - 构建日志出现 `npm update -g npm`：确认部署的是最新 `main` 分支，并使用仓库根目录的 `Dockerfile` 构建。
 
 ## 常用命令
