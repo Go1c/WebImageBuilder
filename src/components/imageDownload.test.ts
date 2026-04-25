@@ -21,33 +21,26 @@ describe("image download helper", () => {
     expect(link.click).toHaveBeenCalledOnce();
   });
 
-  it("downloads remote images through an object URL", async () => {
+  it("downloads remote images directly without requiring CORS fetch", async () => {
     const link = createFakeLink();
-    const fetchMock = vi.fn(async () => new Response(new Blob(["fake"], { type: "image/webp" })));
-    const createObjectURL = vi.fn(() => "blob:download-url");
-    const revokeObjectURL = vi.fn();
+    const fetchMock = vi.fn();
 
     await downloadGeneratedImage(
       {
-        url: "https://example.com/image.webp",
-        mimeType: "image/webp"
+        url: "https://cdn.lumio.games/generated/image.png",
+        mimeType: "image/png"
       },
-      2,
+      1,
       {
         document: createFakeDocument(link),
-        fetch: fetchMock,
-        url: {
-          createObjectURL,
-          revokeObjectURL
-        }
+        fetch: fetchMock
       }
     );
 
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com/image.webp");
-    expect(link.href).toBe("blob:download-url");
-    expect(link.download).toBe("lumio-result-03.webp");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(link.href).toBe("https://cdn.lumio.games/generated/image.png");
+    expect(link.download).toBe("lumio-result-02.png");
     expect(link.click).toHaveBeenCalledOnce();
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:download-url");
   });
 
   it("builds stable download file names", () => {

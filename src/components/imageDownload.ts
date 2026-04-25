@@ -31,30 +31,12 @@ export async function downloadGeneratedImage(
   dependencies: DownloadDependencies = {}
 ): Promise<void> {
   const documentRef = dependencies.document ?? document;
-  const fetchRef = dependencies.fetch ?? fetch;
-  const urlRef = dependencies.url ?? URL;
   const link = documentRef.createElement("a") as DownloadLink;
-  let href = image.url;
-  let objectUrl: string | null = null;
 
-  if (!image.url.startsWith("data:")) {
-    const response = await fetchRef(image.url);
-    if (!response.ok) {
-      throw new Error(`保存图片失败：${response.status}`);
-    }
-
-    objectUrl = urlRef.createObjectURL(await response.blob());
-    href = objectUrl;
-  }
-
-  link.href = href;
+  link.href = image.url;
   link.download = buildDownloadFileName(image, index);
   link.rel = "noreferrer";
   link.click();
-
-  if (objectUrl) {
-    urlRef.revokeObjectURL(objectUrl);
-  }
 }
 
 export function buildDownloadFileName(image: DownloadableImage, index: number): string {
