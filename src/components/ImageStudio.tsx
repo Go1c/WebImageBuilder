@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
 import { readApiError, readApiJson } from "./apiErrors";
+import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { downloadGeneratedImage } from "./imageDownload";
 
 type AssetRef = {
@@ -85,6 +86,7 @@ export function ImageStudio() {
   const [loading, setLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  const [requestPreview, setRequestPreview] = useState<string | null>(null);
 
   const needsReference = mode !== "text-to-image";
   const needsMask = mode === "inpaint";
@@ -177,6 +179,18 @@ export function ImageStudio() {
   async function handleGenerate() {
     setLoading(true);
     setMessage(null);
+    setRequestPreview(
+      buildGenerationRequestPreview({
+        prompt,
+        model,
+        mode,
+        size,
+        quality,
+        count,
+        referenceCount: referenceFiles?.length || 0,
+        hasMask: Boolean(maskFile)
+      })
+    );
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
 
@@ -245,6 +259,15 @@ export function ImageStudio() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "保存图片失败");
     }
+  }
+
+  async function handleCopyRequestPreview() {
+    if (!requestPreview) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(requestPreview);
+    setMessage("请求参数已复制");
   }
 
   const quotaText = useMemo(() => {
@@ -413,6 +436,18 @@ export function ImageStudio() {
             <p className={message === "生成完成" ? "status-message is-success" : "status-message"} aria-live="polite">
               {message}
             </p>
+          ) : null}
+
+          {requestPreview ? (
+            <section className="request-preview" aria-label="本次生成请求">
+              <div className="request-preview-header">
+                <span>本次生成请求</span>
+                <button type="button" onClick={handleCopyRequestPreview}>
+                  复制
+                </button>
+              </div>
+              <pre>{requestPreview}</pre>
+            </section>
           ) : null}
         </section>
 
