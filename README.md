@@ -30,6 +30,84 @@ npm run dev
 5. 配置 `OPENAI_API_KEY`、`GEMINI_API_KEY` 和对应模型 ID。
 6. 部署后运行 `npm run db:migrate` 应用数据库表结构。
 
+### 部署环境变量
+
+数据库：
+
+```env
+DATABASE_URL=postgres://user:password@host:5432/lumio
+DATABASE_SSL=false
+```
+
+如果数据库要求 SSL，把 `DATABASE_SSL` 改成 `true`。如果日志出现 `The server does not support SSL connections`，说明当前数据库不支持 SSL，应使用 `DATABASE_SSL=false`。
+
+OpenAI：
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com
+OPENAI_IMAGE_MODEL=gpt-image-2
+```
+
+`OPENAI_BASE_URL` 默认是 `https://api.openai.com`，使用官方 OpenAI 时可以不填。使用中转服务时填写中转根地址，不要带 `/v1`，代码会自动请求 `/v1/images/generations` 和 `/v1/images/edits`。
+
+Gemini：
+
+```env
+GEMINI_API_KEY=...
+GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
+```
+
+S3/R2：
+
+```env
+S3_ENDPOINT=https://...
+S3_REGION=auto
+S3_BUCKET=...
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_BASE_URL=https://...
+```
+
+认证和额度：
+
+```env
+LUMIO_API_BASE_URL=https://api.lumio.games
+NEXT_PUBLIC_LUMIO_LOGIN_URL=https://api.lumio.games/
+JWT_SECRET=
+JWT_PUBLIC_KEY=
+ANON_FREE_GENERATIONS=3
+LOGIN_FREE_GENERATIONS=20
+INVITE_REWARD_GENERATIONS=10
+IP_DAILY_ANON_LIMIT=30
+FINGERPRINT_SALT=change-me
+```
+
+`JWT_SECRET` 和 `JWT_PUBLIC_KEY` 二选一，用于验证 `api.lumio.games` 登录 token。
+
+### 数据库迁移
+
+首次部署或更换数据库后，在服务终端执行：
+
+```bash
+npm run db:migrate
+```
+
+迁移会创建 `anonymous_devices`、`generation_tasks`、`assets`、`quota_balances` 等业务表。执行成功后会输出：
+
+```text
+Database schema applied
+```
+
+### 常见部署错误
+
+- `DATABASE_URL is not configured`：服务环境变量缺少 `DATABASE_URL`。
+- `The server does not support SSL connections`：设置 `DATABASE_SSL=false` 后重启服务。
+- `relation "anonymous_devices" does not exist`：数据库表未创建，执行 `npm run db:migrate`。
+- `Cannot find module '/app/scripts/migrate.mjs'`：运行镜像缺少迁移脚本，重新部署最新 `main` 分支。
+- `请求失败：502`：查看 Zeabur Logs。常见原因是图像接口超时、`OPENAI_API_KEY` 缺失、S3/R2 环境变量缺失或上游网关返回非 JSON 错误。
+- 构建日志出现 `npm update -g npm`：确认部署的是最新 `main` 分支，并使用仓库根目录的 `Dockerfile` 构建。
+
 ## 常用命令
 
 ```bash
