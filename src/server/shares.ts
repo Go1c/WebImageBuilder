@@ -3,9 +3,10 @@ export const PROMPT_SHARE_COMPLIANCE_NOTICE =
 
 export function buildPromptTryUrl(
   prompt: string,
-  baseUrl = "https://img.lumio.games/"
+  baseUrl = "/"
 ): string {
-  const url = new URL(baseUrl);
+  const isSameOriginPath = baseUrl.startsWith("/") && !baseUrl.startsWith("//");
+  const url = new URL(baseUrl, "https://img.lumio.games");
   url.searchParams.set("prompt", prompt);
-  return url.toString();
+  return isSameOriginPath ? `${url.pathname}${url.search}${url.hash}` : url.toString();
 }

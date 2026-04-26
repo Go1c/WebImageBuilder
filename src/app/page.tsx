@@ -1,6 +1,9 @@
 import { ImageStudio } from "@/components/ImageStudio";
 import { readPromptFromSearchParam } from "@/components/studioPrompt";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type HomeSearchParams = Promise<{
   prompt?: string | string[];
 }>;

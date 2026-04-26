@@ -6,6 +6,8 @@ describe("home prompt prefill source", () => {
     const pageSource = readFileSync("src/app/page.tsx", "utf8");
     const studioSource = readFileSync("src/components/ImageStudio.tsx", "utf8");
 
+    expect(pageSource).toContain('dynamic = "force-dynamic"');
+    expect(pageSource).toContain("revalidate = 0");
     expect(pageSource).toContain("searchParams");
     expect(pageSource).toContain("readPromptFromSearchParam");
     expect(pageSource).toContain("initialPrompt");
