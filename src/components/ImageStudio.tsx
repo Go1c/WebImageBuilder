@@ -63,6 +63,7 @@ import {
   selectVisibleCanvasImage
 } from "./studioCanvas";
 import { appendPromptToken, readPromptFromUrl } from "./studioPrompt";
+import { formatGlobalGenerationTotal } from "./studioStats";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 
 type AssetRef = {
@@ -84,6 +85,10 @@ type QuotaResponse = {
     };
   };
   ipDailyUsed: number;
+};
+
+type StatsResponse = {
+  totalGenerations: number;
 };
 
 type HistoryItem = {
@@ -190,6 +195,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [reusedReference, setReusedReference] = useState<ReferenceAssetDescriptor | null>(null);
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
+  const [globalStats, setGlobalStats] = useState<StatsResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
@@ -237,6 +243,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const lumioAccountUrl = useMemo(() => getLumioAffiliateUrl(loginBaseUrl), [loginBaseUrl]);
   const accountLabel = getSub2ApiAccountLabel(sub2ApiSession);
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
+  const globalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations);
+  const compactGlobalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations, { compact: true });
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
@@ -351,9 +359,10 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }, [loading]);
 
   async function refreshData() {
-    const [quotaResponse, historyResponse] = await Promise.allSettled([
+    const [quotaResponse, historyResponse, statsResponse] = await Promise.allSettled([
       fetch("/api/quota", { cache: "no-store" }),
-      fetch("/api/history", { cache: "no-store" })
+      fetch("/api/history", { cache: "no-store" }),
+      fetch("/api/stats", { cache: "no-store" })
     ]);
     let loadFailureTip: StudioTip | null = null;
 
@@ -368,6 +377,10 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       setHistory(body.history || []);
     } else if (!loadFailureTip) {
       loadFailureTip = await tipFromSettledResponse("加载历史记录", historyResponse);
+    }
+
+    if (statsResponse.status === "fulfilled" && statsResponse.value.ok) {
+      setGlobalStats((await statsResponse.value.json()) as StatsResponse);
     }
 
     if (loadFailureTip) {
@@ -987,12 +1000,19 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   return (
     <main className="studio-app">
       <header className="studio-topbar">
-        <a className="studio-brand" href="/" aria-label="LumioImageStudio">
-          <span className="studio-brand-mark">
-            <StudioIcon name="sparkle" size={16} />
+        <div className="studio-brand-group">
+          <a className="studio-brand" href="/" aria-label="LumioImageStudio">
+            <span className="studio-brand-mark">
+              <StudioIcon name="sparkle" size={16} />
+            </span>
+            <span>LumioImageStudio</span>
+          </a>
+          <span className="global-stats-pill" title={globalGenerationText}>
+            <StudioIcon name="sparkle" size={13} />
+            <span className="global-stats-full">{globalGenerationText}</span>
+            <span className="global-stats-compact">{compactGlobalGenerationText}</span>
           </span>
-          <span>LumioImageStudio</span>
-        </a>
+        </div>
 
         <nav className="studio-nav" aria-label="主导航">
           <button

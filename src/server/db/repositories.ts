@@ -38,6 +38,10 @@ type LocalQuotaBalance = {
   paidCredits: number;
 };
 
+export type GlobalGenerationStats = {
+  totalGenerations: number;
+};
+
 type LocalRepository = {
   tasks: LocalTask[];
   shares: PromptShareRecord[];
@@ -230,6 +234,27 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
     inviteCredits: Number(row?.invite_credits ?? 0),
     paidCredits: Number(row?.paid_credits ?? 0),
     ipDailyUsed: Number(ipResult.rows[0]?.count ?? 0)
+  };
+}
+
+export async function getGlobalGenerationStats(): Promise<GlobalGenerationStats> {
+  if (shouldUseLocalRepository()) {
+    return {
+      totalGenerations: getLocalRepository().tasks.filter((task) => task.status === "succeeded").length
+    };
+  }
+
+  const result = await query<{ total: string }>(
+    `
+      select count(*)::text as total
+      from generation_tasks
+      where status = 'succeeded'
+    `,
+    []
+  );
+
+  return {
+    totalGenerations: Number(result.rows[0]?.total ?? 0)
   };
 }
 

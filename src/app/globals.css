@@ -109,6 +109,7 @@ textarea:focus-visible {
 }
 
 .studio-brand,
+.studio-brand-group,
 .studio-account,
 .studio-nav,
 .meta-line,
@@ -128,6 +129,11 @@ textarea:focus-visible {
   line-height: 24px;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.studio-brand-group {
+  min-width: 0;
+  gap: 12px;
 }
 
 .studio-brand-mark {
@@ -182,6 +188,7 @@ textarea:focus-visible {
 }
 
 .quota-pill,
+.global-stats-pill,
 .invite-pill,
 .login-pill,
 .balance-pill,
@@ -197,6 +204,18 @@ textarea:focus-visible {
   font-size: 13px;
   line-height: 19.5px;
   letter-spacing: 0;
+}
+
+.global-stats-pill {
+  border: 1px solid rgba(124, 58, 237, 0.16);
+  padding: 0 12px;
+  background: rgba(124, 58, 237, 0.08);
+  color: #6d28d9;
+  font-weight: 600;
+}
+
+.global-stats-compact {
+  display: none;
 }
 
 .quota-pill {
@@ -1468,6 +1487,14 @@ textarea:focus-visible {
     margin-left: auto;
   }
 
+  .global-stats-full {
+    display: none;
+  }
+
+  .global-stats-compact {
+    display: inline;
+  }
+
   .studio-grid {
     height: auto;
     min-height: 0;
@@ -1537,6 +1564,11 @@ textarea:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .studio-brand-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .studio-brand {
     min-width: 0;
   }
@@ -1548,6 +1580,7 @@ textarea:focus-visible {
   }
 
   .quota-pill,
+  .global-stats-pill,
   .invite-pill,
   .login-pill,
   .balance-pill,

@@ -4,10 +4,12 @@ import { query } from "./client";
 import {
   createTask,
   createPromptShare,
+  getGlobalGenerationStats,
   getPromptShare,
   getUserInviteCode,
   getQuotaState,
   listHistory,
+  markTaskFailed,
   markTaskSucceeded,
   reportPromptShare,
   resolveActor
@@ -76,6 +78,29 @@ describe("local repository fallback", () => {
       prompt: "A blue circle",
       status: "succeeded",
       assets: [{ type: "result", url: "data:image/png;base64,ZmFrZQ==" }]
+    });
+  });
+
+  it("counts successful local generation tasks for global stats", async () => {
+    const before = await getGlobalGenerationStats();
+    const actor = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const succeededTaskId = await createTask({ actor, generation: buildGeneration() });
+    const failedTaskId = await createTask({ actor, generation: buildGeneration() });
+
+    await markTaskSucceeded({
+      taskId: succeededTaskId,
+      actor,
+      spendSource: "anonymous",
+      assets: []
+    });
+    await markTaskFailed(failedTaskId, "provider failed");
+
+    await expect(getGlobalGenerationStats()).resolves.toEqual({
+      totalGenerations: before.totalGenerations + 1
     });
   });
 
@@ -342,6 +367,17 @@ describe("postgres repository queries", () => {
     const [sql, values] = mockedQuery.mock.calls[0];
     expect(sql).toContain("device_fingerprint");
     expect(values).toContain("device-1");
+  });
+
+  it("counts successful postgres generation tasks for global stats", async () => {
+    mockedQuery.mockResolvedValueOnce({ rows: [{ total: "42" }] } as never);
+
+    await expect(getGlobalGenerationStats()).resolves.toEqual({ totalGenerations: 42 });
+
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("from generation_tasks");
+    expect(sql).toContain("status = 'succeeded'");
+    expect(values).toEqual([]);
   });
 
   it("counts site-funded trials by the generation task device fingerprint", async () => {
