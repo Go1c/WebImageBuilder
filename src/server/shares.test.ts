@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { PROMPT_SHARE_COMPLIANCE_NOTICE, buildPromptTryUrl } from "./shares";
+import {
+  PROMPT_SHARE_COMPLIANCE_NOTICE,
+  buildPromptShareUrl,
+  buildPromptTryUrl
+} from "./shares";
 
 describe("prompt share helpers", () => {
   it("builds a try-it URL that fills the prompt on the studio home page", () => {
@@ -18,6 +22,30 @@ describe("prompt share helpers", () => {
     expect(buildPromptTryUrl("blue circle", "/?ref=share")).toBe(
       "/?ref=share&prompt=blue+circle"
     );
+  });
+
+  it("builds public share URLs from forwarded host headers instead of the internal container URL", () => {
+    expect(
+      buildPromptShareUrl(
+        "U64qHbr4MFsA",
+        new Request("https://0.0.0.0:8080/api/shares", {
+          headers: {
+            "x-forwarded-host": "img.lumio.games",
+            "x-forwarded-proto": "https"
+          }
+        })
+      )
+    ).toBe("https://img.lumio.games/share/U64qHbr4MFsA");
+  });
+
+  it("prefers an explicitly configured public site URL for share URLs", () => {
+    expect(
+      buildPromptShareUrl(
+        "U64qHbr4MFsA",
+        new Request("https://0.0.0.0:8080/api/shares"),
+        "https://img.lumio.games/"
+      )
+    ).toBe("https://img.lumio.games/share/U64qHbr4MFsA");
   });
 
   it("exposes the compliance notice shown during share and public viewing", () => {

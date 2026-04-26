@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createPromptShare } from "@/server/db/repositories";
 import { ApiError, jsonError, jsonOk } from "@/server/http";
 import { applyContextCookies, getRequestContext } from "@/server/request-context";
-import { PROMPT_SHARE_COMPLIANCE_NOTICE } from "@/server/shares";
+import { PROMPT_SHARE_COMPLIANCE_NOTICE, buildPromptShareUrl } from "@/server/shares";
 
 export const runtime = "nodejs";
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const response = jsonOk({
       share: {
         id: share.id,
-        url: new URL(`/share/${share.id}`, request.url).toString(),
+        url: buildPromptShareUrl(share.id, request),
         complianceNotice: PROMPT_SHARE_COMPLIANCE_NOTICE
       }
     });

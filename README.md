@@ -78,6 +78,7 @@ S3_PUBLIC_BASE_URL=https://...
 LUMIO_API_BASE_URL=https://api.lumio.games
 SUB2API_API_BASE_URL=https://api.lumio.games/api/v1
 NEXT_PUBLIC_LUMIO_LOGIN_URL=https://api.lumio.games/login
+PUBLIC_SITE_URL=https://img.lumio.games
 JWT_SECRET=
 JWT_PUBLIC_KEY=
 ANON_FREE_GENERATIONS=3
@@ -88,6 +89,8 @@ FINGERPRINT_SALT=change-me
 ```
 
 `JWT_SECRET` 和 `JWT_PUBLIC_KEY` 二选一，用于验证 `api.lumio.games` 登录 token。
+
+`PUBLIC_SITE_URL` 用于生成公开分享链接。生产环境建议设置为站点公网域名，避免反向代理把容器内部地址写进分享链接。
 
 `ANON_FREE_GENERATIONS` 和 `LOGIN_FREE_GENERATIONS` 都保持为 `3`。本站只记录这 3 次本地免费试用；注册赠送、邀请奖励和账户余额由 `api.lumio.games` 管理，`INVITE_REWARD_GENERATIONS` 应保持 `0`。
 
