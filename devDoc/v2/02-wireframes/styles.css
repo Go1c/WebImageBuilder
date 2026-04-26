@@ -1,0 +1,196 @@
+/* Wireframe styles — sketchy, low-fi, b&w with one accent */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #4a4a4a;
+  --ink-faint: #9a9a9a;
+  --paper: #fafaf7;
+  --paper-2: #f0eee7;
+  --line: #2a2a2a;
+  --accent: #ff5a3c;
+  --accent-soft: #ffd9d0;
+  --highlight: #ffe680;
+  --good: #4a7a3a;
+  --hand: 'Kalam', cursive;
+  --note: 'Caveat', cursive;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; }
+
+.wf {
+  font-family: var(--hand);
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.4;
+}
+
+/* sketchy borders using filter for hand-drawn feel */
+.sketchy {
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  position: relative;
+  background: var(--paper);
+}
+.sketchy.thick { border-width: 2.5px; }
+.sketchy.dashed { border-style: dashed; }
+.sketchy.rounded { border-radius: 14px; }
+
+/* wobble — give borders a hand-drawn imperfection */
+.wobble {
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+}
+.wobble-2 {
+  border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
+}
+
+/* placeholder image box with diagonal lines */
+.ph {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 8px,
+      rgba(0,0,0,.08) 8px,
+      rgba(0,0,0,.08) 9px
+    );
+  border: 1.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 4px;
+}
+.ph.tight {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 4px,
+      rgba(0,0,0,.1) 4px,
+      rgba(0,0,0,.1) 5px
+    );
+}
+
+/* annotation */
+.note {
+  font-family: var(--note);
+  color: var(--accent);
+  font-weight: 600;
+}
+.note-arrow {
+  font-family: var(--note);
+  color: var(--accent);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* labels */
+.mono { font-family: var(--mono); }
+.cap { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+
+/* highlight pen */
+.hl {
+  background: linear-gradient(180deg, transparent 55%, var(--highlight) 55%, var(--highlight) 92%, transparent 92%);
+  padding: 0 2px;
+}
+
+/* soft fill chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  font-family: var(--hand);
+  font-size: 12px;
+  background: var(--paper);
+  white-space: nowrap;
+}
+.chip.dark { background: var(--ink); color: var(--paper); }
+.chip.accent { background: var(--accent); color: white; border-color: var(--accent); }
+.chip.faint { color: var(--ink-faint); border-color: var(--ink-faint); }
+
+/* underline scribble */
+.scribble {
+  text-decoration: underline wavy var(--accent);
+  text-underline-offset: 4px;
+}
+
+/* arrow svg helper */
+.arrow {
+  position: absolute;
+  pointer-events: none;
+  color: var(--accent);
+}
+
+/* layout helpers */
+.row { display: flex; gap: 8px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.center { display: flex; align-items: center; justify-content: center; }
+
+/* diagnostic callout */
+.callout {
+  position: absolute;
+  font-family: var(--note);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  max-width: 200px;
+}
+.callout::before {
+  content: '';
+}
+
+/* artboard frame title */
+.frame-title {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+/* button-ish box */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--paper);
+  cursor: pointer;
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.accent { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.sm { padding: 3px 8px; font-size: 12px; }
+
+/* divider */
+.div-h { height: 2px; background: var(--ink); opacity: .15; }
+.div-v { width: 2px; background: var(--ink); opacity: .15; }
+
+/* squiggly underline for headings */
+.squig {
+  position: relative;
+  display: inline-block;
+}
+.squig::after {
+  content: '';
+  position: absolute;
+  left: -2px; right: -2px;
+  bottom: -6px;
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 Q 5 0, 10 3 T 20 3 T 30 3 T 40 3 T 50 3 T 60 3 T 70 3 T 80 3 T 90 3 T 100 3' stroke='%23ff5a3c' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}

@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lumio · Component Library</title>
+<link rel="stylesheet" href="../03-design-tokens/tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--studio-bg);
+    color: var(--studio-text);
+    font-family: var(--studio-font-sans);
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: var(--space-12) var(--space-8);
+  }
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-6);
+    margin-bottom: var(--space-10);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--studio-line-strong);
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .page-header .meta {
+    color: var(--studio-muted);
+    font-size: 13px;
+    line-height: 21px;
+  }
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-4);
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-full);
+    background: var(--studio-surface);
+    color: var(--studio-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .section { margin-top: var(--space-12); }
+  .section-title {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--studio-muted);
+    margin: 0 0 var(--space-4);
+  }
+  .section-name {
+    margin: 0 0 var(--space-2);
+    font-size: 22px;
+    line-height: 30px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .section-desc {
+    margin: 0 0 var(--space-6);
+    color: var(--studio-muted);
+    font-size: 13px;
+    line-height: 21px;
+    max-width: 720px;
+  }
+  .demo {
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    overflow: hidden;
+  }
+  .demo-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--studio-line);
+  }
+  .demo-row:last-child { border-bottom: 0; }
+  .demo-row .label {
+    font-family: var(--studio-font-mono);
+    font-size: 11px;
+    color: var(--studio-muted);
+    width: 120px;
+    flex-shrink: 0;
+  }
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-4);
+    padding: var(--space-6);
+  }
+
+  /* ============================================================
+     COMPONENT — Button (.studio-btn) — 4 variants
+     ============================================================ */
+  .studio-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    height: 36px;
+    padding: 0 var(--space-4);
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--studio-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 19.5px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .studio-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .studio-btn.is-primary {
+    background: var(--studio-black);
+    color: white;
+  }
+  .studio-btn.is-primary:hover:not(:disabled) { background: var(--studio-neutral-800); }
+  .studio-btn.is-secondary {
+    border-color: var(--studio-line-strong);
+    background: var(--studio-surface);
+  }
+  .studio-btn.is-secondary:hover:not(:disabled) { border-color: var(--studio-text); }
+  .studio-btn.is-ghost { color: var(--studio-copy); }
+  .studio-btn.is-ghost:hover:not(:disabled) { background: var(--studio-bg-soft); }
+  .studio-btn.is-accent {
+    background: var(--studio-purple);
+    color: white;
+  }
+  .studio-btn.is-accent:hover:not(:disabled) { background: var(--studio-purple-hover); }
+  .studio-btn.is-sm { height: 28px; padding: 0 var(--space-3); font-size: 12px; }
+  .studio-btn.is-lg { height: 44px; padding: 0 var(--space-5); font-size: 14px; }
+
+  /* ============================================================
+     COMPONENT — Pill (.studio-pill)
+     ============================================================ */
+  .studio-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    height: 28px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--studio-bg-soft);
+    color: var(--studio-text);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 500;
+  }
+  .studio-pill.is-amber {
+    background: var(--studio-amber-bg);
+    border: 1px solid var(--studio-amber-border);
+    color: var(--studio-amber-text);
+  }
+  .studio-pill.is-purple {
+    background: var(--studio-purple-soft);
+    color: var(--studio-purple);
+  }
+  .studio-pill.is-green {
+    background: var(--studio-green-soft);
+    color: var(--studio-green);
+  }
+  .studio-pill.is-mono {
+    font-family: var(--studio-font-mono);
+    font-size: 11px;
+  }
+
+  /* ============================================================
+     COMPONENT — IconButton (.studio-icon-btn)
+     ============================================================ */
+  .studio-icon-btn {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-full);
+    background: var(--studio-surface);
+    color: var(--studio-muted);
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .studio-icon-btn:hover { color: var(--studio-text); border-color: var(--studio-text); }
+  .studio-icon-btn.is-ghost { border-color: transparent; background: transparent; }
+
+  /* ============================================================
+     COMPONENT — Input + Textarea (.studio-input)
+     ============================================================ */
+  .studio-input,
+  .studio-textarea {
+    width: 100%;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    padding: 0 var(--space-4);
+    background: var(--studio-surface);
+    color: var(--studio-copy);
+    font: inherit;
+    font-size: 13px;
+    transition: border-color var(--dur-base) var(--ease-out);
+  }
+  .studio-input { height: 40px; }
+  .studio-textarea { padding: var(--space-3) var(--space-4); resize: vertical; min-height: 80px; line-height: 21px; }
+  .studio-input:focus, .studio-textarea:focus {
+    outline: none;
+    border-color: var(--studio-purple);
+  }
+
+  /* ============================================================
+     COMPONENT — SegmentedControl (.studio-segmented)
+     ============================================================ */
+  .studio-segmented {
+    display: inline-flex;
+    height: 32px;
+    padding: 2px;
+    border-radius: var(--radius-full);
+    background: var(--studio-bg-soft);
+    border: 1px solid var(--studio-line-strong);
+  }
+  .studio-segmented button {
+    height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--studio-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .studio-segmented button.is-selected {
+    background: var(--studio-surface);
+    color: var(--studio-text);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ============================================================
+     COMPONENT — Tabs (.studio-tabs)
+     ============================================================ */
+  .studio-tabs {
+    display: inline-flex;
+    gap: var(--space-1);
+  }
+  .studio-tabs button {
+    height: 32px;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--studio-muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .studio-tabs button.is-selected {
+    background: var(--studio-text);
+    color: var(--studio-surface);
+  }
+
+  /* ============================================================
+     COMPONENT — Slider (.studio-slider)
+     ============================================================ */
+  .studio-slider-wrap {
+    display: flex; flex-direction: column; gap: var(--space-2); width: 280px;
+  }
+  .studio-slider {
+    appearance: none;
+    width: 100%;
+    height: 16px;
+    background: linear-gradient(90deg,
+      var(--studio-text) 0 var(--p, 50%),
+      var(--studio-neutral-200) var(--p, 50%) 100%);
+    border-radius: var(--radius-full);
+    outline: none;
+  }
+  .studio-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px; height: 16px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: var(--studio-text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .slider-meta {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--studio-faint);
+  }
+
+  /* ============================================================
+     COMPONENT — Card (.studio-card)
+     ============================================================ */
+  .studio-card {
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .studio-card:hover { box-shadow: var(--shadow-md); border-color: var(--studio-text); }
+
+  /* ============================================================
+     COMPONENT — ProjectCard (NEW — 项目卡)
+     ============================================================ */
+  .project-card {
+    width: 280px;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .project-card:hover {
+    border-color: var(--studio-text);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .project-cover {
+    aspect-ratio: 16/9;
+    background: var(--studio-bg-soft);
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1px;
+  }
+  .project-cover .main {
+    background: repeating-linear-gradient(
+      45deg, var(--studio-neutral-200), var(--studio-neutral-200) 8px,
+      var(--studio-neutral-100) 8px, var(--studio-neutral-100) 16px);
+  }
+  .project-cover .stack {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+  }
+  .project-cover .stack > div {
+    background: repeating-linear-gradient(
+      45deg, var(--studio-neutral-200), var(--studio-neutral-200) 6px,
+      var(--studio-neutral-100) 6px, var(--studio-neutral-100) 12px);
+  }
+  .project-meta {
+    padding: var(--space-4);
+  }
+  .project-name {
+    font-size: 14px; font-weight: 600; line-height: 20px;
+    margin: 0 0 4px;
+  }
+  .project-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 12px; color: var(--studio-muted);
+  }
+  .project-palette {
+    display: flex; gap: 2px;
+  }
+  .project-palette span {
+    width: 12px; height: 12px; border-radius: 3px;
+    border: 1px solid var(--studio-line);
+  }
+
+  /* ============================================================
+     COMPONENT — BatchCell (NEW — 批量画布单元)
+     ============================================================ */
+  .batch-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+    width: 480px;
+  }
+  .batch-cell {
+    aspect-ratio: 1;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-lg);
+    background: repeating-linear-gradient(
+      45deg, var(--studio-neutral-100), var(--studio-neutral-100) 8px,
+      var(--studio-neutral-50) 8px, var(--studio-neutral-50) 16px);
+    position: relative;
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .batch-cell.is-selected {
+    border-color: var(--studio-text);
+    box-shadow: 0 0 0 2px var(--studio-text);
+  }
+  .batch-cell .seed {
+    position: absolute;
+    left: var(--space-2); bottom: var(--space-2);
+    height: 22px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    background: rgba(23,23,23,0.85);
+    color: white;
+    font-family: var(--studio-font-mono);
+    font-size: 10px;
+    line-height: 22px;
+    backdrop-filter: blur(8px);
+  }
+  .batch-cell .actions {
+    position: absolute;
+    right: var(--space-2); top: var(--space-2);
+    display: flex; gap: 4px;
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-out);
+  }
+  .batch-cell:hover .actions { opacity: 1; }
+  .batch-cell .actions button {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: rgba(23,23,23,0.85);
+    color: white;
+    font-size: 11px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+
+  /* ============================================================
+     COMPONENT — InspectorRow (NEW — 参数检查器行)
+     ============================================================ */
+  .inspector {
+    width: 320px;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    padding: var(--space-2);
+  }
+  .inspector-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-3);
+    border-radius: var(--radius-md);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .inspector-row:hover { background: var(--studio-bg-soft); }
+  .inspector-row .key {
+    font-size: 12px;
+    color: var(--studio-muted);
+    font-weight: 500;
+  }
+  .inspector-row .value {
+    font-family: var(--studio-font-mono);
+    font-size: 12px;
+    color: var(--studio-text);
+  }
+  .inspector-row .value.is-locked::before {
+    content: "🔒 ";
+    opacity: 0.5;
+  }
+
+  /* ============================================================
+     COMPONENT — ExportRow (NEW — 出口选项行)
+     ============================================================ */
+  .export-list {
+    width: 360px;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    overflow: hidden;
+  }
+  .export-row {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--studio-line);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+  .export-row:last-child { border-bottom: 0; }
+  .export-row:hover { background: var(--studio-bg-soft); }
+  .export-row .icon {
+    display: grid; place-items: center;
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--studio-bg-soft);
+    color: var(--studio-text);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .export-row .copy { display: flex; flex-direction: column; gap: 2px; }
+  .export-row .name {
+    font-size: 13px; font-weight: 500; color: var(--studio-text);
+  }
+  .export-row .desc {
+    font-size: 11px; color: var(--studio-muted);
+  }
+  .export-row .arrow { color: var(--studio-faint); }
+
+  /* ============================================================
+     COMPONENT — Toast (.studio-toast — 已存在)
+     ============================================================ */
+  .studio-toast {
+    display: inline-block;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-full);
+    padding: var(--space-2) var(--space-4);
+    background: rgba(255,255,255,0.92);
+    color: var(--studio-copy);
+    box-shadow: var(--shadow-lg);
+    font-size: 13px;
+    line-height: 19.5px;
+  }
+  [data-theme="dark"] .studio-toast {
+    background: rgba(26,26,26,0.92);
+  }
+
+  /* ============================================================
+     COMPONENT — SeedTreeNode (NEW)
+     ============================================================ */
+  .seed-tree {
+    width: 320px;
+    padding: var(--space-4);
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-xl);
+    background: var(--studio-surface);
+    font-family: var(--studio-font-mono);
+    font-size: 12px;
+    line-height: 20px;
+  }
+  .seed-tree .node {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 4px 0;
+  }
+  .seed-tree .node .marker { color: var(--studio-faint); }
+  .seed-tree .node.is-current { color: var(--studio-purple); font-weight: 600; }
+  .seed-tree .node .id { color: var(--studio-text); }
+  .seed-tree .node .age { color: var(--studio-muted); margin-left: auto; }
+  .seed-tree .indent-1 { padding-left: var(--space-4); }
+  .seed-tree .indent-2 { padding-left: var(--space-8); }
+
+  /* helpers */
+  .ico {
+    display: inline-block;
+    width: 14px; height: 14px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<header class="page-header">
+  <div>
+    <h1>Component Library</h1>
+    <p class="meta">v0.1 · 12 个组件 · 含 6 个新增（Project / Batch / Inspector / Export / SeedTree / DarkMode）</p>
+  </div>
+  <button class="theme-toggle" id="t">切到暗色</button>
+</header>
+
+<!-- Buttons -->
+<section class="section">
+  <p class="section-title">Action</p>
+  <h2 class="section-name">Button</h2>
+  <p class="section-desc">主按钮用于关键 CTA（生成、保存）；次按钮和 ghost 用于辅助；accent 紫色仅用于强调"专业"模式入口或付费 CTA。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <span class="label">primary</span>
+      <button class="studio-btn is-primary">生成图片</button>
+      <button class="studio-btn is-primary is-sm">小</button>
+      <button class="studio-btn is-primary is-lg">大尺寸</button>
+      <button class="studio-btn is-primary" disabled>禁用</button>
+    </div>
+    <div class="demo-row">
+      <span class="label">secondary</span>
+      <button class="studio-btn is-secondary">取消</button>
+      <button class="studio-btn is-secondary is-sm">小</button>
+    </div>
+    <div class="demo-row">
+      <span class="label">ghost</span>
+      <button class="studio-btn is-ghost">复制</button>
+      <button class="studio-btn is-ghost">删除</button>
+    </div>
+    <div class="demo-row">
+      <span class="label">accent</span>
+      <button class="studio-btn is-accent">升级专业版</button>
+    </div>
+  </div>
+</section>
+
+<!-- Pill -->
+<section class="section">
+  <p class="section-title">Indicator</p>
+  <h2 class="section-name">Pill</h2>
+  <p class="section-desc">显示模型 chip、配额、状态、模式标签。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <span class="label">variant</span>
+      <span class="studio-pill">默认</span>
+      <span class="studio-pill is-amber">128 次</span>
+      <span class="studio-pill is-purple">Lumio v2.1</span>
+      <span class="studio-pill is-green">已保存</span>
+      <span class="studio-pill is-mono">seed 4827193</span>
+    </div>
+  </div>
+</section>
+
+<!-- IconButton -->
+<section class="section">
+  <p class="section-title">Action</p>
+  <h2 class="section-name">IconButton</h2>
+  <p class="section-desc">画布操作栏的下载、刷新、全屏；保留现有 36×36 尺寸。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <span class="label">default</span>
+      <button class="studio-icon-btn">↓</button>
+      <button class="studio-icon-btn">↻</button>
+      <button class="studio-icon-btn">⤢</button>
+      <span class="label">ghost</span>
+      <button class="studio-icon-btn is-ghost">⋯</button>
+      <button class="studio-icon-btn is-ghost">📋</button>
+    </div>
+  </div>
+</section>
+
+<!-- Input -->
+<section class="section">
+  <p class="section-title">Form</p>
+  <h2 class="section-name">Input · Textarea</h2>
+  <p class="section-desc">圆角 16，焦点态边框紫色（无 box-shadow ring，避免页面拥挤）。</p>
+  <div class="demo">
+    <div class="demo-grid">
+      <span class="label">input</span>
+      <input class="studio-input" placeholder="不希望出现的元素" />
+    </div>
+    <div class="demo-grid">
+      <span class="label">textarea</span>
+      <textarea class="studio-textarea" placeholder="描述你想要的画面，例如：一只在赛博朋克霓虹街道上漫步的白猫"></textarea>
+    </div>
+  </div>
+</section>
+
+<!-- SegmentedControl & Tabs -->
+<section class="section">
+  <p class="section-title">Navigation</p>
+  <h2 class="section-name">SegmentedControl · Tabs</h2>
+  <p class="section-desc">SegmentedControl 用于"普通 / 专业"模式切换（2-4 项）；Tabs 用于内容区分类（5+ 项）。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <span class="label">segmented</span>
+      <div class="studio-segmented">
+        <button class="is-selected">普通</button>
+        <button>专业</button>
+      </div>
+      <div class="studio-segmented">
+        <button>1:1</button>
+        <button class="is-selected">3:4</button>
+        <button>4:3</button>
+        <button>16:9</button>
+        <button>9:16</button>
+      </div>
+    </div>
+    <div class="demo-row">
+      <span class="label">tabs</span>
+      <div class="studio-tabs">
+        <button class="is-selected">热门</button>
+        <button>人物</button>
+        <button>场景</button>
+        <button>风格</button>
+        <button>我的</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Slider -->
+<section class="section">
+  <p class="section-title">Form</p>
+  <h2 class="section-name">Slider</h2>
+  <p class="section-desc">现有"细节强度"滑块的提取版，用于 cfg / steps / strength。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <span class="label">slider</span>
+      <div class="studio-slider-wrap">
+        <input class="studio-slider" type="range" min="0" max="100" value="55" style="--p: 55%" />
+        <div class="slider-meta"><span>柔和</span><span>锐利</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ProjectCard -->
+<section class="section">
+  <p class="section-title">New · 专业模式</p>
+  <h2 class="section-name">ProjectCard</h2>
+  <p class="section-desc">把"会话/项目"做成一等公民。封面 = 主图 + 2 张副图栈叠；元信息 = 数量 + 调色板预览（5 色提取）。点击进入项目详情页。</p>
+  <div class="demo">
+    <div class="demo-row" style="gap: var(--space-4);">
+      <div class="project-card">
+        <div class="project-cover">
+          <div class="main"></div>
+          <div class="stack"><div></div><div></div></div>
+        </div>
+        <div class="project-meta">
+          <p class="project-name">异星探险 — 角色设定</p>
+          <div class="project-info">
+            <span>42 张</span>
+            <span>·</span>
+            <span>3 天前</span>
+            <span style="margin-left:auto;" class="project-palette">
+              <span style="background:#3a4a5e"></span>
+              <span style="background:#7a5e3e"></span>
+              <span style="background:#c4a07e"></span>
+              <span style="background:#5e3e3a"></span>
+              <span style="background:#1e1a18"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="project-card">
+        <div class="project-cover">
+          <div class="main" style="background:repeating-linear-gradient(45deg,#d4d4d4,#d4d4d4 8px,#e5e5e5 8px,#e5e5e5 16px);"></div>
+          <div class="stack"><div></div><div></div></div>
+        </div>
+        <div class="project-meta">
+          <p class="project-name">UI 图标 — 主菜单</p>
+          <div class="project-info">
+            <span>16 张</span>
+            <span>·</span>
+            <span>今天</span>
+            <span style="margin-left:auto;" class="project-palette">
+              <span style="background:#262626"></span>
+              <span style="background:#525252"></span>
+              <span style="background:#a3a3a3"></span>
+              <span style="background:#7f22fe"></span>
+              <span style="background:#fafafa"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BatchCell -->
+<section class="section">
+  <p class="section-title">New · 专业模式</p>
+  <h2 class="section-name">BatchCell</h2>
+  <p class="section-desc">画布从 1 张升 2×2 / 4×1（用户可切）。每张含 seed 标签 + 选中态 + hover 浮出操作（变体 / 局部重绘 / 4× 放大 / 保存）。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <div class="batch-grid">
+        <div class="batch-cell is-selected">
+          <span class="seed">seed 4827193</span>
+          <div class="actions">
+            <button>v</button>
+            <button>i</button>
+            <button>4×</button>
+          </div>
+        </div>
+        <div class="batch-cell">
+          <span class="seed">seed 4827194</span>
+        </div>
+        <div class="batch-cell">
+          <span class="seed">seed 4827195</span>
+        </div>
+        <div class="batch-cell">
+          <span class="seed">seed 4827196</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Inspector -->
+<section class="section">
+  <p class="section-title">New · 专业模式</p>
+  <h2 class="section-name">Inspector</h2>
+  <p class="section-desc">右栏取代当前"素材库"，专业模式下显示生成参数。Mono 字体强化"工程感"。锁形图标表示该参数已锁定（用于保持角色一致）。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <div class="inspector">
+        <div class="inspector-row"><span class="key">model</span><span class="value">gpt-image-2</span></div>
+        <div class="inspector-row"><span class="key">size</span><span class="value">1024 × 1024</span></div>
+        <div class="inspector-row"><span class="key">quality</span><span class="value">high</span></div>
+        <div class="inspector-row"><span class="key">count</span><span class="value">4</span></div>
+        <div class="inspector-row"><span class="key">seed</span><span class="value is-locked">4827193</span></div>
+        <div class="inspector-row"><span class="key">cfg</span><span class="value">7.5</span></div>
+        <div class="inspector-row"><span class="key">steps</span><span class="value">30</span></div>
+        <div class="inspector-row"><span class="key">refs</span><span class="value">2 张</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Export -->
+<section class="section">
+  <p class="section-title">New · P3 出口面板</p>
+  <h2 class="section-name">ExportRow</h2>
+  <p class="section-desc">游戏从业者真正需要的导出选项 — 不只是 PNG。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <div class="export-list">
+        <div class="export-row">
+          <span class="icon">P</span>
+          <span class="copy"><span class="name">PNG · 4K</span><span class="desc">3840 × 3840 · 透明背景</span></span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="export-row">
+          <span class="icon">Φ</span>
+          <span class="copy"><span class="name">PSD · 分层导出</span><span class="desc">主体 / 背景 / 阴影 拆分图层</span></span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="export-row">
+          <span class="icon">L</span>
+          <span class="copy"><span class="name">Lumio 工程包</span><span class="desc">.lumio · 含完整参数与参考图</span></span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="export-row">
+          <span class="icon">{ }</span>
+          <span class="copy"><span class="name">ComfyUI workflow</span><span class="desc">.json · 可导入本地工作流</span></span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="export-row">
+          <span class="icon">$</span>
+          <span class="copy"><span class="name">API cURL</span><span class="desc">复制到剪贴板 · 集成到 CI</span></span>
+          <span class="arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SeedTree -->
+<section class="section">
+  <p class="section-title">New · 专业模式</p>
+  <h2 class="section-name">SeedTree</h2>
+  <p class="section-desc">展示一张图的"派生关系"：原图 → 4 张变体 → 选中其中一张做局部重绘。Git-log 风格，Mono 字体。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <div class="seed-tree">
+        <div class="node"><span class="marker">●</span><span class="id">seed 4827193</span><span class="age">10:42</span></div>
+        <div class="node indent-1"><span class="marker">├</span><span class="id">v1 · 4× variation</span><span class="age">10:45</span></div>
+        <div class="node indent-2 is-current"><span class="marker">└</span><span class="id">inpaint · 头发</span><span class="age">10:51</span></div>
+        <div class="node indent-1"><span class="marker">├</span><span class="id">upscale 4×</span><span class="age">10:48</span></div>
+        <div class="node indent-1"><span class="marker">└</span><span class="id">style swap · 写实</span><span class="age">11:02</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Toast -->
+<section class="section">
+  <p class="section-title">Indicator</p>
+  <h2 class="section-name">Toast</h2>
+  <p class="section-desc">现有 .studio-toast 沿用，仅补暗色态。</p>
+  <div class="demo">
+    <div class="demo-row">
+      <p class="studio-toast">生成完成 · 4 张 · 用时 6.2s</p>
+      <p class="studio-toast">已复制 cURL 到剪贴板</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+document.getElementById('t').addEventListener('click', () => {
+  const root = document.documentElement;
+  const isDark = root.dataset.theme === 'dark';
+  root.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('t').textContent = isDark ? '切到暗色' : '切到亮色';
+});
+</script>
+</body>
+</html>

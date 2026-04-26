@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lumio · Color Palette</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: var(--space-12);
+    background: var(--studio-bg);
+    color: var(--studio-text);
+    font-family: var(--studio-font-sans);
+    transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-6);
+    margin-bottom: var(--space-10);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--studio-line-strong);
+  }
+  h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; }
+  h2 {
+    margin: var(--space-10) 0 var(--space-4);
+    font-size: 12px; line-height: 18px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--studio-muted);
+  }
+  .meta { color: var(--studio-muted); font-size: 13px; line-height: 21px; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    height: 36px; padding: 0 var(--space-4);
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-full);
+    background: var(--studio-surface);
+    color: var(--studio-text);
+    font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all var(--dur-base) var(--ease-out);
+  }
+  .theme-toggle:hover { border-color: var(--studio-text); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-3);
+  }
+  .swatch {
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--studio-surface);
+  }
+  .swatch-color {
+    height: 88px;
+    border-bottom: 1px solid var(--studio-line);
+  }
+  .swatch-meta {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .swatch-name {
+    font-size: 13px; font-weight: 500; line-height: 18px;
+    color: var(--studio-text);
+  }
+  .swatch-value {
+    font-family: var(--studio-font-mono);
+    font-size: 11px; line-height: 16px;
+    color: var(--studio-muted);
+  }
+  .neutral-row {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 0;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--studio-line-strong);
+  }
+  .neutral-row .swatch { border: 0; border-radius: 0; }
+  .neutral-row .swatch-color { height: 64px; }
+  .neutral-row .swatch + .swatch { border-left: 1px solid var(--studio-line); }
+  .neutral-row .swatch-meta { padding: var(--space-2) var(--space-3); }
+  .neutral-row .swatch-name { font-size: 11px; font-weight: 600; }
+  .neutral-row .swatch-value { font-size: 10px; }
+  .gradient-card {
+    height: 200px;
+    border-radius: var(--radius-2xl);
+    background: var(--studio-brand-gradient);
+    display: grid; place-items: center;
+    color: white;
+    font-size: 24px; font-weight: 600; letter-spacing: -0.01em;
+    box-shadow: var(--shadow-lg);
+  }
+  .gradient-warning {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--studio-amber-text);
+    background: var(--studio-amber-bg);
+    color: var(--studio-amber-text);
+    font-size: 12px; line-height: 18px;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  }
+  [data-theme="dark"] .gradient-warning {
+    background: rgba(187,77,0,0.12);
+    color: oklch(75% 0.15 60);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Color Palette</h1>
+      <p class="meta">基于 globals.css 现有 token 扩展 · 沿用 --studio-* 前缀</p>
+    </div>
+    <button class="theme-toggle" id="t">切到暗色</button>
+  </header>
+
+  <h2>1 · 中性灰阶</h2>
+  <div class="neutral-row" id="neutral-row"></div>
+
+  <h2>2 · 表面与文字（语义色）</h2>
+  <div class="grid" id="surfaces"></div>
+
+  <h2>3 · 强调色</h2>
+  <div class="grid" id="accents"></div>
+
+  <h2>4 · 状态色</h2>
+  <div class="grid" id="states"></div>
+
+  <h2>5 · 品牌渐变（仅 logo 使用）</h2>
+  <div class="gradient-card">Lumio</div>
+  <p class="gradient-warning">⚠ 仅用于 32×32 brand mark。不得在按钮、hero、卡片等大面积使用 — 这是过去最容易"AI slop"的地方。</p>
+
+  <script>
+    const neutrals = [50,100,200,300,400,500,600,700,800,900].map(n => ({
+      name: `neutral-${n}`, var: `--studio-neutral-${n}`
+    }));
+    const surfaces = [
+      ['bg', '--studio-bg'], ['bg-soft', '--studio-bg-soft'],
+      ['surface', '--studio-surface'],
+      ['line', '--studio-line'], ['line-strong', '--studio-line-strong'],
+      ['text', '--studio-text'], ['copy', '--studio-copy'],
+      ['muted', '--studio-muted'], ['faint', '--studio-faint']
+    ].map(([n,v]) => ({name:n, var:v}));
+    const accents = [
+      ['purple', '--studio-purple'], ['purple-soft', '--studio-purple-soft'],
+      ['purple-hover', '--studio-purple-hover'], ['purple-active', '--studio-purple-active'],
+      ['green', '--studio-green'], ['green-soft', '--studio-green-soft']
+    ].map(([n,v]) => ({name:n, var:v}));
+    const states = [
+      ['amber-bg', '--studio-amber-bg'], ['amber-text', '--studio-amber-text'],
+      ['red', '--studio-red'], ['red-soft', '--studio-red-soft'],
+      ['blue', '--studio-blue'], ['blue-soft', '--studio-blue-soft']
+    ].map(([n,v]) => ({name:n, var:v}));
+
+    const cs = getComputedStyle(document.documentElement);
+    function fillSwatches(target, list, isCompact) {
+      const el = document.getElementById(target);
+      el.innerHTML = list.map(s => {
+        const value = cs.getPropertyValue(s.var).trim();
+        return `
+          <div class="swatch">
+            <div class="swatch-color" style="background:var(${s.var})"></div>
+            <div class="swatch-meta">
+              <span class="swatch-name">${s.name}</span>
+              <span class="swatch-value">${value || s.var}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function refreshAll() {
+      fillSwatches('neutral-row', neutrals, true);
+      fillSwatches('surfaces', surfaces);
+      fillSwatches('accents', accents);
+      fillSwatches('states', states);
+    }
+    refreshAll();
+
+    document.getElementById('t').addEventListener('click', () => {
+      const root = document.documentElement;
+      const isDark = root.dataset.theme === 'dark';
+      root.dataset.theme = isDark ? 'light' : 'dark';
+      document.getElementById('t').textContent = isDark ? '切到暗色' : '切到亮色';
+      requestAnimationFrame(refreshAll);
+    });
+  </script>
+</body>
+</html>

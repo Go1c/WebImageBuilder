@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Lumio 优化方向 · 线框探索</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { margin: 0; background: #e8e6df; font-family: 'Kalam', cursive; }
+  .intro {
+    padding: 24px 32px; max-width: 900px;
+  }
+  .intro h1 { font-family:'Caveat', cursive; font-size: 40px; margin: 0 0 6px; }
+  .intro p { font-size: 15px; color: #4a4a4a; line-height: 1.5; margin: 4px 0; }
+  .intro .mono { font-family:'JetBrains Mono', monospace; font-size: 12px; color: #6a6a6a; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="frames/diagnostic.jsx"></script>
+<script type="text/babel" src="frames/a-tighten.jsx"></script>
+<script type="text/babel" src="frames/b-batch.jsx"></script>
+<script type="text/babel" src="frames/c-project.jsx"></script>
+<script type="text/babel" src="frames/d-terminal.jsx"></script>
+<script type="text/babel" src="frames/e-split.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { DesignCanvas, DCSection, DCArtboard } = window;
+
+const Intro = () => (
+  <div className="intro wf">
+    <div className="mono">LUMIO IMAGE STUDIO · 线框探索 · 面向游戏从业者</div>
+    <h1>img.lumio.games — 5 个优化方向</h1>
+    <p>用户群定位：<b>游戏从业者</b>（原画师 / TA / 关卡 / 独立开发）。需求重心是：<b>批量产出、风格一致、可控参数、专业出口</b>。</p>
+    <p>下面 6 张画板：先是当前页面的<span className="hl">问题诊断</span>，然后是 5 个差异化方向，从「轻改」到「重构」逐步递进。每张画板可拖动重排，点右上角放大可全屏聚焦。</p>
+    <p className="mono" style={{marginTop:12}}>提示: 滚轮缩放，空格 + 拖拽平移，点击画板进入聚焦模式</p>
+  </div>
+);
+
+const App = () => (
+  <div>
+    <Intro/>
+    <DesignCanvas defaultZoom={0.6}>
+      <DCSection id="diagnostic" title="① 现状诊断 · 当前页面问题">
+        <DCArtboard id="cur" label="img.lumio.games (当前)" width={1280} height={820}>
+          <FrameDiagnostic/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="dirs" title="② 5 个优化方向 · 从轻改到重构">
+        <DCArtboard id="a" label="A · 微调当前 3 栏 (最低风险)" width={1280} height={820}>
+          <FrameA/>
+        </DCArtboard>
+        <DCArtboard id="b" label="B · 批量 / Seed 派生工作流" width={1280} height={820}>
+          <FrameB/>
+        </DCArtboard>
+        <DCArtboard id="c" label="C · 项目 / 世界观为根" width={1280} height={820}>
+          <FrameC/>
+        </DCArtboard>
+        <DCArtboard id="d" label="D · 命令行 + 版本树 (硬核)" width={1280} height={820}>
+          <FrameD/>
+        </DCArtboard>
+        <DCArtboard id="e" label="E · 双屏: 生成 ↔ 灵感板" width={1280} height={820}>
+          <FrameE/>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  </div>
+);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

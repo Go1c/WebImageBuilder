@@ -898,7 +898,8 @@ textarea:focus-visible {
   position: relative;
   min-width: 0;
   aspect-ratio: 1 / 1.16;
-  display: block;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   overflow: hidden;
   border: 1px solid var(--studio-line);
   border-radius: 14px;
@@ -908,7 +909,9 @@ textarea:focus-visible {
 }
 
 .prompt-library-card img {
-  height: calc(100% - 44px);
+  min-width: 0;
+  min-height: 0;
+  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
   border-radius: 12px 12px 7px 7px;
 }
 

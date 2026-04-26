@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Lumio v2 · 双模式重做 prototype</title>
+<link rel="stylesheet" href="v2/tokens.css">
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="v2/icons.jsx"></script>
+<script type="text/babel" src="v2/basic-home.jsx"></script>
+<script type="text/babel" src="v2/pro-home.jsx"></script>
+<script type="text/babel" src="v2/pro-project.jsx"></script>
+<script type="text/babel" src="v2/pro-projects-list.jsx"></script>
+<script type="text/babel" src="v2/other-pages.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const App = () => {
+  const [mode, setMode] = React.useState('pro');
+  const [page, setPage] = React.useState('create');
+  const [projectId, setProjectId] = React.useState(null);
+
+  // when switching to basic, we lose pro-only pages
+  React.useEffect(() => {
+    if (mode === 'basic' && page === 'projects') setPage('create');
+  }, [mode, page]);
+
+  const openProject = (id) => { setProjectId(id); setPage('project'); };
+  const backToProjects = () => { setProjectId(null); setPage('projects'); };
+
+  let content = null;
+  if (mode === 'basic') {
+    if (page === 'create') content = <BasicHome/>;
+    else if (page === 'gallery') content = <GalleryPage mode="basic"/>;
+    else if (page === 'explore') content = <ExplorePage mode="basic"/>;
+    else if (page === 'learn') content = <LearnPage mode="basic"/>;
+  } else {
+    if (page === 'create') content = <ProHome openProject={openProject}/>;
+    else if (page === 'projects') content = <ProProjectsList openProject={openProject}/>;
+    else if (page === 'project') content = <ProProject projectId={projectId} onBack={backToProjects}/>;
+    else if (page === 'gallery') content = <GalleryPage mode="pro"/>;
+    else if (page === 'explore') content = <ExplorePage mode="pro"/>;
+    else if (page === 'learn') content = <LearnPage mode="pro"/>;
+  }
+
+  const projectName = page==='project' ? '雾隐之城' : null;
+
+  return (
+    <div className={mode==='pro' ? 'pro' : ''} style={{minHeight:'100vh', background:'var(--bg)', color:'var(--ink)'}}>
+      <TopBar mode={mode} setMode={setMode} page={page} setPage={(p)=>{ setProjectId(null); setPage(p); }} project={projectName}/>
+      <div className="fadein" key={mode+'-'+page+'-'+projectId}>
+        {content}
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

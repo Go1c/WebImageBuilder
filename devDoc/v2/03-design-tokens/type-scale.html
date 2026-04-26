@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lumio · Type Scale</title>
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: var(--space-12);
+    background: var(--studio-bg);
+    color: var(--studio-text);
+    font-family: var(--studio-font-sans);
+  }
+  header {
+    margin-bottom: var(--space-10);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--studio-line-strong);
+  }
+  h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; }
+  .meta { margin-top: var(--space-2); color: var(--studio-muted); font-size: 13px; line-height: 21px; }
+  table {
+    width: 100%;
+    max-width: 1100px;
+    border-collapse: collapse;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  th, td {
+    padding: var(--space-4) var(--space-5);
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--studio-line);
+  }
+  tr:last-child td { border-bottom: 0; }
+  th {
+    background: var(--studio-bg-soft);
+    color: var(--studio-muted);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .token {
+    font-family: var(--studio-font-mono);
+    font-size: 12px;
+    color: var(--studio-purple);
+  }
+  .specs {
+    font-family: var(--studio-font-mono);
+    font-size: 11px;
+    color: var(--studio-muted);
+    white-space: nowrap;
+  }
+  .usage { color: var(--studio-muted); font-size: 13px; }
+  .display { font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em; }
+  .h1 { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; }
+  .h2 { font-size: 22px; line-height: 30px; font-weight: 600; }
+  .h3 { font-size: 18px; line-height: 26px; font-weight: 600; }
+  .h4 { font-size: 16px; line-height: 24px; font-weight: 500; }
+  .body { font-size: 14px; line-height: 22px; }
+  .body-sm { font-size: 13px; line-height: 21px; }
+  .caption { font-size: 12px; line-height: 18px; font-weight: 500; }
+  .tiny { font-size: 11px; line-height: 16px; font-weight: 500; }
+  .mono { font-family: var(--studio-font-mono); font-size: 12px; line-height: 18px; }
+  .sample { color: var(--studio-text); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Type Scale</h1>
+    <p class="meta">Inter（西文） + Noto Sans SC（中文）· Mono 用于 Inspector / Seed / API</p>
+  </header>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 140px;">Token</th>
+        <th style="width: 120px;">Specs</th>
+        <th>Sample</th>
+        <th style="width: 240px;">用途</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="token">--text-display</span></td>
+        <td class="specs">40 / 48 · 600</td>
+        <td><span class="sample display">柔和晨光下的山间湖泊</span></td>
+        <td class="usage">项目主页 hero</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-h1</span></td>
+        <td class="specs">28 / 36 · 600</td>
+        <td><span class="sample h1">创作面板</span></td>
+        <td class="usage">页面标题</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-h2</span></td>
+        <td class="specs">22 / 30 · 600</td>
+        <td><span class="sample h2">游戏美术方向</span></td>
+        <td class="usage">区块标题</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-h3</span></td>
+        <td class="specs">18 / 26 · 600</td>
+        <td><span class="sample h3">UE 立绘 写实 特效</span></td>
+        <td class="usage">卡片标题 / Inspector 分组</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-h4</span></td>
+        <td class="specs">16 / 24 · 500</td>
+        <td><span class="sample h4">LumioImageStudio</span></td>
+        <td class="usage">Brand mark / nav</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-body</span></td>
+        <td class="specs">14 / 22 · 400</td>
+        <td><span class="sample body">本项目负责图像生成工作台、Gemini 与 GPT Image 的服务端适配。</span></td>
+        <td class="usage">主要正文</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-body-sm</span></td>
+        <td class="specs">13 / 21 · 400</td>
+        <td><span class="sample body-sm">描述你想要的画面，例如：一只在赛博朋克霓虹街道上漫步的白猫</span></td>
+        <td class="usage">prompt textarea / 副文</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-caption</span></td>
+        <td class="specs">12 / 18 · 500</td>
+        <td><span class="sample caption">提示词</span></td>
+        <td class="usage">字段标签 / 元信息</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-tiny</span></td>
+        <td class="specs">11 / 16 · 500</td>
+        <td><span class="sample tiny">UI · UE · 立绘 · 3D · 二次元</span></td>
+        <td class="usage">紧凑 chip / option tile</td>
+      </tr>
+      <tr>
+        <td><span class="token">--text-mono</span></td>
+        <td class="specs">12 / 18 · mono</td>
+        <td><span class="sample mono">seed 4827193 · cfg 7.5 · steps 30</span></td>
+        <td class="usage">Inspector / Seed / API</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

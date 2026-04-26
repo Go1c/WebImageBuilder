@@ -14,6 +14,7 @@ import {
   type PromptStylePresetKey,
   type PromptTypeKey
 } from "./promptEnhancers";
+import { getPromptLibraryImageLoading } from "./promptLibraryImages";
 import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
 import {
   buildLocalPortfolioItem,
@@ -1189,7 +1190,7 @@ export function ImageStudio() {
                 </div>
                 {savedPortfolioItems.length ? (
                   <div className="prompt-library-grid">
-                    {savedPortfolioItems.map((item) => (
+                    {savedPortfolioItems.map((item, index) => (
                       <button
                         key={item.id}
                         className="prompt-library-card"
@@ -1197,7 +1198,12 @@ export function ImageStudio() {
                         onClick={() => handleApplySavedPortfolioItem(item)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.url} alt="" loading="lazy" decoding="async" />
+                        <img
+                          src={item.url}
+                          alt=""
+                          loading={getPromptLibraryImageLoading(index)}
+                          decoding="async"
+                        />
                         <span className="prompt-library-title">{item.prompt || "未命名作品"}</span>
                       </button>
                     ))}
@@ -1214,7 +1220,7 @@ export function ImageStudio() {
                 </div>
                 {filteredPromptLibraryItems.length ? (
                   <div className="prompt-library-grid">
-                    {filteredPromptLibraryItems.map((item) => (
+                    {filteredPromptLibraryItems.map((item, index) => (
                       <button
                         key={item.id}
                         className="prompt-library-card"
@@ -1222,7 +1228,12 @@ export function ImageStudio() {
                         onClick={() => handleApplyPromptLibraryItem(item)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.image} alt={item.title} loading="lazy" decoding="async" />
+                        <img
+                          src={item.image}
+                          alt={item.title}
+                          loading={getPromptLibraryImageLoading(index)}
+                          decoding="async"
+                        />
                         <span className="prompt-library-title">{item.title}</span>
                         <span className="prompt-library-meta">#{item.caseNumber} · {item.category}</span>
                       </button>
