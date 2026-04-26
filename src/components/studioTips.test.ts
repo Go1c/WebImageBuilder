@@ -28,6 +28,16 @@ describe("studio tips", () => {
     expect(tip.message).toContain("database unavailable");
   });
 
+  it("falls back safely for prototype-name API error codes", () => {
+    const tip = tipFromApiError(apiErrorDetail({ code: "__proto__", message: "prototype lookup detail" }));
+
+    expect(tip).toMatchObject({
+      type: "error",
+      title: "请求失败"
+    });
+    expect(tip.message).toContain("prototype lookup detail");
+  });
+
   it("represents integration-shell actions as explicit tips", () => {
     const tip = tipFromActionFailure({
       kind: "integration",

@@ -32,41 +32,61 @@ export type StudioActionFailure =
       error?: unknown;
     };
 
-const apiErrorTipMap: Record<string, Omit<StudioTip, "message"> & { message: string }> = {
-  quota_exhausted: {
-    type: "warning",
-    title: "额度已用完",
-    message: "当前可用生成次数不足，请登录、邀请好友或稍后再试。"
-  },
-  rate_limited: {
-    type: "warning",
-    title: "请求过于频繁",
-    message: "操作太快了，请稍后再试。"
-  },
-  provider_error: {
-    type: "error",
-    title: "生成服务暂时不可用",
-    message: "上游图像服务返回错误，请稍后重试。"
-  },
-  configuration_error: {
-    type: "error",
-    title: "服务配置异常",
-    message: "生成服务配置不完整，请联系管理员检查密钥或存储配置。"
-  },
-  unauthorized: {
-    type: "warning",
-    title: "需要登录",
-    message: "请登录后继续此操作。"
-  },
-  bad_request: {
-    type: "warning",
-    title: "请求参数有误",
-    message: "请检查提示词、尺寸或上传文件后重试。"
-  }
-};
+type ApiErrorTipTemplate = Omit<StudioTip, "message"> & { message: string };
+
+const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
+  [
+    "quota_exhausted",
+    {
+      type: "warning",
+      title: "额度已用完",
+      message: "当前可用生成次数不足，请登录、邀请好友或稍后再试。"
+    }
+  ],
+  [
+    "rate_limited",
+    {
+      type: "warning",
+      title: "请求过于频繁",
+      message: "操作太快了，请稍后再试。"
+    }
+  ],
+  [
+    "provider_error",
+    {
+      type: "error",
+      title: "生成服务暂时不可用",
+      message: "上游图像服务返回错误，请稍后重试。"
+    }
+  ],
+  [
+    "configuration_error",
+    {
+      type: "error",
+      title: "服务配置异常",
+      message: "生成服务配置不完整，请联系管理员检查密钥或存储配置。"
+    }
+  ],
+  [
+    "unauthorized",
+    {
+      type: "warning",
+      title: "需要登录",
+      message: "请登录后继续此操作。"
+    }
+  ],
+  [
+    "bad_request",
+    {
+      type: "warning",
+      title: "请求参数有误",
+      message: "请检查提示词、尺寸或上传文件后重试。"
+    }
+  ]
+]);
 
 export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText">): StudioTip {
-  const mappedTip = error.code ? apiErrorTipMap[error.code] : undefined;
+  const mappedTip = error.code ? apiErrorTipMap.get(error.code) : undefined;
 
   if (mappedTip) {
     return {
