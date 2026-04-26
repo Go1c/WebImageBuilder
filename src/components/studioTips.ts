@@ -110,7 +110,7 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
       type: "error",
       title: "图片通道不可用",
       message: withDebugDetail(
-        "已找到图片生成 Key，但上游图像通道返回 502。请检查 Sub2API 的 Image-2（生图专用）分组下是否有可用账号，并确认账号支持当前图片模型；如果刚才只是偶发失败，可以再试一次。",
+        "上游图像通道返回 502，可能是通道临时不可用，也可能是提示词触发内容规范拦截。请先调整敏感、成人、暴力、违法或名人肖像等描述后再试；如果刚才只是偶发失败，可以再试一次。",
         error.message
       ),
       actionLabel: "查看 Key",

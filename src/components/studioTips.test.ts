@@ -52,8 +52,10 @@ describe("studio tips", () => {
       actionLabel: "查看 Key",
       actionHref: "https://api.lumio.games/keys"
     });
-    expect(tip.message).toContain("Image-2（生图专用）");
+    expect(tip.message).toContain("提示词");
+    expect(tip.message).toContain("内容规范");
     expect(tip.message).toContain("可以再试一次");
+    expect(tip.message).not.toContain("Sub2API");
   });
 
   it("recognizes Cloudflare invalid origin responses as image gateway 502 errors", () => {
@@ -71,7 +73,9 @@ describe("studio tips", () => {
       actionLabel: "查看 Key",
       actionHref: "https://api.lumio.games/keys"
     });
-    expect(tip.message).toContain("Image-2（生图专用）");
+    expect(tip.message).toContain("提示词");
+    expect(tip.message).toContain("内容规范");
+    expect(tip.message).not.toContain("Sub2API");
   });
 
   it("uses a useful fallback tip for unknown API errors", () => {
