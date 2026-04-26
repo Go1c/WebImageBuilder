@@ -1351,11 +1351,15 @@ textarea:focus-visible {
   background: #f5f5f5;
 }
 
-.share-image-wrap img {
+.share-protected-image {
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 .share-watermark {

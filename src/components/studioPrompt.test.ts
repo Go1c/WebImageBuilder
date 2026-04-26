@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendPromptToken,
   buildPromptFromLibraryItem,
+  insertPromptTextAtSelection,
   readPromptFromSearchParam,
   readPromptFromUrl
 } from "./studioPrompt";
@@ -22,6 +23,18 @@ describe("studio prompt helpers", () => {
   it("builds a usable prompt when a library item is applied to an empty prompt", () => {
     expect(buildPromptFromLibraryItem("", "赛博朋克")).toBe(
       "赛博朋克，精致构图，高质量图像"
+    );
+  });
+
+  it("inserts pasted text at the current prompt cursor", () => {
+    expect(insertPromptTextAtSelection("赛博猫", "，电影感", 3, 3)).toBe(
+      "赛博猫，电影感"
+    );
+  });
+
+  it("replaces the selected prompt range with pasted text", () => {
+    expect(insertPromptTextAtSelection("赛博猫，低清晰度", "电影感", 4, 8)).toBe(
+      "赛博猫，电影感"
     );
   });
 

@@ -1,4 +1,5 @@
 import { ShareReportButton } from "@/components/ShareReportButton";
+import { ShareProtectedImage } from "@/components/ShareProtectedImage";
 import { ShareUnavailableRedirect } from "@/components/ShareUnavailableRedirect";
 import { getPromptShare } from "@/server/db/repositories";
 import { PROMPT_SHARE_COMPLIANCE_NOTICE, buildPromptTryUrl } from "@/server/shares";
@@ -38,11 +39,11 @@ export default async function PromptSharePage({
     <main className="share-page">
       <section className="share-card" aria-label="提示词分享">
         <div className="share-image-wrap">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={share.imageUrl} alt="分享缩略图" />
-          <div className="share-watermark" aria-hidden="true">
-            {PROMPT_SHARE_COMPLIANCE_NOTICE}
-          </div>
+          <ShareProtectedImage
+            imageUrl={share.imageUrl}
+            alt="分享缩略图"
+            watermark={PROMPT_SHARE_COMPLIANCE_NOTICE}
+          />
         </div>
         <div className="share-content">
           <p className="share-eyebrow">Lumio 提示词分享</p>
