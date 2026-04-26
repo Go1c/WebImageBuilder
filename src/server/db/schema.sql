@@ -121,6 +121,38 @@ create table if not exists assets (
 create index if not exists assets_task_idx on assets(task_id);
 create index if not exists assets_user_idx on assets(user_id, created_at desc);
 
+create table if not exists prompt_shares (
+  id text primary key,
+  task_id uuid references generation_tasks(id) on delete set null,
+  asset_id uuid references assets(id) on delete set null,
+  actor_type text not null check (actor_type in ('anonymous', 'user')),
+  user_id uuid references users(id) on delete set null,
+  anonymous_device_id uuid references anonymous_devices(id) on delete set null,
+  prompt text not null,
+  image_url text not null,
+  image_storage_key text,
+  image_mime_type text,
+  status text not null default 'active' check (status in ('active', 'reported')),
+  report_count integer not null default 0,
+  reported_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists prompt_shares_user_created_idx
+  on prompt_shares(user_id, created_at desc);
+
+create index if not exists prompt_shares_anon_created_idx
+  on prompt_shares(anonymous_device_id, created_at desc);
+
+alter table prompt_shares
+  add column if not exists status text not null default 'active';
+
+alter table prompt_shares
+  add column if not exists report_count integer not null default 0;
+
+alter table prompt_shares
+  add column if not exists reported_at timestamptz;
+
 create table if not exists invites (
   id uuid primary key default gen_random_uuid(),
   invite_code text not null,

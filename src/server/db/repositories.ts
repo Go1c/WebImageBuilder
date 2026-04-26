@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { query, transaction } from "./client";
-import type { Actor, DbQuotaState } from "./types";
+import type { Actor, DbQuotaState, PromptShareRecord } from "./types";
 import type { AuthenticatedUser } from "../auth";
 import { getAppConfig } from "../config";
 import { getQuotaConfig } from "../domain/quota";
@@ -40,6 +40,7 @@ type LocalQuotaBalance = {
 
 type LocalRepository = {
   tasks: LocalTask[];
+  shares: PromptShareRecord[];
   userBalances: Map<string, LocalQuotaBalance>;
 };
 
@@ -57,9 +58,12 @@ function getLocalRepository(): LocalRepository {
   if (!globalThis.lumioLocalRepository) {
     globalThis.lumioLocalRepository = {
       tasks: [],
+      shares: [],
       userBalances: new Map()
     };
   }
+
+  globalThis.lumioLocalRepository.shares ||= [];
 
   return globalThis.lumioLocalRepository;
 }
@@ -548,6 +552,131 @@ export async function recordUploadedAsset(input: AssetInput): Promise<string> {
   return transaction((client) => insertAsset(client, input));
 }
 
+export async function createPromptShare(input: {
+  actor: Actor;
+  taskId: string;
+  imageUrl: string;
+}): Promise<PromptShareRecord | null> {
+  if (shouldUseLocalRepository()) {
+    const task = findLocalTask(input.actor, input.taskId);
+    const asset = task?.assets.find(
+      (item) => item.assetType === "result" && item.url === input.imageUrl
+    );
+
+    if (!task || task.status !== "succeeded" || !asset) {
+      return null;
+    }
+
+    const share: PromptShareRecord = {
+      id: buildPromptShareId(),
+      prompt: task.generation.prompt,
+      imageUrl: asset.url,
+      imageStorageKey: asset.storageKey,
+      imageMimeType: asset.mimeType ?? null,
+      status: "active",
+      createdAt: new Date().toISOString()
+    };
+    getLocalRepository().shares.unshift(share);
+    return share;
+  }
+
+  const ownerClause =
+    input.actor.type === "user" ? "t.user_id = $5" : "t.anonymous_device_id = $5";
+  const ownerId = input.actor.type === "user" ? input.actor.userId : input.actor.anonymousDeviceId;
+  const result = await query<PromptShareRecord>(
+    `
+      insert into prompt_shares (
+        id, task_id, asset_id, actor_type, user_id, anonymous_device_id,
+        prompt, image_url, image_storage_key, image_mime_type
+      )
+      select
+        $1,
+        t.id,
+        a.id,
+        $2,
+        t.user_id,
+        t.anonymous_device_id,
+        t.prompt,
+        a.url,
+        a.storage_key,
+        a.mime_type
+      from generation_tasks t
+      join assets a on a.task_id = t.id
+      where t.id = $3
+        and a.url = $4
+        and a.asset_type = 'result'
+        and t.status = 'succeeded'
+        and ${ownerClause}
+      returning
+        id,
+        prompt,
+        image_url as "imageUrl",
+        image_storage_key as "imageStorageKey",
+        image_mime_type as "imageMimeType",
+        status,
+        created_at as "createdAt"
+    `,
+    [buildPromptShareId(), input.actor.type, input.taskId, input.imageUrl, ownerId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function getPromptShare(id: string): Promise<PromptShareRecord | null> {
+  if (shouldUseLocalRepository()) {
+    return (
+      getLocalRepository().shares.find(
+        (share) => share.id === id && share.status === "active"
+      ) ?? null
+    );
+  }
+
+  const result = await query<PromptShareRecord>(
+    `
+      select
+        id,
+        prompt,
+        image_url as "imageUrl",
+        image_storage_key as "imageStorageKey",
+        image_mime_type as "imageMimeType",
+        status,
+        created_at as "createdAt"
+      from prompt_shares
+      where id = $1
+        and status = 'active'
+    `,
+    [id]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function reportPromptShare(id: string): Promise<boolean> {
+  if (shouldUseLocalRepository()) {
+    const share = getLocalRepository().shares.find(
+      (item) => item.id === id && item.status === "active"
+    );
+    if (!share) {
+      return false;
+    }
+
+    share.status = "reported";
+    return true;
+  }
+
+  const result = await query<{ id: string }>(
+    `
+      update prompt_shares
+      set status = 'reported', report_count = report_count + 1, reported_at = now()
+      where id = $1 and status = 'active'
+      returning id
+    `,
+    [id]
+  );
+
+  return Boolean(result.rows[0]);
+}
+
 async function insertAsset(client: PoolClient, input: AssetInput): Promise<string> {
   const result = await client.query<{ id: string }>(
     `
@@ -689,6 +818,10 @@ function hashString(value: string): string {
   }
 
   return (hash >>> 0).toString(36);
+}
+
+function buildPromptShareId(): string {
+  return randomBytes(9).toString("base64url");
 }
 
 function localTaskToRow(task: LocalTask): unknown {

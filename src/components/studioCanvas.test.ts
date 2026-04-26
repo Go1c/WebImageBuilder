@@ -100,6 +100,7 @@ describe("studio canvas helpers", () => {
       },
       {
         id: "task-older-0",
+        taskId: "task-older",
         url: "https://cdn.lumio.games/older.png",
         prompt: "older icon"
       }
@@ -125,6 +126,7 @@ describe("studio canvas helpers", () => {
     ).toEqual([
       {
         id: "task-older-0",
+        taskId: "task-older",
         url: "https://cdn.lumio.games/older.png",
         prompt: "older icon",
         size: "2560 × 1920",

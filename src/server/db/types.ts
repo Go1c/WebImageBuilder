@@ -38,3 +38,13 @@ export type GenerationTaskRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PromptShareRecord = {
+  id: string;
+  prompt: string;
+  imageUrl: string;
+  imageStorageKey: string | null;
+  imageMimeType: string | null;
+  status: "active" | "reported";
+  createdAt: string;
+};

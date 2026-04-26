@@ -62,7 +62,7 @@ import {
   selectCanvasImage,
   selectVisibleCanvasImage
 } from "./studioCanvas";
-import { appendPromptToken } from "./studioPrompt";
+import { appendPromptToken, readPromptFromUrl } from "./studioPrompt";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 
 type AssetRef = {
@@ -107,6 +107,7 @@ type GeneratedImage = {
 
 type HistoryThumb = {
   id: string;
+  taskId?: string;
   url: string;
   mimeType?: string;
   prompt?: string;
@@ -136,6 +137,7 @@ type StudioIconName =
   | "gift"
   | "search"
   | "copy"
+  | "share"
   | "check"
   | "trash"
   | "imagePlus"
@@ -172,12 +174,12 @@ const ratioOptions: Array<{ label: AspectRatioLabel }> = [
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
-export function ImageStudio() {
+export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } = {}) {
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const libraryPanelRef = useRef<HTMLElement | null>(null);
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
   const [model] = useState<ModelKey>("gpt-image-2");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [negativePrompt, setNegativePrompt] = useState("");
   const [ratioLabel, setRatioLabel] = useState<AspectRatioLabel>("1:1");
   const [imageResolution, setImageResolution] = useState<ImageResolutionTier>("1K");
@@ -190,6 +192,7 @@ export function ImageStudio() {
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [selectedInspirationImage, setSelectedInspirationImage] = useState<string | null>(null);
   const [selectedHistoryThumb, setSelectedHistoryThumb] = useState<HistoryThumb | null>(null);
   const [canvasPrompt, setCanvasPrompt] = useState<string | null>(null);
@@ -218,7 +221,13 @@ export function ImageStudio() {
   const visibleReferencePreviewUrl = referencePreviewUrl || reusedReference?.url || null;
   const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
-  const actionStates = getStudioActionStates({ image: canvasImage, canRegenerate, loading });
+  const canShareCurrentCanvas = Boolean(canvasImage && currentTaskId);
+  const actionStates = getStudioActionStates({
+    image: canvasImage,
+    canRegenerate,
+    canShare: canShareCurrentCanvas,
+    loading
+  });
   const portfolioAssetStore = useMemo(() => createIndexedDbPortfolioAssetStore(), []);
   const loginBaseUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/login";
   const loginUrl = useMemo(
@@ -230,8 +239,8 @@ export function ImageStudio() {
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
 
   const historyThumbs = useMemo(() => {
-    return buildCanvasHistoryThumbs({ images, history, canvasPrompt });
-  }, [canvasPrompt, history, images]);
+    return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
+  }, [canvasPrompt, currentTaskId, history, images]);
   const canvasMeta = useMemo(
     () =>
       buildCanvasMeta({
@@ -268,7 +277,24 @@ export function ImageStudio() {
   }, [activeLibraryTab, librarySearch]);
 
   useEffect(() => {
+    if (!tip) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setTip(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [tip]);
+
+  useEffect(() => {
     setLoginReturnToUrl(stripSub2ApiAuthParamsFromUrl(window.location.href));
+    const sharedPrompt = readPromptFromUrl(window.location.href);
+    if (sharedPrompt) {
+      setPrompt(sharedPrompt);
+    }
+
     void (async () => {
       await initializeSub2ApiSession();
       await refreshData();
@@ -506,12 +532,14 @@ export function ImageStudio() {
       }
 
       const result = await readApiJson<{
+        taskId: string;
         images: GeneratedImage[];
         quota: QuotaResponse["quota"];
         prompt?: string;
       }>(response, "生成接口返回了非 JSON 响应，请刷新页面后重试");
 
       setImages(result.images);
+      setCurrentTaskId(result.taskId);
       setSelectedInspirationImage(null);
       setSelectedHistoryThumb(null);
       setCanvasPrompt(result.prompt || submissionPrompt);
@@ -629,6 +657,7 @@ export function ImageStudio() {
   function handleApplyPromptLibraryItem(item: PromptLibraryItem) {
     setPrompt(item.prompt);
     setImages([]);
+    setCurrentTaskId(null);
     setSelectedInspirationImage(item.image);
     setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
@@ -643,6 +672,7 @@ export function ImageStudio() {
   function handleApplySavedPortfolioItem(item: SavedPortfolioItem) {
     setPrompt(item.prompt);
     setImages([]);
+    setCurrentTaskId(null);
     setSelectedInspirationImage(item.url);
     setSelectedHistoryThumb(null);
     setCanvasPrompt(item.prompt || null);
@@ -658,6 +688,7 @@ export function ImageStudio() {
     setSelectedInspirationImage(thumb.url);
     setSelectedHistoryThumb(thumb);
     setImages([]);
+    setCurrentTaskId(thumb.taskId || null);
     setCanvasPrompt(thumb.prompt || null);
     setRequestPreview(null);
   }
@@ -743,6 +774,7 @@ export function ImageStudio() {
     }
 
     setImages([]);
+    setCurrentTaskId(null);
     setSelectedInspirationImage(null);
     setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
@@ -785,6 +817,65 @@ export function ImageStudio() {
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "保存到作品集", error }));
+    }
+  }
+
+  async function handleShareCurrentImage() {
+    if (
+      !ensureActionEnabled("分享提示词", actionStates.share) ||
+      !canvasImage ||
+      !currentTaskId
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/shares", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: currentTaskId,
+          imageUrl: canvasImage.url
+        })
+      });
+
+      if (!response.ok) {
+        throw new StudioApiResponseError(await readApiErrorDetail(response));
+      }
+
+      const body = await readApiJson<{
+        share: {
+          id: string;
+          url: string;
+          complianceNotice?: string;
+        };
+      }>(response, "分享接口返回了非 JSON 响应，请刷新页面后重试");
+      let clipboardMessage = "分享链接已创建。";
+
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(body.share.url);
+          clipboardMessage = "分享链接已复制到剪贴板。";
+        } catch {
+          clipboardMessage = "分享链接已创建，可打开分享页后复制。";
+        }
+      }
+
+      const complianceNotice =
+        body.share.complianceNotice || "仅供学习交流，禁止传播任何色情非法内容。";
+      showTip({
+        type: "success",
+        title: "分享链接已创建",
+        message: `${clipboardMessage}${complianceNotice}`,
+        actionLabel: "打开分享页",
+        actionHref: body.share.url
+      });
+    } catch (error) {
+      if (error instanceof StudioApiResponseError) {
+        showTip(tipFromApiError(error.detail));
+      } else {
+        showTip(tipFromActionFailure({ kind: "failed", action: "分享提示词", error }));
+      }
     }
   }
 
@@ -1151,6 +1242,17 @@ export function ImageStudio() {
             >
               <StudioIcon name="check" size={14} />
               保存到作品集
+            </button>
+            <button
+              className={actionStates.share.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.share.enabled}
+              title={actionStates.share.reason || "分享提示词"}
+              data-tooltip={actionStates.share.reason || "分享提示词"}
+              onClick={() => void handleShareCurrentImage()}
+              aria-label="分享提示词"
+            >
+              <StudioIcon name="share" size={16} />
             </button>
             <button
               className={actionStates.delete.enabled ? "icon-button" : "icon-button is-disabled"}
@@ -1634,6 +1736,16 @@ function renderIconPath(name: StudioIconName) {
         <>
           <rect x="8" y="8" width="11" height="11" rx="2" />
           <path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+        </>
+      );
+    case "share":
+      return (
+        <>
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <path d="M8.6 10.5l6.8-4" />
+          <path d="M8.6 13.5l6.8 4" />
         </>
       );
     case "check":

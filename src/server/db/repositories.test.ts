@@ -3,10 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { query } from "./client";
 import {
   createTask,
+  createPromptShare,
+  getPromptShare,
   getUserInviteCode,
   getQuotaState,
   listHistory,
   markTaskSucceeded,
+  reportPromptShare,
   resolveActor
 } from "./repositories";
 import type { Actor } from "./types";
@@ -204,6 +207,112 @@ describe("local repository fallback", () => {
       loginUsed: 0
     });
   });
+
+  it("creates a public share for an owned local generation result", async () => {
+    const actor = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const taskId = await createTask({ actor, generation: buildGeneration() });
+    await markTaskSucceeded({
+      taskId,
+      actor,
+      spendSource: "anonymous",
+      assets: [
+        {
+          assetType: "result",
+          storageKey: "generated/local/result.png",
+          url: "data:image/png;base64,ZmFrZQ==",
+          mimeType: "image/png"
+        }
+      ]
+    });
+
+    const share = await createPromptShare({
+      actor,
+      taskId,
+      imageUrl: "data:image/png;base64,ZmFrZQ=="
+    });
+    const publicShare = await getPromptShare(share.id);
+
+    expect(share.id).toMatch(/^[A-Za-z0-9_-]{12}$/);
+    expect(publicShare).toMatchObject({
+      id: share.id,
+      prompt: "A blue circle",
+      imageUrl: "data:image/png;base64,ZmFrZQ==",
+      imageStorageKey: "generated/local/result.png",
+      imageMimeType: "image/png"
+    });
+  });
+
+  it("does not create a local share for a task owned by another actor", async () => {
+    const owner = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const otherActor = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const taskId = await createTask({ actor: owner, generation: buildGeneration() });
+    await markTaskSucceeded({
+      taskId,
+      actor: owner,
+      spendSource: "anonymous",
+      assets: [
+        {
+          assetType: "result",
+          storageKey: "generated/local/result.png",
+          url: "data:image/png;base64,ZmFrZQ==",
+          mimeType: "image/png"
+        }
+      ]
+    });
+
+    await expect(
+      createPromptShare({
+        actor: otherActor,
+        taskId,
+        imageUrl: "data:image/png;base64,ZmFrZQ=="
+      })
+    ).resolves.toBeNull();
+  });
+
+  it("makes a local share unavailable after a report", async () => {
+    const actor = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const taskId = await createTask({ actor, generation: buildGeneration() });
+    await markTaskSucceeded({
+      taskId,
+      actor,
+      spendSource: "anonymous",
+      assets: [
+        {
+          assetType: "result",
+          storageKey: "generated/local/result.png",
+          url: "data:image/png;base64,ZmFrZQ==",
+          mimeType: "image/png"
+        }
+      ]
+    });
+    const share = await createPromptShare({
+      actor,
+      taskId,
+      imageUrl: "data:image/png;base64,ZmFrZQ=="
+    });
+    if (!share) {
+      throw new Error("Expected local share");
+    }
+
+    await expect(reportPromptShare(share.id)).resolves.toBe(true);
+    await expect(getPromptShare(share.id)).resolves.toBeNull();
+  });
 });
 
 describe("postgres repository queries", () => {
@@ -254,6 +363,79 @@ describe("postgres repository queries", () => {
     expect(sql).toContain("t.ip_hash = $2");
     expect(sql).toContain("t.spend_source = 'login'");
     expect(values).toEqual(["device-1", "ip-1"]);
+  });
+
+  it("creates a public share from an owned postgres task result", async () => {
+    mockedQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "share-public-1",
+          prompt: "A blue circle",
+          imageUrl: "https://cdn.lumio.games/generated/result.png",
+          imageStorageKey: "generated/user-1/task-1/result.png",
+          imageMimeType: "image/png",
+          createdAt: "2026-04-27T10:00:00.000Z"
+        }
+      ]
+    } as never);
+
+    const share = await createPromptShare({
+      actor: buildUserActor("user-1", "device-1"),
+      taskId: "00000000-0000-4000-8000-000000000001",
+      imageUrl: "https://cdn.lumio.games/generated/result.png"
+    });
+
+    expect(share).toMatchObject({
+      id: "share-public-1",
+      prompt: "A blue circle",
+      imageUrl: "https://cdn.lumio.games/generated/result.png"
+    });
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("insert into prompt_shares");
+    expect(sql).toContain("t.user_id = $5");
+    expect(sql).toContain("a.asset_type = 'result'");
+    expect(values).toContain("00000000-0000-4000-8000-000000000001");
+    expect(values).toContain("https://cdn.lumio.games/generated/result.png");
+    expect(values).toContain("user-1");
+  });
+
+  it("reads a public postgres share without actor ownership checks", async () => {
+    mockedQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "share-public-1",
+          prompt: "A blue circle",
+          imageUrl: "https://cdn.lumio.games/generated/result.png",
+          imageStorageKey: "generated/user-1/task-1/result.png",
+          imageMimeType: "image/png",
+          createdAt: "2026-04-27T10:00:00.000Z"
+        }
+      ]
+    } as never);
+
+    await expect(getPromptShare("share-public-1")).resolves.toMatchObject({
+      id: "share-public-1",
+      prompt: "A blue circle",
+      imageUrl: "https://cdn.lumio.games/generated/result.png"
+    });
+
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("from prompt_shares");
+    expect(sql).toContain("status = 'active'");
+    expect(sql).not.toContain("user_id =");
+    expect(values).toEqual(["share-public-1"]);
+  });
+
+  it("marks a postgres share as reported so it is unavailable", async () => {
+    mockedQuery.mockResolvedValueOnce({ rows: [{ id: "share-public-1" }] } as never);
+
+    await expect(reportPromptShare("share-public-1")).resolves.toBe(true);
+
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("update prompt_shares");
+    expect(sql).toContain("set status = 'reported'");
+    expect(sql).toContain("where id = $1 and status = 'active'");
+    expect(values).toEqual(["share-public-1"]);
   });
 });
 

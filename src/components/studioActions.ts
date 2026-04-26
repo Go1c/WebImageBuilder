@@ -48,6 +48,7 @@ export type StudioActionState = {
 
 export type StudioActionStates = {
   save: StudioActionState;
+  share: StudioActionState;
   referenceReuse: StudioActionState;
   download: StudioActionState;
   delete: StudioActionState;
@@ -120,6 +121,7 @@ export function getZoomAction(input: { image: StudioActionImage | null }): ZoomA
 export function getStudioActionStates(input: {
   image: StudioActionImage | null;
   canRegenerate: boolean;
+  canShare?: boolean;
   loading: boolean;
 }): StudioActionStates {
   return {
@@ -129,6 +131,11 @@ export function getStudioActionStates(input: {
       loading: input.loading,
       loadingReason: "生成完成后才能保存。",
       missingImageReason: "画布上没有可保存的图片。"
+    }),
+    share: getShareActionState({
+      image: input.image,
+      canShare: Boolean(input.canShare),
+      loading: input.loading
     }),
     referenceReuse: getImageActionState({
       label: "用作参考图",
@@ -159,6 +166,41 @@ export function getStudioActionStates(input: {
       loadingReason: "生成完成后才能打开大图。",
       missingImageReason: "画布上没有可打开的大图。"
     })
+  };
+}
+
+function getShareActionState(input: {
+  image: StudioActionImage | null;
+  canShare: boolean;
+  loading: boolean;
+}): StudioActionState {
+  if (input.loading) {
+    return {
+      enabled: false,
+      label: "分享提示词",
+      reason: "生成完成后才能分享。"
+    };
+  }
+
+  if (!input.image) {
+    return {
+      enabled: false,
+      label: "分享提示词",
+      reason: "画布上没有可分享的图片。"
+    };
+  }
+
+  if (!input.canShare) {
+    return {
+      enabled: false,
+      label: "分享提示词",
+      reason: "只有生成完成的图片可以分享。"
+    };
+  }
+
+  return {
+    enabled: true,
+    label: "分享提示词"
   };
 }
 

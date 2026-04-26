@@ -28,6 +28,7 @@ export type CanvasHistoryItem = {
 
 export type CanvasHistoryThumb = {
   id: string;
+  taskId?: string;
   url: string;
   mimeType?: string;
   prompt?: string;
@@ -85,6 +86,7 @@ export function buildCanvasHistoryThumbs(input: {
   images: CanvasImageCandidate[];
   history: CanvasHistoryItem[];
   canvasPrompt: string | null;
+  currentTaskId?: string | null;
   limit?: number;
 }): CanvasHistoryThumb[] {
   const thumbs: CanvasHistoryThumb[] = [];
@@ -102,6 +104,7 @@ export function buildCanvasHistoryThumbs(input: {
   input.images.forEach((image, index) => {
     appendThumb({
       id: `generated-${image.key || index}`,
+      ...(input.currentTaskId ? { taskId: input.currentTaskId } : {}),
       url: image.url,
       mimeType: image.mimeType,
       prompt: input.canvasPrompt || undefined
@@ -115,6 +118,7 @@ export function buildCanvasHistoryThumbs(input: {
         const size = getHistoryAssetSize(item, asset);
         appendThumb({
           id: `${item.id}-${index}`,
+          taskId: item.id,
           url: asset.url,
           prompt: item.prompt,
           ...(size ? { size } : {}),

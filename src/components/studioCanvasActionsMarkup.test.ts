@@ -34,12 +34,25 @@ describe("studio canvas actions markup", () => {
     const markup = readCanvasActionsMarkup();
 
     expect(markup).toContain("handleSaveToPortfolio");
+    expect(markup).toContain("handleShareCurrentImage");
     expect(markup).toContain("handleClearCanvas");
     expect(markup).toContain("handleUseCurrentAsReference");
     expect(markup).toContain("handleDownloadCurrentImage");
     expect(markup).toContain("handleRegenerate");
     expect(markup).not.toContain("handleOpenCurrentImage");
     expect(markup).not.toContain('name="expand"');
+  });
+
+  it("shows a compliance notice when creating a prompt share", () => {
+    const handler = readFunctionSource("handleShareCurrentImage");
+
+    expect(handler).toContain("仅供学习交流，禁止传播任何色情非法内容。");
+  });
+
+  it("auto closes tips after the default timeout", () => {
+    expect(source).toContain("window.setTimeout(() => {");
+    expect(source).toContain("setTip(null)");
+    expect(source).toContain("5000");
   });
 
   it("clears stale request previews when selecting a history image", () => {

@@ -136,6 +136,11 @@ describe("studio action helpers", () => {
       label: "保存到作品集",
       reason: "生成完成后才能保存。"
     });
+    expect(states.share).toEqual({
+      enabled: false,
+      label: "分享提示词",
+      reason: "生成完成后才能分享。"
+    });
     expect(states.referenceReuse).toEqual({
       enabled: false,
       label: "用作参考图",
@@ -174,10 +179,52 @@ describe("studio action helpers", () => {
     });
 
     expect(states.save).toEqual({ enabled: true, label: "保存到作品集" });
+    expect(states.share).toEqual({
+      enabled: false,
+      label: "分享提示词",
+      reason: "只有生成完成的图片可以分享。"
+    });
     expect(states.referenceReuse).toEqual({ enabled: true, label: "用作参考图" });
     expect(states.download).toEqual({ enabled: true, label: "下载图片" });
     expect(states.delete).toEqual({ enabled: true, label: "删除当前图片" });
     expect(states.regenerate).toEqual({ enabled: true, label: "重新生成" });
+  });
+
+  it("enables sharing only when the canvas image is tied to a generated task", () => {
+    const states = getStudioActionStates({
+      image: {
+        key: "generated/result-key",
+        url: "https://cdn.lumio.games/generated/city.png",
+        mimeType: "image/png"
+      },
+      canRegenerate: true,
+      canShare: true,
+      loading: false
+    });
+
+    expect(states.share).toEqual({
+      enabled: true,
+      label: "分享提示词"
+    });
+  });
+
+  it("disables sharing when the generated task is not available", () => {
+    const states = getStudioActionStates({
+      image: {
+        key: "generated/result-key",
+        url: "https://cdn.lumio.games/generated/city.png",
+        mimeType: "image/png"
+      },
+      canRegenerate: true,
+      canShare: false,
+      loading: false
+    });
+
+    expect(states.share).toEqual({
+      enabled: false,
+      label: "分享提示词",
+      reason: "只有生成完成的图片可以分享。"
+    });
   });
 
   it("enables regenerate without a canvas image when regeneration is available", () => {
@@ -199,6 +246,11 @@ describe("studio action helpers", () => {
         enabled: false,
         label: "保存到作品集",
         reason: "画布上没有可保存的图片。"
+      },
+      share: {
+        enabled: false,
+        label: "分享提示词",
+        reason: "画布上没有可分享的图片。"
       },
       referenceReuse: {
         enabled: false,
