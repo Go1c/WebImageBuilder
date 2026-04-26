@@ -12,12 +12,13 @@ describe("image download helper", () => {
       },
       0,
       {
-        document: createFakeDocument(link)
+        document: createFakeDocument(link),
+        now: new Date(2026, 3, 26, 19, 51, 30)
       }
     );
 
     expect(link.href).toBe("data:image/png;base64,ZmFrZQ==");
-    expect(link.download).toBe("lumio-result-01.png");
+    expect(link.download).toBe("lumio-result-20260426-195130-01.png");
     expect(link.click).toHaveBeenCalledOnce();
   });
 
@@ -33,19 +34,20 @@ describe("image download helper", () => {
       1,
       {
         document: createFakeDocument(link),
-        fetch: fetchMock
+        fetch: fetchMock,
+        now: new Date(2026, 3, 26, 19, 51, 30)
       }
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(link.href).toBe("https://cdn.lumio.games/generated/image.png");
-    expect(link.download).toBe("lumio-result-02.png");
+    expect(link.download).toBe("lumio-result-20260426-195130-02.png");
     expect(link.click).toHaveBeenCalledOnce();
   });
 
   it("builds stable download file names", () => {
-    expect(buildDownloadFileName({ url: "data:image/jpeg;base64,abc" }, 3)).toBe(
-      "lumio-result-04.jpg"
+    expect(buildDownloadFileName({ url: "data:image/jpeg;base64,abc" }, 3, new Date(2026, 3, 26, 19, 51, 30))).toBe(
+      "lumio-result-20260426-195130-04.jpg"
     );
   });
 });

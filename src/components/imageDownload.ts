@@ -23,6 +23,7 @@ export type DownloadDependencies = {
   document?: DownloadDocument;
   fetch?: typeof fetch;
   url?: DownloadUrlApi;
+  now?: Date;
 };
 
 export async function downloadGeneratedImage(
@@ -34,14 +35,29 @@ export async function downloadGeneratedImage(
   const link = documentRef.createElement("a") as DownloadLink;
 
   link.href = image.url;
-  link.download = buildDownloadFileName(image, index);
+  link.download = buildDownloadFileName(image, index, dependencies.now);
   link.rel = "noreferrer";
   link.click();
 }
 
-export function buildDownloadFileName(image: DownloadableImage, index: number): string {
+export function buildDownloadFileName(image: DownloadableImage, index: number, now = new Date()): string {
   const extension = inferImageExtension(image);
-  return `lumio-result-${String(index + 1).padStart(2, "0")}.${extension}`;
+  return `lumio-result-${formatDownloadTimestamp(now)}-${String(index + 1).padStart(2, "0")}.${extension}`;
+}
+
+function formatDownloadTimestamp(value: Date): string {
+  const year = value.getFullYear();
+  const month = padDatePart(value.getMonth() + 1);
+  const day = padDatePart(value.getDate());
+  const hours = padDatePart(value.getHours());
+  const minutes = padDatePart(value.getMinutes());
+  const seconds = padDatePart(value.getSeconds());
+
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
 }
 
 function inferImageExtension(image: DownloadableImage): string {

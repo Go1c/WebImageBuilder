@@ -34,6 +34,11 @@ import {
 import { getPromptLibraryImageLoading } from "./promptLibraryImages";
 import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
 import {
+  createIndexedDbPortfolioAssetStore,
+  loadSavedPortfolioItems,
+  savePortfolioItems
+} from "./portfolioStorage";
+import {
   buildGenerationSize,
   imageResolutionOptions,
   type AspectRatioLabel,
@@ -136,7 +141,6 @@ type StudioIconName =
   | "expand";
 
 const generationTimeoutMs = 120_000;
-const portfolioStorageKey = "lumio:portfolio";
 const emptySub2ApiSession: Sub2ApiSessionResponse = {
   authenticated: false,
   user: null
@@ -212,6 +216,7 @@ export function ImageStudio() {
   const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
   const actionStates = getStudioActionStates({ image: canvasImage, canRegenerate, loading });
+  const portfolioAssetStore = useMemo(() => createIndexedDbPortfolioAssetStore(), []);
   const loginBaseUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/login";
   const loginUrl = useMemo(
     () => buildSub2ApiLoginUrl({ loginBaseUrl, returnToUrl: loginReturnToUrl }),
@@ -258,8 +263,27 @@ export function ImageStudio() {
   }, []);
 
   useEffect(() => {
-    setSavedPortfolioItems(readSavedPortfolioItems());
-  }, []);
+    let isMounted = true;
+
+    void loadSavedPortfolioItems({
+      storage: window.localStorage,
+      assetStore: portfolioAssetStore
+    })
+      .then((items) => {
+        if (isMounted) {
+          setSavedPortfolioItems(items);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          showTip(tipFromActionFailure({ kind: "failed", action: "加载作品集", error }));
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [portfolioAssetStore]);
 
   useEffect(() => {
     if (quota?.actorType !== "user") {
@@ -791,13 +815,16 @@ export function ImageStudio() {
     });
   }
 
-  function handleSaveToPortfolio() {
+  async function handleSaveToPortfolio() {
     if (!ensureActionEnabled("保存到作品集", actionStates.save) || !canvasImage) {
       return;
     }
 
     try {
-      const existingItems = readSavedPortfolioItems();
+      const existingItems = await loadSavedPortfolioItems({
+        storage: window.localStorage,
+        assetStore: portfolioAssetStore
+      });
       const savedItem = buildLocalPortfolioItem({
         image: canvasImage,
         prompt: canvasPrompt || promptEnhancement.rawPrompt,
@@ -805,8 +832,12 @@ export function ImageStudio() {
       });
 
       const nextItems = upsertLocalPortfolioItem(existingItems, savedItem);
-      window.localStorage.setItem(portfolioStorageKey, JSON.stringify(nextItems));
-      setSavedPortfolioItems(nextItems);
+      const savedItems = await savePortfolioItems({
+        items: nextItems,
+        storage: window.localStorage,
+        assetStore: portfolioAssetStore
+      });
+      setSavedPortfolioItems(savedItems);
       setActiveLibraryTab("我的");
       showTip({
         type: "success",
@@ -1176,7 +1207,7 @@ export function ImageStudio() {
               aria-disabled={!actionStates.save.enabled}
               title={actionStates.save.reason || "保存到作品集"}
               data-tooltip={actionStates.save.reason || "保存到作品集"}
-              onClick={handleSaveToPortfolio}
+              onClick={() => void handleSaveToPortfolio()}
             >
               <StudioIcon name="check" size={14} />
               保存到作品集
@@ -1357,16 +1388,6 @@ export function ImageStudio() {
       {tip ? <StudioTipToast tip={tip} /> : null}
     </main>
   );
-}
-
-function readSavedPortfolioItems(): SavedPortfolioItem[] {
-  try {
-    const rawItems = window.localStorage.getItem(portfolioStorageKey);
-    const parsedItems = rawItems ? (JSON.parse(rawItems) as SavedPortfolioItem[]) : [];
-    return Array.isArray(parsedItems) ? parsedItems : [];
-  } catch {
-    return [];
-  }
 }
 
 function toAbsoluteUrl(url: string): string {
