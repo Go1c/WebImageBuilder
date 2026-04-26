@@ -225,7 +225,7 @@ export function ImageStudio() {
     () => buildSub2ApiLoginUrl({ loginBaseUrl, returnToUrl: loginReturnToUrl }),
     [loginBaseUrl, loginReturnToUrl]
   );
-  const lumioAccountUrl = useMemo(() => getUrlOrigin(loginBaseUrl), [loginBaseUrl]);
+  const lumioAccountUrl = useMemo(() => getLumioAffiliateUrl(loginBaseUrl), [loginBaseUrl]);
   const accountLabel = getSub2ApiAccountLabel(sub2ApiSession);
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
 
@@ -1342,11 +1342,11 @@ function toAbsoluteUrl(url: string): string {
   }
 }
 
-function getUrlOrigin(urlValue: string): string {
+function getLumioAffiliateUrl(urlValue: string): string {
   try {
-    return new URL(urlValue).origin;
+    return new URL("/affiliate", new URL(urlValue).origin).toString();
   } catch {
-    return "https://api.lumio.games";
+    return "https://api.lumio.games/affiliate";
   }
 }
 
@@ -1390,7 +1390,7 @@ function HeaderContextPanel({
               <p>生成价格：1K 每张 0.05 元，2K 和 4K 每张 0.2 元。</p>
               <p>本站只记录普通用户免费体验 3 次，免费体验仅支持 1K。</p>
               <p>1K 请求超时时间为 120 秒；2K/4K 请求超时时间为 240 秒。</p>
-              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 的 Lumio 账户中心管理。</p>
+              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，可在邀请返利页面查看。</p>
             </div>
             <h3>快速生成流程</h3>
             <ol>
@@ -1411,7 +1411,7 @@ function HeaderContextPanel({
             </div>
             <div className="context-section-list">
               <p>本站只记录普通用户免费体验 3 次且仅支持 1K；本地 3 次用完后，会使用已登录账号的 Lumio Key/余额生成。</p>
-              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，请到 Lumio 账户中心查看邀请链接和奖励到账。</p>
+              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，请到邀请返利页面查看邀请链接和奖励到账。</p>
               <p>账户权益用量和邀请奖励不计入本站本地 quota；生成价格为 1K 0.05 元，2K/4K 0.2 元，2K/4K 超时时间为 240 秒。</p>
               <p className="context-status-line">
                 当前状态：
@@ -1427,7 +1427,7 @@ function HeaderContextPanel({
               target="_blank"
               rel="noreferrer"
             >
-              {quota?.actorType === "user" ? "去 Lumio 账户中心" : "去登录"}
+              {quota?.actorType === "user" ? "去邀请返利页面" : "去登录"}
             </a>
           </>
         )}

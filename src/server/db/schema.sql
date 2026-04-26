@@ -55,6 +55,7 @@ create table if not exists generation_tasks (
   anonymous_device_id uuid references anonymous_devices(id) on delete cascade,
   session_id uuid references sessions(id) on delete set null,
   ip_hash text not null,
+  device_fingerprint text,
   mode text not null,
   model_key text not null,
   provider text not null,
@@ -77,6 +78,31 @@ create index if not exists generation_tasks_anon_created_idx
 
 create index if not exists generation_tasks_ip_created_idx
   on generation_tasks(ip_hash, created_at desc);
+
+alter table generation_tasks
+  add column if not exists device_fingerprint text;
+
+update generation_tasks t
+set device_fingerprint = d.device_fingerprint
+from anonymous_devices d
+where t.device_fingerprint is null
+  and t.anonymous_device_id = d.id;
+
+with single_user_device as (
+  select user_id, min(device_fingerprint) as device_fingerprint
+  from user_device_links
+  group by user_id
+  having count(*) = 1
+)
+update generation_tasks t
+set device_fingerprint = single_user_device.device_fingerprint
+from single_user_device
+where t.device_fingerprint is null
+  and t.spend_source = 'login'
+  and t.user_id = single_user_device.user_id;
+
+create index if not exists generation_tasks_device_trial_idx
+  on generation_tasks(device_fingerprint, spend_source, status);
 
 create table if not exists assets (
   id uuid primary key default gen_random_uuid(),

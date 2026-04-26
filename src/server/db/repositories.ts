@@ -188,7 +188,7 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   if (actor.type === "anonymous") {
     return {
       actorType: "anonymous",
-      anonymousUsed: await countDeviceTrialUsage(actor.deviceId),
+      anonymousUsed: await countDeviceTrialUsage(actor.deviceId, actor.ipHash),
       loginUsed: 0,
       inviteCredits: 0,
       paidCredits: 0,
@@ -221,7 +221,7 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   const row = usage.rows[0];
   return {
     actorType: "user",
-    anonymousUsed: await countDeviceTrialUsage(actor.deviceId),
+    anonymousUsed: await countDeviceTrialUsage(actor.deviceId, actor.ipHash),
     loginUsed: 0,
     inviteCredits: Number(row?.invite_credits ?? 0),
     paidCredits: Number(row?.paid_credits ?? 0),
@@ -243,31 +243,44 @@ function countLocalDeviceTrialUsage(store: LocalRepository, deviceId: string): n
   }).length;
 }
 
-async function countDeviceTrialUsage(deviceId: string): Promise<number> {
+async function countDeviceTrialUsage(deviceId: string, ipHash: string): Promise<number> {
   const usage = await query<{ used: string }>(
     `
       select count(*)::text as used
       from generation_tasks t
       where t.status = 'succeeded'
         and (
-          exists (
-            select 1
-            from anonymous_devices d
-            where d.id = t.anonymous_device_id
-              and d.device_fingerprint = $1
+          (
+            t.spend_source = 'anonymous'
+            and (
+              t.device_fingerprint = $1
+              or exists (
+                select 1
+                from anonymous_devices d
+                where d.id = t.anonymous_device_id
+                  and d.device_fingerprint = $1
+              )
+            )
           )
           or (
             t.spend_source = 'login'
-            and exists (
-              select 1
-              from user_device_links l
-              where l.user_id = t.user_id
-                and l.device_fingerprint = $1
+            and (
+              t.device_fingerprint = $1
+              or (
+                t.device_fingerprint is null
+                and t.ip_hash = $2
+              )
+              or exists (
+                select 1
+                from user_device_links l
+                where l.user_id = t.user_id
+                  and l.device_fingerprint = $1
+              )
             )
           )
         )
     `,
-    [deviceId]
+    [deviceId, ipHash]
   );
 
   return Number(usage.rows[0]?.used ?? 0);
@@ -297,10 +310,10 @@ export async function createTask(input: {
   await query(
     `
       insert into generation_tasks (
-        id, actor_type, user_id, anonymous_device_id, session_id, ip_hash,
+        id, actor_type, user_id, anonymous_device_id, session_id, ip_hash, device_fingerprint,
         mode, model_key, provider, provider_model, prompt, params, status, result_count
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'running', $13)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'running', $14)
     `,
     [
       id,
@@ -309,6 +322,7 @@ export async function createTask(input: {
       input.actor.type === "anonymous" ? input.actor.anonymousDeviceId : null,
       input.generation.sessionId ?? null,
       input.actor.ipHash,
+      input.actor.deviceId,
       input.generation.mode,
       input.generation.model,
       input.generation.provider,

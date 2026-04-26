@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { query } from "./client";
 import {
   createTask,
   getUserInviteCode,
@@ -8,7 +9,15 @@ import {
   markTaskSucceeded,
   resolveActor
 } from "./repositories";
+import type { Actor } from "./types";
 import type { NormalizedGenerationInput } from "../domain/models";
+
+vi.mock("./client", () => ({
+  query: vi.fn(),
+  transaction: vi.fn()
+}));
+
+const mockedQuery = vi.mocked(query);
 
 describe("local repository fallback", () => {
   const originalEnv = process.env;
@@ -196,6 +205,67 @@ describe("local repository fallback", () => {
     });
   });
 });
+
+describe("postgres repository queries", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      DATABASE_URL: "postgres://lumio.test/db",
+      LUMIO_LOCAL_MODE: "false"
+    };
+    mockedQuery.mockReset();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    vi.clearAllMocks();
+  });
+
+  it("stores the request device fingerprint on generation tasks", async () => {
+    mockedQuery.mockResolvedValue({ rows: [] } as never);
+
+    const actor = buildUserActor("user-1", "device-1");
+    await createTask({ actor, generation: buildGeneration() });
+
+    expect(mockedQuery).toHaveBeenCalledTimes(1);
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("device_fingerprint");
+    expect(values).toContain("device-1");
+  });
+
+  it("counts site-funded trials by the generation task device fingerprint", async () => {
+    mockedQuery
+      .mockResolvedValueOnce({ rows: [{ count: "0" }] } as never)
+      .mockResolvedValueOnce({ rows: [] } as never)
+      .mockResolvedValueOnce({
+        rows: [{ login_used: 0, invite_credits: 0, paid_credits: 0 }]
+      } as never)
+      .mockResolvedValueOnce({ rows: [{ used: "3" }] } as never);
+
+    await expect(getQuotaState(buildUserActor("user-2", "device-1"))).resolves.toMatchObject({
+      actorType: "user",
+      anonymousUsed: 3
+    });
+
+    const [sql, values] = mockedQuery.mock.calls[3];
+    expect(sql).toContain("t.device_fingerprint = $1");
+    expect(sql).toContain("t.ip_hash = $2");
+    expect(sql).toContain("t.spend_source = 'login'");
+    expect(values).toEqual(["device-1", "ip-1"]);
+  });
+});
+
+function buildUserActor(userId: string, deviceId: string): Actor {
+  return {
+    type: "user",
+    userId,
+    externalUserId: `sub2api:${userId}`,
+    deviceId,
+    ipHash: "ip-1"
+  };
+}
 
 function buildGeneration(): NormalizedGenerationInput {
   return {
