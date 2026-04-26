@@ -1,9 +1,11 @@
 export type CanvasImageCandidate = {
+  key?: string;
   url: string;
   mimeType?: string;
 };
 
 export type CanvasImage = {
+  key?: string;
   url: string;
   mimeType: string;
 };
@@ -16,6 +18,7 @@ export function selectCanvasImage(input: {
 
   if (generatedImage) {
     return {
+      ...(generatedImage.key ? { key: generatedImage.key } : {}),
       url: generatedImage.url,
       mimeType: generatedImage.mimeType || "image/png"
     };

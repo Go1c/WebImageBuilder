@@ -17,4 +17,23 @@ describe("studio canvas helpers", () => {
       mimeType: "image/png"
     });
   });
+
+  it("preserves generated image keys for later reference reuse", () => {
+    expect(
+      selectCanvasImage({
+        images: [
+          {
+            key: "generated/result-key",
+            url: "https://cdn.lumio.games/result.png",
+            mimeType: "image/png"
+          }
+        ],
+        selectedInspirationImage: null
+      })
+    ).toEqual({
+      key: "generated/result-key",
+      url: "https://cdn.lumio.games/result.png",
+      mimeType: "image/png"
+    });
+  });
 });
