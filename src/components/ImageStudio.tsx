@@ -54,6 +54,7 @@ import {
   type StudioActionState
 } from "./studioActions";
 import {
+  buildCanvasMeta,
   buildCanvasHistoryThumbs,
   getCanvasPlaceholderText,
   selectCanvasImage,
@@ -83,20 +84,17 @@ type QuotaResponse = {
   ipDailyUsed: number;
 };
 
-type InviteInfoResponse = {
-  inviteCode: string;
-  inviteUrl: string;
-  rewardGenerations: number;
-};
-
 type HistoryItem = {
   id: string;
   mode: string;
   modelKey: string;
   prompt: string;
+  params?: {
+    size?: string | null;
+  } | null;
   status: string;
   createdAt: string;
-  assets: Array<{ url: string; type: string }>;
+  assets: Array<{ url: string; type: string; width?: number | null; height?: number | null }>;
 };
 
 type GeneratedImage = {
@@ -110,6 +108,9 @@ type HistoryThumb = {
   url: string;
   mimeType?: string;
   prompt?: string;
+  size?: string;
+  status?: string;
+  createdAt?: string;
 };
 
 type SavedPortfolioItem = LocalPortfolioItem;
@@ -189,6 +190,7 @@ export function ImageStudio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedInspirationImage, setSelectedInspirationImage] = useState<string | null>(null);
+  const [selectedHistoryThumb, setSelectedHistoryThumb] = useState<HistoryThumb | null>(null);
   const [canvasPrompt, setCanvasPrompt] = useState<string | null>(null);
   const [savedPortfolioItems, setSavedPortfolioItems] = useState<SavedPortfolioItem[]>([]);
   const [activeLibraryTab, setActiveLibraryTab] = useState("热门");
@@ -198,7 +200,6 @@ export function ImageStudio() {
   const [loadingSeconds, setLoadingSeconds] = useState(0);
   const [tip, setTip] = useState<StudioTip | null>(null);
   const [requestPreview, setRequestPreview] = useState<string | null>(null);
-  const [currentInviteUrl, setCurrentInviteUrl] = useState<string | null>(null);
   const [sub2ApiSession, setSub2ApiSession] = useState<Sub2ApiSessionResponse | null>(null);
   const [loginReturnToUrl, setLoginReturnToUrl] = useState<string | null>(null);
 
@@ -222,12 +223,23 @@ export function ImageStudio() {
     () => buildSub2ApiLoginUrl({ loginBaseUrl, returnToUrl: loginReturnToUrl }),
     [loginBaseUrl, loginReturnToUrl]
   );
+  const lumioAccountUrl = useMemo(() => getUrlOrigin(loginBaseUrl), [loginBaseUrl]);
   const accountLabel = getSub2ApiAccountLabel(sub2ApiSession);
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt });
   }, [canvasPrompt, history, images]);
+  const canvasMeta = useMemo(
+    () =>
+      buildCanvasMeta({
+        activeSizeMeta: activeSize.meta,
+        loading,
+        loadingSeconds,
+        selectedHistoryThumb
+      }),
+    [activeSize.meta, loading, loadingSeconds, selectedHistoryThumb]
+  );
 
   const quotaText = useMemo(() => {
     if (!quota) {
@@ -257,7 +269,6 @@ export function ImageStudio() {
     setLoginReturnToUrl(stripSub2ApiAuthParamsFromUrl(window.location.href));
     void (async () => {
       await initializeSub2ApiSession();
-      await claimInviteFromUrl();
       await refreshData();
     })();
   }, []);
@@ -284,15 +295,6 @@ export function ImageStudio() {
       isMounted = false;
     };
   }, [portfolioAssetStore]);
-
-  useEffect(() => {
-    if (quota?.actorType !== "user") {
-      setCurrentInviteUrl(null);
-      return;
-    }
-
-    void refreshInviteInfo();
-  }, [quota?.actorType]);
 
   useEffect(() => {
     if (!referenceFiles[0]) {
@@ -413,48 +415,6 @@ export function ImageStudio() {
     );
   }
 
-  async function refreshInviteInfo() {
-    try {
-      const response = await fetch("/api/invite", { cache: "no-store" });
-
-      if (!response.ok) {
-        showTip(tipFromApiError(await readApiErrorDetail(response)));
-        setCurrentInviteUrl(null);
-        return;
-      }
-
-      const inviteInfo = await readApiJson<InviteInfoResponse>(
-        response,
-        "邀请接口返回了非 JSON 响应，请刷新页面后重试"
-      );
-      setCurrentInviteUrl(inviteInfo.inviteUrl);
-    } catch (error) {
-      showTip(tipFromActionFailure({ kind: "failed", action: "加载邀请链接", error }));
-      setCurrentInviteUrl(null);
-    }
-  }
-
-  async function claimInviteFromUrl() {
-    const inviteCode = new URLSearchParams(window.location.search).get("invite");
-    if (!inviteCode) {
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/invite/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteCode })
-      });
-
-      if (!response.ok) {
-        showTip(tipFromApiError(await readApiErrorDetail(response)));
-      }
-    } catch (error) {
-      showTip(tipFromActionFailure({ kind: "failed", action: "领取邀请奖励", error }));
-    }
-  }
-
   async function uploadAsset(file: File, assetType: "reference" | "mask"): Promise<AssetRef> {
     const presignResponse = await fetch("/api/uploads/presign", {
       method: "POST",
@@ -509,6 +469,7 @@ export function ImageStudio() {
 
     setLoading(true);
     setTip(null);
+    setSelectedHistoryThumb(null);
     setRequestPreview(buildRequestPreview(metadata));
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
@@ -549,6 +510,7 @@ export function ImageStudio() {
 
       setImages(result.images);
       setSelectedInspirationImage(null);
+      setSelectedHistoryThumb(null);
       setCanvasPrompt(result.prompt || submissionPrompt);
       setQuota((current) => (current ? { ...current, quota: result.quota } : current));
       setReusedReference(null);
@@ -665,6 +627,7 @@ export function ImageStudio() {
     setPrompt(item.prompt);
     setImages([]);
     setSelectedInspirationImage(item.image);
+    setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
     setRequestPreview(null);
     showTip({
@@ -678,6 +641,7 @@ export function ImageStudio() {
     setPrompt(item.prompt);
     setImages([]);
     setSelectedInspirationImage(item.url);
+    setSelectedHistoryThumb(null);
     setCanvasPrompt(item.prompt || null);
     setRequestPreview(null);
     showTip({
@@ -689,8 +653,10 @@ export function ImageStudio() {
 
   function handleHistoryThumbClick(thumb: HistoryThumb) {
     setSelectedInspirationImage(thumb.url);
+    setSelectedHistoryThumb(thumb);
     setImages([]);
     setCanvasPrompt(thumb.prompt || null);
+    setRequestPreview(null);
   }
 
   function handleOpenExplore() {
@@ -723,8 +689,8 @@ export function ImageStudio() {
       type: "info",
       title: "邀请有礼",
       message: quota?.actorType === "user"
-        ? "邀请面板已打开，可查看奖励规则和邀请链接。"
-        : "邀请奖励需要登录后绑定账号。"
+        ? "邀请面板已打开，奖励和邀请链接由 Lumio 账户中心管理。"
+        : "邀请奖励由 Lumio 账户中心管理，请先登录。"
     });
   }
 
@@ -762,37 +728,6 @@ export function ImageStudio() {
     }
   }
 
-  async function handleCopyInviteUrl() {
-    if (!currentInviteUrl) {
-      if (quota?.actorType === "user") {
-        showTip(tipFromActionFailure({
-          kind: "failed",
-          action: "加载邀请链接",
-          error: "后端暂未返回可复制的邀请码，请刷新后重试。"
-        }));
-        return;
-      }
-
-      showTip(tipFromActionFailure({
-        kind: "login_required",
-        action: "复制邀请链接",
-        actionHref: loginUrl
-      }));
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(currentInviteUrl);
-      showTip({
-        type: "success",
-        title: "邀请链接已复制",
-        message: "可以发送给好友领取邀请奖励。"
-      });
-    } catch (error) {
-      showTip(tipFromActionFailure({ kind: "failed", action: "复制邀请链接", error }));
-    }
-  }
-
   function scrollLibraryIntoView() {
     window.requestAnimationFrame(() => {
       libraryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -806,6 +741,7 @@ export function ImageStudio() {
 
     setImages([]);
     setSelectedInspirationImage(null);
+    setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
     setRequestPreview(null);
     showTip({
@@ -864,6 +800,7 @@ export function ImageStudio() {
     setReferenceFiles([]);
     setReusedReference(result.reference);
     setSelectedInspirationImage(result.reference.url);
+    setSelectedHistoryThumb(null);
     setMode("image-to-image");
     showTip({
       type: "info",
@@ -1022,11 +959,10 @@ export function ImageStudio() {
       {activeHeaderPanel && activeHeaderPanel !== "auth" ? (
         <HeaderContextPanel
           panel={activeHeaderPanel}
-          inviteUrl={currentInviteUrl}
           loginUrl={loginUrl}
+          lumioAccountUrl={lumioAccountUrl}
           quota={quota}
           onClose={() => setActiveHeaderPanel(null)}
-          onCopyInviteUrl={() => void handleCopyInviteUrl()}
         />
       ) : null}
 
@@ -1163,11 +1099,11 @@ export function ImageStudio() {
                   <StudioIcon name="sparkle" size={12} />
                   Lumio v2.1
                 </span>
-                <span>{activeSize.meta}</span>
+                <span>{canvasMeta.size}</span>
                 <span className="meta-dot">·</span>
-                <span>{loading ? `${loadingSeconds || 1}.0s` : "6.2s"}</span>
+                <span>{canvasMeta.timing}</span>
                 <span className="meta-dot">·</span>
-                <span>{loading ? "生成中" : "刚刚"}</span>
+                <span>{canvasMeta.status}</span>
               </div>
               {canvasPrompt ? <p>{canvasPrompt}</p> : null}
             </div>
@@ -1261,22 +1197,26 @@ export function ImageStudio() {
 
           <div className="canvas-history">
             <span>历史：</span>
-            {historyThumbs.map((thumb, index) => (
-              <button
-                key={thumb.id}
-                className={index === 0 ? "history-thumb is-active" : "history-thumb"}
-                type="button"
-                onClick={() => handleHistoryThumbClick(thumb)}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumb.url} alt="" />
-                {index === 0 ? (
-                  <span className="thumb-check">
-                    <StudioIcon name="check" size={8} />
-                  </span>
-                ) : null}
-              </button>
-            ))}
+            {historyThumbs.map((thumb) => {
+              const isActiveThumb = canvasImage?.url === thumb.url;
+
+              return (
+                <button
+                  key={thumb.id}
+                  className={isActiveThumb ? "history-thumb is-active" : "history-thumb"}
+                  type="button"
+                  onClick={() => handleHistoryThumbClick(thumb)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={thumb.url} alt="" />
+                  {isActiveThumb ? (
+                    <span className="thumb-check">
+                      <StudioIcon name="check" size={8} />
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -1398,6 +1338,14 @@ function toAbsoluteUrl(url: string): string {
   }
 }
 
+function getUrlOrigin(urlValue: string): string {
+  try {
+    return new URL(urlValue).origin;
+  } catch {
+    return "https://api.lumio.games";
+  }
+}
+
 function readEmbeddedSub2ApiToken(): string | null {
   return readSub2ApiTokenFromUrl(window.location.href);
 }
@@ -1409,18 +1357,16 @@ function removeEmbeddedAuthQueryParams() {
 
 function HeaderContextPanel({
   panel,
-  inviteUrl,
   loginUrl,
+  lumioAccountUrl,
   quota,
-  onClose,
-  onCopyInviteUrl
+  onClose
 }: {
   panel: Exclude<HeaderPanel, null | "auth">;
-  inviteUrl: string | null;
   loginUrl: string;
+  lumioAccountUrl: string;
   quota: QuotaResponse | null;
   onClose: () => void;
-  onCopyInviteUrl: () => void;
 }) {
   return (
     <section className="header-context-panel" aria-live="polite">
@@ -1428,37 +1374,56 @@ function HeaderContextPanel({
         {panel === "tutorials" ? (
           <>
             <p className="context-eyebrow">教程</p>
-            <h2>快速生成流程</h2>
+            <h2>价格与额度说明</h2>
+            <div className="context-highlight-grid" aria-label="重点说明">
+              <span>1K：0.05 元/张</span>
+              <span>2K/4K：0.2 元/张</span>
+              <span>免费体验 3 次</span>
+              <span>注册送 20 次</span>
+              <span>邀请 1 人送 20 次</span>
+            </div>
+            <div className="context-section-list">
+              <p>生成价格：1K 每张 0.05 元，2K 和 4K 每张 0.2 元。</p>
+              <p>本站只记录普通用户免费体验 3 次。</p>
+              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 的 Lumio 账户中心管理。</p>
+            </div>
+            <h3>快速生成流程</h3>
             <ol>
               <li>写下主体、场景、用途和画幅。</li>
-              <li>选择一个或多个类型，再按需要选择风格预设。</li>
+              <li>选择 1K、2K 或 4K 分辨率；2K/4K 会使用高分辨率模型。</li>
               <li>上传本地参考图可进入图生图；画布图片复用会作为 URL 参考图发送。</li>
-              <li>生成后可保存到作品集、下载或重新生成。</li>
+              <li>免费额度用完后，会使用已登录账号绑定的 Image-2（生图专用）Key 继续生成。</li>
             </ol>
           </>
         ) : (
           <>
             <p className="context-eyebrow">邀请有礼</p>
             <h2>邀请好友领取生成额度</h2>
-            <p>
-              邀请奖励规则：好友通过你的链接完成注册并完成首次成功生成后，邀请人获得 10 次邀请额度。
-            </p>
-            <p>
-              当前状态：{quota?.actorType === "user" ? "已登录，可绑定邀请奖励。" : "未登录，需先登录后才能绑定邀请奖励。"}
-            </p>
-            <div className="invite-copy-row">
-              <code>
-                {inviteUrl || (quota?.actorType === "user"
-                  ? "正在从后端加载你的真实邀请链接"
-                  : "登录后可生成可复制的邀请链接")}
-              </code>
-              <button type="button" onClick={onCopyInviteUrl}>复制</button>
+            <div className="context-highlight-grid" aria-label="邀请重点说明">
+              <span>免费体验 3 次</span>
+              <span>注册送 20 次</span>
+              <span>邀请 1 人送 20 次</span>
             </div>
-            {quota?.actorType !== "user" ? (
-              <a className="context-login-link" href={loginUrl} target="_blank" rel="noreferrer">
-                去登录
-              </a>
-            ) : null}
+            <div className="context-section-list">
+              <p>本站只记录普通用户免费体验 3 次；本地 3 次用完后，会使用已登录账号的 Lumio Key/余额生成。</p>
+              <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，请到 Lumio 账户中心查看邀请链接和奖励到账。</p>
+              <p>账户权益用量和邀请奖励不计入本站本地 quota；生成价格为 1K 0.05 元，2K/4K 0.2 元。</p>
+              <p className="context-status-line">
+                当前状态：
+                <strong className={quota?.actorType === "user" ? "is-signed-in" : "is-signed-out"}>
+                  {quota?.actorType === "user" ? "已登录" : "未登录"}
+                </strong>
+                {quota?.actorType === "user" ? "，可绑定邀请奖励。" : "，需先登录后才能绑定邀请奖励。"}
+              </p>
+            </div>
+            <a
+              className="context-login-link"
+              href={quota?.actorType === "user" ? lumioAccountUrl : loginUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {quota?.actorType === "user" ? "去 Lumio 账户中心" : "去登录"}
+            </a>
           </>
         )}
       </div>

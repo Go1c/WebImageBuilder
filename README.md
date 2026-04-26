@@ -1,16 +1,16 @@
 # Lumio Image Studio
 
-Next.js 全栈图像生成公开站。前端提供中文创作工作台，服务端负责生成代理、PostgreSQL 业务数据、S3/R2 图片存储、免费额度、邀请奖励和基础防刷。
+Next.js 全栈图像生成公开站。前端提供中文创作工作台，服务端负责生成代理、PostgreSQL 业务数据、S3/R2 图片存储、3 次本地免费试用和基础防刷。
 
 ## 本项目负责
 
 - 图像生成工作台。
 - Gemini 与 GPT Image 的服务端适配。
-- 匿名免费次数、登录免费次数、邀请奖励。
+- 新设备/新用户总共 3 次本地免费试用。
 - 提示词、任务、历史记录和图片资产元数据。
 - S3/R2 上传和生成结果保存。
 
-`https://api.lumio.games/` 继续负责注册登录、支付、平台 Token/API Key 和计费策略。
+`https://api.lumio.games/` 继续负责注册登录、注册送 20 次、邀请 1 人送 20 次、支付、平台 Token/API Key 和计费策略。本站免费试用用完后，登录用户会改用 Lumio 账户下的图片生成 Key/余额。
 
 ## 本地开发
 
@@ -27,7 +27,7 @@ npm run dev
 2. 添加 PostgreSQL 服务，把连接串写入 `DATABASE_URL`。
 3. 配置 S3/R2 环境变量。
 4. 配置 `JWT_SECRET` 或 `JWT_PUBLIC_KEY`，用于验证 `api.lumio.games` 登录 token。
-5. 配置 `OPENAI_API_KEY`、`GEMINI_API_KEY` 和对应模型 ID。
+5. 配置站点免费试用使用的 `OPENAI_API_KEY`、`GEMINI_API_KEY` 和对应模型 ID。
 6. 部署后运行 `npm run db:migrate` 应用数据库表结构。
 
 ### 部署环境变量
@@ -47,6 +47,7 @@ OpenAI：
 OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://api.openai.com
 OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_IMAGE_PRO_MODEL=gpt-image-2pro
 IMAGE_PROVIDER_TIMEOUT_MS=48000
 ```
 
@@ -76,17 +77,20 @@ S3_PUBLIC_BASE_URL=https://...
 
 ```env
 LUMIO_API_BASE_URL=https://api.lumio.games
-NEXT_PUBLIC_LUMIO_LOGIN_URL=https://api.lumio.games/
+SUB2API_API_BASE_URL=https://api.lumio.games/api/v1
+NEXT_PUBLIC_LUMIO_LOGIN_URL=https://api.lumio.games/login
 JWT_SECRET=
 JWT_PUBLIC_KEY=
 ANON_FREE_GENERATIONS=3
-LOGIN_FREE_GENERATIONS=20
-INVITE_REWARD_GENERATIONS=10
+LOGIN_FREE_GENERATIONS=3
+INVITE_REWARD_GENERATIONS=0
 IP_DAILY_ANON_LIMIT=30
 FINGERPRINT_SALT=change-me
 ```
 
 `JWT_SECRET` 和 `JWT_PUBLIC_KEY` 二选一，用于验证 `api.lumio.games` 登录 token。
+
+`ANON_FREE_GENERATIONS` 和 `LOGIN_FREE_GENERATIONS` 都保持为 `3`。本站只记录这 3 次本地免费试用；注册赠送、邀请奖励和账户余额由 `api.lumio.games` 管理，`INVITE_REWARD_GENERATIONS` 应保持 `0`。
 
 ### 数据库迁移
 

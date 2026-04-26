@@ -53,6 +53,38 @@ describe("model and generation request rules", () => {
     expect(input.providerModel).toBeDefined();
   });
 
+  it("selects the OpenAI image request model from the requested resolution", () => {
+    const baseInput = {
+      prompt: "A red robot",
+      mode: "text-to-image" as const,
+      model: "gpt-image-2" as const,
+      size: "1024x1024" as const
+    };
+
+    expect(
+      normalizeGenerationInput({
+        ...baseInput,
+        resolution: "1K"
+      }).providerModel
+    ).toBe("gpt-image-2");
+
+    expect(
+      normalizeGenerationInput({
+        ...baseInput,
+        size: "2560x1440",
+        resolution: "2K"
+      }).providerModel
+    ).toBe("gpt-image-2pro");
+
+    expect(
+      normalizeGenerationInput({
+        ...baseInput,
+        size: "3840x2160",
+        resolution: "4K"
+      }).providerModel
+    ).toBe("gpt-image-2pro");
+  });
+
   it("rejects malformed generation sizes", () => {
     expect(() =>
       normalizeGenerationInput({

@@ -88,6 +88,41 @@ describe("local repository fallback", () => {
     expect(inviteCode).toMatch(/^local-[a-z0-9]+$/);
     expect(secondInviteCode).toBe(inviteCode);
   });
+
+  it("carries anonymous device usage into authenticated quota state", async () => {
+    const deviceId = `device-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+    const anonymousActor = await resolveActor({
+      authUser: null,
+      deviceId,
+      ipHash
+    });
+
+    for (let index = 0; index < 3; index += 1) {
+      const taskId = await createTask({ actor: anonymousActor, generation: buildGeneration() });
+      await markTaskSucceeded({
+        taskId,
+        actor: anonymousActor,
+        spendSource: "anonymous",
+        assets: []
+      });
+    }
+
+    const userActor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId,
+      ipHash
+    });
+
+    await expect(getQuotaState(userActor)).resolves.toMatchObject({
+      actorType: "user",
+      anonymousUsed: 3,
+      loginUsed: 0
+    });
+  });
 });
 
 function buildGeneration(): NormalizedGenerationInput {

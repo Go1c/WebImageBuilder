@@ -34,8 +34,9 @@ describe("quota rules", () => {
     });
   });
 
-  it("combines login, invite, and paid credits for authenticated users", () => {
+  it("limits authenticated quota to the site local trial and ignores Lumio-managed balances", () => {
     const config = getQuotaConfig({
+      ANON_FREE_GENERATIONS: "3",
       LOGIN_FREE_GENERATIONS: "20",
       INVITE_REWARD_GENERATIONS: "5"
     });
@@ -49,14 +50,66 @@ describe("quota rules", () => {
       config
     });
 
-    expect(snapshot.freeTotal).toBe(30);
-    expect(snapshot.remaining).toBe(27);
+    expect(snapshot.freeTotal).toBe(3);
+    expect(snapshot.remaining).toBe(0);
     expect(snapshot.sources).toEqual({
       anonymous: 0,
-      login: 14,
-      invite: 10,
-      paid: 3
+      login: 0,
+      invite: 0,
+      paid: 0
     });
+  });
+
+  it("only tracks the three local trial generations in app quota", () => {
+    const config = getQuotaConfig({
+      LOGIN_FREE_GENERATIONS: "3"
+    });
+
+    const snapshot = getQuotaSnapshot({
+      actorType: "user",
+      anonymousUsed: 3,
+      loginUsed: 0,
+      inviteCredits: 0,
+      paidCredits: 0,
+      config
+    });
+
+    expect(snapshot.remaining).toBe(0);
+    expect(snapshot.sources.login).toBe(0);
+  });
+
+  it("does not revive legacy login or invite balances after the local trial is spent", () => {
+    const config = getQuotaConfig({
+      ANON_FREE_GENERATIONS: "3",
+      LOGIN_FREE_GENERATIONS: "20",
+      INVITE_REWARD_GENERATIONS: "20"
+    });
+
+    const snapshot = getQuotaSnapshot({
+      actorType: "user",
+      anonymousUsed: 3,
+      loginUsed: 0,
+      inviteCredits: 20,
+      paidCredits: 8,
+      config
+    });
+
+    expect(snapshot.freeTotal).toBe(3);
+    expect(snapshot.remaining).toBe(0);
+    expect(snapshot.sources).toEqual({
+      anonymous: 0,
+      login: 0,
+      invite: 0,
+      paid: 0
+    });
+  });
+
+  it("keeps invite reward generations disabled because Lumio manages invite rewards", () => {
+    const config = getQuotaConfig({
+      INVITE_REWARD_GENERATIONS: "20"
+    });
+
+    expect(config.inviteRewardGenerations).toBe(0);
   });
 
   it("blocks anonymous generation when either device or IP daily quota is exhausted", () => {
@@ -82,16 +135,17 @@ describe("quota rules", () => {
     ).toEqual({ allowed: false, reason: "ip_daily_limit_exhausted" });
   });
 
-  it("spends paid credits last so free grants are consumed first", () => {
+  it("spends only the local login trial and leaves Lumio-managed balances untouched", () => {
     const config = getQuotaConfig({
-      LOGIN_FREE_GENERATIONS: "2"
+      ANON_FREE_GENERATIONS: "3",
+      LOGIN_FREE_GENERATIONS: "20"
     });
 
     const result = spendQuota({
       actorType: "user",
       anonymousUsed: 0,
       loginUsed: 1,
-      inviteCredits: 0,
+      inviteCredits: 10,
       paidCredits: 4,
       config
     });
@@ -101,7 +155,7 @@ describe("quota rules", () => {
       spendSource: "login",
       nextLoginUsed: 2,
       nextAnonymousUsed: 0,
-      nextInviteCredits: 0,
+      nextInviteCredits: 10,
       nextPaidCredits: 4
     });
   });

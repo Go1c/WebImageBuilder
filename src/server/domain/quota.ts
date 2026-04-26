@@ -65,8 +65,8 @@ export type SpendQuotaResult =
 
 const DEFAULT_QUOTA_CONFIG: QuotaConfig = {
   anonymousFreeGenerations: 3,
-  loginFreeGenerations: 20,
-  inviteRewardGenerations: 10,
+  loginFreeGenerations: 3,
+  inviteRewardGenerations: 0,
   ipDailyAnonymousLimit: 30
 };
 
@@ -97,10 +97,7 @@ export function getQuotaConfig(env: QuotaConfigEnv = process.env as QuotaConfigE
       env.LOGIN_FREE_GENERATIONS,
       DEFAULT_QUOTA_CONFIG.loginFreeGenerations
     ),
-    inviteRewardGenerations: numberFromEnv(
-      env.INVITE_REWARD_GENERATIONS,
-      DEFAULT_QUOTA_CONFIG.inviteRewardGenerations
-    ),
+    inviteRewardGenerations: DEFAULT_QUOTA_CONFIG.inviteRewardGenerations,
     ipDailyAnonymousLimit: numberFromEnv(
       env.IP_DAILY_ANON_LIMIT,
       DEFAULT_QUOTA_CONFIG.ipDailyAnonymousLimit
@@ -110,31 +107,33 @@ export function getQuotaConfig(env: QuotaConfigEnv = process.env as QuotaConfigE
 
 export function getQuotaSnapshot(input: QuotaSnapshotInput): QuotaSnapshot {
   const config = input.config ?? getQuotaConfig();
+  const localTrialTotal = Math.min(
+    config.anonymousFreeGenerations,
+    config.loginFreeGenerations
+  );
   const anonymousRemaining =
     input.actorType === "anonymous"
       ? Math.max(0, config.anonymousFreeGenerations - clamp(input.anonymousUsed))
       : 0;
   const loginRemaining =
     input.actorType === "user"
-      ? Math.max(0, config.loginFreeGenerations - clamp(input.loginUsed))
+      ? Math.max(0, localTrialTotal - clamp(input.anonymousUsed) - clamp(input.loginUsed))
       : 0;
-  const inviteRemaining = input.actorType === "user" ? clamp(input.inviteCredits) : 0;
-  const paidRemaining = input.actorType === "user" ? clamp(input.paidCredits) : 0;
 
   const freeTotal =
     input.actorType === "anonymous"
       ? config.anonymousFreeGenerations
-      : config.loginFreeGenerations + inviteRemaining;
+      : localTrialTotal;
 
   return {
     actorType: input.actorType,
     freeTotal,
-    remaining: anonymousRemaining + loginRemaining + inviteRemaining + paidRemaining,
+    remaining: anonymousRemaining + loginRemaining,
     sources: {
       anonymous: anonymousRemaining,
       login: loginRemaining,
-      invite: inviteRemaining,
-      paid: paidRemaining
+      invite: 0,
+      paid: 0
     }
   };
 }
@@ -181,23 +180,5 @@ export function spendQuota(input: SpendQuotaInput): SpendQuotaResult {
     };
   }
 
-  if (snapshot.sources.invite > 0) {
-    return {
-      allowed: true,
-      spendSource: "invite",
-      nextAnonymousUsed: clamp(input.anonymousUsed),
-      nextLoginUsed: clamp(input.loginUsed),
-      nextInviteCredits: clamp(input.inviteCredits) - 1,
-      nextPaidCredits: clamp(input.paidCredits)
-    };
-  }
-
-  return {
-    allowed: true,
-    spendSource: "paid",
-    nextAnonymousUsed: clamp(input.anonymousUsed),
-    nextLoginUsed: clamp(input.loginUsed),
-    nextInviteCredits: clamp(input.inviteCredits),
-    nextPaidCredits: clamp(input.paidCredits) - 1
-  };
+  return { allowed: false, reason: "quota_exhausted" };
 }

@@ -5,6 +5,7 @@ export type ApiErrorCode =
   | "unauthorized"
   | "quota_exhausted"
   | "rate_limited"
+  | "account_unavailable"
   | "not_found"
   | "provider_error"
   | "configuration_error"

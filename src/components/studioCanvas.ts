@@ -13,9 +13,16 @@ export type CanvasImage = {
 export type CanvasHistoryItem = {
   id: string;
   prompt?: string;
+  status?: string;
+  createdAt?: string;
+  params?: {
+    size?: string | null;
+  } | null;
   assets: Array<{
     url: string;
     type: string;
+    width?: number | null;
+    height?: number | null;
   }>;
 };
 
@@ -24,6 +31,15 @@ export type CanvasHistoryThumb = {
   url: string;
   mimeType?: string;
   prompt?: string;
+  size?: string;
+  status?: string;
+  createdAt?: string;
+};
+
+export type CanvasMeta = {
+  size: string;
+  timing: string;
+  status: string;
 };
 
 export function selectCanvasImage(input: {
@@ -92,13 +108,79 @@ export function buildCanvasHistoryThumbs(input: {
     item.assets
       .filter((asset) => asset.type === "result")
       .forEach((asset, index) => {
+        const size = getHistoryAssetSize(item, asset);
         appendThumb({
           id: `${item.id}-${index}`,
           url: asset.url,
-          prompt: item.prompt
+          prompt: item.prompt,
+          ...(size ? { size } : {}),
+          ...(item.status ? { status: item.status } : {}),
+          ...(item.createdAt ? { createdAt: item.createdAt } : {})
         });
       });
   });
 
   return thumbs.slice(0, input.limit ?? 4);
+}
+
+export function buildCanvasMeta(input: {
+  activeSizeMeta: string;
+  loading: boolean;
+  loadingSeconds: number;
+  selectedHistoryThumb: CanvasHistoryThumb | null;
+}): CanvasMeta {
+  if (input.selectedHistoryThumb) {
+    return {
+      size: input.selectedHistoryThumb.size || input.activeSizeMeta,
+      timing: "历史",
+      status: getHistoryStatusLabel(input.selectedHistoryThumb.status)
+    };
+  }
+
+  return {
+    size: input.activeSizeMeta,
+    timing: input.loading ? `${input.loadingSeconds || 1}.0s` : "6.2s",
+    status: input.loading ? "生成中" : "刚刚"
+  };
+}
+
+function getHistoryAssetSize(
+  item: CanvasHistoryItem,
+  asset: CanvasHistoryItem["assets"][number]
+): string | undefined {
+  const paramSize = formatCanvasSize(item.params?.size);
+
+  if (paramSize) {
+    return paramSize;
+  }
+
+  if (asset.width && asset.height) {
+    return `${asset.width} × ${asset.height}`;
+  }
+
+  return undefined;
+}
+
+function formatCanvasSize(size: string | null | undefined): string | undefined {
+  const match = size?.match(/^(\d+)x(\d+)$/i);
+
+  if (!match) {
+    return undefined;
+  }
+
+  return `${match[1]} × ${match[2]}`;
+}
+
+function getHistoryStatusLabel(status: string | undefined): string {
+  switch (status) {
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "生成失败";
+    case "queued":
+    case "running":
+      return "生成中";
+    default:
+      return "历史";
+  }
 }

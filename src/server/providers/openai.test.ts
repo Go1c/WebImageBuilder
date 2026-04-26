@@ -14,7 +14,7 @@ describe("OpenAI image provider", () => {
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-key",
-      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+      OPENAI_BASE_URL: "https://api.lumio.games/"
     };
 
     const fetchMock = vi.fn(async () =>
@@ -30,8 +30,40 @@ describe("OpenAI image provider", () => {
     await new OpenAIImageProvider().generate(buildInput());
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://img.fkcodex.com/v1/images/generations",
+      "https://api.lumio.games/v1/images/generations",
       expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("can route a request through a supplied Sub2API gateway key", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "site-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider({
+      apiKey: "user-sub2api-key",
+      baseUrl: "https://api.lumio.games/"
+    }).generate(buildInput());
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lumio.games/v1/images/generations",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-sub2api-key"
+        })
+      })
     );
   });
 
@@ -39,7 +71,7 @@ describe("OpenAI image provider", () => {
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-key",
-      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+      OPENAI_BASE_URL: "https://api.lumio.games/"
     };
 
     vi.stubGlobal(
@@ -62,7 +94,7 @@ describe("OpenAI image provider", () => {
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-key",
-      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+      OPENAI_BASE_URL: "https://api.lumio.games/"
     };
 
     vi.stubGlobal(
@@ -72,6 +104,31 @@ describe("OpenAI image provider", () => {
 
     await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
       "图像网关超时"
+    );
+  });
+
+  it("uses gateway envelope messages for failed image responses", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          Response.json(
+            {
+              message: "Upstream service temporarily unavailable"
+            },
+            { status: 502 }
+          )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      "Upstream service temporarily unavailable"
     );
   });
 });

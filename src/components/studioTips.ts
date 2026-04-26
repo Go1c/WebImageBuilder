@@ -40,7 +40,7 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
     {
       type: "warning",
       title: "额度已用完",
-      message: "当前可用生成次数不足，请登录、邀请好友或稍后再试。"
+      message: "本站 3 次免费体验已用完，请登录后使用 Lumio 账户 Key/余额继续生成；注册和邀请奖励请到 Lumio 账户中心查看。"
     }
   ],
   [
@@ -49,6 +49,17 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
       type: "warning",
       title: "请求过于频繁",
       message: "操作太快了，请稍后再试。"
+    }
+  ],
+  [
+    "account_unavailable",
+    {
+      type: "warning",
+      title: "需要创建图片生成 Key",
+      message:
+        "未找到可用于图片生成的 Sub2API Key。请在 Sub2API 创建或启用一个 active API Key，并绑定到 OpenAI 平台下的 Image-2（生图专用）分组；可查看教程或帮助文档完成创建。",
+      actionLabel: "去创建 Key",
+      actionHref: "https://api.lumio.games/keys"
     }
   ],
   [
@@ -86,6 +97,19 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
 ]);
 
 export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText">): StudioTip {
+  if (error.code === "provider_error" && isImageGatewayUnavailable(error.message)) {
+    return {
+      type: "error",
+      title: "图片通道不可用",
+      message: withDebugDetail(
+        "已找到图片生成 Key，但上游图像通道返回 502。请检查 Sub2API 的 Image-2（生图专用）分组下是否有可用账号，并确认账号支持当前图片模型后重试。",
+        error.message
+      ),
+      actionLabel: "查看 Key",
+      actionHref: "https://api.lumio.games/keys"
+    };
+  }
+
   const mappedTip = error.code ? apiErrorTipMap.get(error.code) : undefined;
 
   if (mappedTip) {
@@ -102,6 +126,16 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
     title: "请求失败",
     message: withDebugDetail("请求没有完成，请稍后重试。", fallbackDetail)
   };
+}
+
+function isImageGatewayUnavailable(message: string | undefined): boolean {
+  const normalized = (message || "").toLowerCase();
+  return (
+    normalized.includes("openai image request failed: 502") ||
+    normalized.includes("upstream service temporarily unavailable") ||
+    normalized.includes("origin web server returned an invalid or incomplete response") ||
+    normalized.includes("origin is overloaded or misconfigured")
+  );
 }
 
 export function tipFromActionFailure(failure: StudioActionFailure): StudioTip {

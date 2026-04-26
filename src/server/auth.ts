@@ -9,7 +9,7 @@ export type AuthenticatedUser = {
   raw: JWTPayload;
 };
 
-function getBearerToken(request: NextRequest): string | undefined {
+export function getRequestAuthToken(request: NextRequest): string | undefined {
   const auth = request.headers.get("authorization");
   if (auth?.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim();
@@ -21,7 +21,7 @@ function getBearerToken(request: NextRequest): string | undefined {
 export async function getAuthenticatedUser(
   request: NextRequest
 ): Promise<AuthenticatedUser | null> {
-  const token = getBearerToken(request);
+  const token = getRequestAuthToken(request);
   if (!token) {
     return null;
   }

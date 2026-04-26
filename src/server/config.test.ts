@@ -5,10 +5,10 @@ describe("app config", () => {
   it("reads a custom OpenAI-compatible image API base URL", () => {
     const config = getAppConfig({
       OPENAI_API_KEY: "test-key",
-      OPENAI_BASE_URL: "https://img.fkcodex.com/"
+      OPENAI_BASE_URL: "https://api.lumio.games/"
     });
 
-    expect(config.openaiBaseUrl).toBe("https://img.fkcodex.com");
+    expect(config.openaiBaseUrl).toBe("https://api.lumio.games");
   });
 
   it("keeps local fallback mode opt-in", () => {

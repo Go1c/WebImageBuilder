@@ -1113,6 +1113,13 @@ textarea:focus-visible {
   line-height: 27px;
 }
 
+.header-context-panel h3 {
+  margin: 14px 0 6px;
+  color: var(--studio-text);
+  font-size: 14px;
+  line-height: 21px;
+}
+
 .header-context-panel p,
 .header-context-panel li {
   margin: 0;
@@ -1128,6 +1135,48 @@ textarea:focus-visible {
 .context-eyebrow {
   color: var(--studio-muted);
   font-weight: 600;
+}
+
+.context-section-list {
+  display: grid;
+  gap: 6px;
+}
+
+.context-highlight-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.context-highlight-grid span {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: #fff7d6;
+  color: #3b2a00;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.context-status-line strong {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.context-status-line strong.is-signed-in {
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.context-status-line strong.is-signed-out {
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .invite-copy-row {

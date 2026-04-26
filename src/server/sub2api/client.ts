@@ -26,6 +26,26 @@ export type Sub2ApiRefreshResponse = {
   token_type?: string;
 };
 
+export type Sub2ApiApiKey = {
+  id: number | string;
+  key: string;
+  name?: string;
+  status?: string;
+  group?: {
+    id?: number | string;
+    name?: string;
+    platform?: string;
+  } | null;
+};
+
+export type Sub2ApiPaginatedResponse<T> = {
+  items?: T[];
+  total?: number;
+  page?: number;
+  page_size?: number;
+  pages?: number;
+};
+
 export function sub2ApiUrl(path: string, baseUrl = getAppConfig().sub2ApiBaseUrl): string {
   return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
@@ -57,6 +77,45 @@ export async function logoutSub2Api(refreshToken: string, baseUrl?: string): Pro
     method: "POST",
     body: JSON.stringify({ refresh_token: refreshToken })
   }, baseUrl);
+}
+
+export async function listSub2ApiKeys(
+  accessToken: string,
+  baseUrl?: string
+): Promise<Sub2ApiPaginatedResponse<Sub2ApiApiKey>> {
+  return requestSub2Api<Sub2ApiPaginatedResponse<Sub2ApiApiKey>>(
+    "/keys?page=1&page_size=100&status=active",
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    },
+    baseUrl
+  );
+}
+
+export async function getSub2ApiImageApiKey(accessToken: string, baseUrl?: string): Promise<string> {
+  const keys = await listSub2ApiKeys(accessToken, baseUrl);
+  const imageKey = (keys.items || []).find((item) => {
+    return isImageOpenAIKey(item);
+  });
+
+  if (!imageKey?.key) {
+    throw new ApiError(
+      402,
+      "account_unavailable",
+      "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。"
+    );
+  }
+
+  return imageKey.key;
+}
+
+function isImageOpenAIKey(item: Sub2ApiApiKey): boolean {
+  const platform = item.group?.platform?.trim().toLowerCase();
+  const groupName = item.group?.name?.trim().toLowerCase() || "";
+  return item.status === "active" && Boolean(item.key) && platform === "openai" && groupName.includes("image");
 }
 
 async function requestSub2Api<T>(

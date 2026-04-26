@@ -167,9 +167,15 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
     }
 
     const balance = getLocalUserBalance(actor.userId);
+    const anonymousUsed = store.tasks.filter(
+      (task) =>
+        task.actor.type === "anonymous" &&
+        task.actor.anonymousDeviceId === `local-anon-${actor.deviceId}` &&
+        task.status === "succeeded"
+    ).length;
     return {
       actorType: "user",
-      anonymousUsed: 0,
+      anonymousUsed,
       loginUsed: balance.loginUsed,
       inviteCredits: balance.inviteCredits,
       paidCredits: balance.paidCredits,
@@ -211,6 +217,17 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
     };
   }
 
+  const userAnonymousUsage = await query<{ used: string }>(
+    `
+      select count(*)::text as used
+      from generation_tasks t
+      join anonymous_devices d on d.id = t.anonymous_device_id
+      where d.device_fingerprint = $1
+        and t.status = 'succeeded'
+    `,
+    [actor.deviceId]
+  );
+
   await query(
     `
       insert into quota_balances (user_id)
@@ -236,7 +253,7 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   const row = usage.rows[0];
   return {
     actorType: "user",
-    anonymousUsed: 0,
+    anonymousUsed: Number(userAnonymousUsage.rows[0]?.used ?? 0),
     loginUsed: Number(row?.login_used ?? 0),
     inviteCredits: Number(row?.invite_credits ?? 0),
     paidCredits: Number(row?.paid_credits ?? 0),
@@ -303,7 +320,7 @@ export async function createTask(input: {
 export async function markTaskSucceeded(input: {
   taskId: string;
   actor: Actor;
-  spendSource: SpendSource;
+  spendSource: SpendSource | null;
   assets: AssetInput[];
 }): Promise<void> {
   if (shouldUseLocalRepository()) {
@@ -423,6 +440,7 @@ export async function listHistory(actor: Actor): Promise<unknown[]> {
         t.model_key as "modelKey",
         t.provider,
         t.prompt,
+        t.params,
         t.status,
         t.error_message as "errorMessage",
         t.result_count as "resultCount",
@@ -469,6 +487,7 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
         t.model_key as "modelKey",
         t.provider,
         t.prompt,
+        t.params,
         t.status,
         t.error_message as "errorMessage",
         t.created_at as "createdAt",
@@ -581,6 +600,10 @@ export async function settleInviteReward(inviteeUserId: string): Promise<void> {
   }
 
   const config = getQuotaConfig();
+  if (config.inviteRewardGenerations <= 0) {
+    return;
+  }
+
   await query(
     `
       with eligible as (
@@ -649,6 +672,14 @@ function localTaskToRow(task: LocalTask): unknown {
     modelKey: task.generation.model,
     provider: task.generation.provider,
     prompt: task.generation.prompt,
+    params: {
+      size: task.generation.size,
+      resolution: task.generation.resolution,
+      quality: task.generation.quality,
+      count: task.generation.count,
+      references: task.generation.referenceAssets,
+      mask: task.generation.maskAsset
+    },
     status: task.status,
     errorMessage: task.errorMessage,
     resultCount: task.generation.count,

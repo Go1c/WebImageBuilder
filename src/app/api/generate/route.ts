@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     const context = await getRequestContext(request);
     const result = await generateImagesForActor({
       actor: context.actor,
-      rawInput: await request.json()
+      rawInput: await request.json(),
+      sub2ApiAccessToken: context.sub2ApiAccessToken
     });
 
     const response = jsonOk(result);

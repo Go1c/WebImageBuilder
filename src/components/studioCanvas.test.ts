@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCanvasMeta,
   buildCanvasHistoryThumbs,
   getCanvasPlaceholderText,
   selectCanvasImage,
@@ -97,5 +98,54 @@ describe("studio canvas helpers", () => {
         prompt: "older icon"
       }
     ]);
+  });
+
+  it("preserves history metadata for selected canvas thumbs", () => {
+    expect(
+      buildCanvasHistoryThumbs({
+        canvasPrompt: null,
+        images: [],
+        history: [
+          {
+            id: "task-older",
+            prompt: "older icon",
+            status: "succeeded",
+            createdAt: "2026-04-26T10:30:00.000Z",
+            params: { size: "2560x1920" },
+            assets: [{ type: "result", url: "https://cdn.lumio.games/older.png" }]
+          }
+        ]
+      })
+    ).toEqual([
+      {
+        id: "task-older-0",
+        url: "https://cdn.lumio.games/older.png",
+        prompt: "older icon",
+        size: "2560 × 1920",
+        status: "succeeded",
+        createdAt: "2026-04-26T10:30:00.000Z"
+      }
+    ]);
+  });
+
+  it("uses the selected history thumb meta instead of the active loading state", () => {
+    expect(
+      buildCanvasMeta({
+        activeSizeMeta: "1024 × 1024",
+        loading: true,
+        loadingSeconds: 8,
+        selectedHistoryThumb: {
+          id: "task-older-0",
+          url: "https://cdn.lumio.games/older.png",
+          size: "2560 × 1920",
+          status: "succeeded",
+          createdAt: "2026-04-26T10:30:00.000Z"
+        }
+      })
+    ).toEqual({
+      size: "2560 × 1920",
+      timing: "历史",
+      status: "已完成"
+    });
   });
 });

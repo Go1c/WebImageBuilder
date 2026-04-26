@@ -2,7 +2,6 @@ import { ApiError } from "../http";
 import {
   canUseAnonymousQuota,
   getQuotaSnapshot,
-  spendQuota,
   type SpendSource
 } from "../domain/quota";
 import { normalizeGenerationInput, type NormalizedGenerationInput } from "../domain/models";
@@ -15,7 +14,11 @@ import {
   settleInviteReward
 } from "../db/repositories";
 import { getImageProvider } from "../providers";
+import { OpenAIImageProvider } from "../providers/openai";
 import { uploadBuffer, type StoredAsset } from "../storage/s3";
+import { getSub2ApiImageApiKey } from "../sub2api/client";
+import { getAppConfig } from "../config";
+import { chooseGenerationFunding } from "./funding";
 
 export type GenerateResult = {
   taskId: string;
@@ -27,6 +30,7 @@ export type GenerateResult = {
 export async function generateImagesForActor(input: {
   actor: Actor;
   rawInput: unknown;
+  sub2ApiAccessToken?: string;
 }): Promise<GenerateResult> {
   const generation = normalizeGenerationInput(input.rawInput);
   const quotaState = await getQuotaState(input.actor);
@@ -42,22 +46,25 @@ export async function generateImagesForActor(input: {
     }
   }
 
-  const spend = spendQuota({
-    actorType: quotaState.actorType,
-    anonymousUsed: quotaState.anonymousUsed,
-    loginUsed: quotaState.loginUsed,
-    inviteCredits: quotaState.inviteCredits,
-    paidCredits: quotaState.paidCredits
+  const funding = chooseGenerationFunding({
+    quotaState,
+    allowSub2ApiFallback: input.actor.type === "user" && generation.provider === "openai"
   });
 
-  if (!spend.allowed) {
+  if (funding.kind === "blocked") {
     throw new ApiError(402, "quota_exhausted", "No available generation quota");
   }
 
   const taskId = await createTask({ actor: input.actor, generation });
 
   try {
-    const generated = await getImageProvider(generation.provider).generate(generation);
+    const generated =
+      funding.kind === "sub2api"
+        ? await generateWithSub2ApiAccount({
+            generation,
+            accessToken: input.sub2ApiAccessToken
+          })
+        : await getImageProvider(generation.provider).generate(generation);
     const stored = await Promise.all(
       generated.map((image) =>
         uploadBuffer({
@@ -71,7 +78,7 @@ export async function generateImagesForActor(input: {
     await markTaskSucceeded({
       taskId,
       actor: input.actor,
-      spendSource: spend.spendSource as SpendSource,
+      spendSource: funding.kind === "site" ? (funding.spendSource as SpendSource) : null,
       assets: stored.map((asset) => ({
         assetType: "result",
         storageKey: asset.key,
@@ -88,22 +95,44 @@ export async function generateImagesForActor(input: {
       taskId,
       status: "succeeded",
       images: stored,
-      quota: getQuotaSnapshot({
-        actorType: quotaState.actorType,
-        anonymousUsed: spend.nextAnonymousUsed,
-        loginUsed: spend.nextLoginUsed,
-        inviteCredits: spend.nextInviteCredits,
-        paidCredits: spend.nextPaidCredits
-      })
+      quota:
+        funding.kind === "site"
+          ? getQuotaSnapshot({
+              actorType: quotaState.actorType,
+              anonymousUsed: funding.nextAnonymousUsed,
+              loginUsed: funding.nextLoginUsed,
+              inviteCredits: funding.nextInviteCredits,
+              paidCredits: funding.nextPaidCredits
+            })
+          : getQuotaSnapshot(quotaState)
     };
   } catch (error) {
     await markTaskFailed(taskId, error instanceof Error ? error.message : "Generation failed");
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     throw new ApiError(
       502,
       "provider_error",
       error instanceof Error ? error.message : "Generation failed"
     );
   }
+}
+
+async function generateWithSub2ApiAccount(input: {
+  generation: NormalizedGenerationInput;
+  accessToken?: string;
+}) {
+  if (!input.accessToken) {
+    throw new ApiError(401, "unauthorized", "Sub2API 账号生成需要重新登录。");
+  }
+
+  const apiKey = await getSub2ApiImageApiKey(input.accessToken);
+  return new OpenAIImageProvider({
+    apiKey,
+    baseUrl: getAppConfig().lumioApiBaseUrl
+  }).generate(input.generation);
 }
 
 export function summarizeGeneration(input: NormalizedGenerationInput): string {

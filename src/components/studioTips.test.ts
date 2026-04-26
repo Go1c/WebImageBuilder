@@ -4,8 +4,9 @@ import { tipFromActionFailure, tipFromApiError } from "./studioTips";
 
 describe("studio tips", () => {
   it.each([
-    ["quota_exhausted", "额度已用完", "可用生成次数"],
+    ["quota_exhausted", "额度已用完", "Lumio 账户"],
     ["rate_limited", "请求过于频繁", "稍后再试"],
+    ["account_unavailable", "需要创建图片生成 Key", "Image-2"],
     ["provider_error", "生成服务暂时不可用", "上游图像服务"],
     ["configuration_error", "服务配置异常", "联系管理员"],
     ["unauthorized", "需要登录", "登录后"],
@@ -16,6 +17,59 @@ describe("studio tips", () => {
     expect(tip.title).toBe(title);
     expect(tip.message).toContain(messagePart);
     expect(tip.message).toContain("Server detail for debugging");
+  });
+
+  it("guides users to create a Sub2API image key when no matching key exists", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "account_unavailable",
+        message: "未找到可用于图片生成的 Image-2 key"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "需要创建图片生成 Key",
+      actionLabel: "去创建 Key",
+      actionHref: "https://api.lumio.games/keys"
+    });
+    expect(tip.message).toContain("Image-2（生图专用）");
+    expect(tip.message).toContain("教程");
+  });
+
+  it("explains image gateway 502 errors as channel configuration issues", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: "OpenAI image request failed: 502"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "error",
+      title: "图片通道不可用",
+      actionLabel: "查看 Key",
+      actionHref: "https://api.lumio.games/keys"
+    });
+    expect(tip.message).toContain("Image-2（生图专用）");
+  });
+
+  it("recognizes Cloudflare invalid origin responses as image gateway 502 errors", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message:
+          "The origin web server returned an invalid or incomplete response to Cloudflare. This typically indicates the origin is overloaded or misconfigured."
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "error",
+      title: "图片通道不可用",
+      actionLabel: "查看 Key",
+      actionHref: "https://api.lumio.games/keys"
+    });
+    expect(tip.message).toContain("Image-2（生图专用）");
   });
 
   it("uses a useful fallback tip for unknown API errors", () => {

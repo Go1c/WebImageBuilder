@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getSub2ApiImageApiKey,
   getSub2ApiCurrentUser,
   refreshSub2ApiToken,
   sub2ApiUrl
@@ -70,6 +71,91 @@ describe("Sub2API client", () => {
         refresh_token: "new-refresh"
       })
     );
+  });
+
+  it("selects an active OpenAI API key whose group name is for image generation", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        code: 0,
+        message: "success",
+        data: {
+          items: [
+            {
+              id: 1,
+              key: "sk-anthropic",
+              name: "Claude key",
+              status: "active",
+              group: { id: 10, platform: "anthropic" }
+            },
+            {
+              id: 2,
+              key: "sk-openai-chat",
+              name: "Chat key",
+              status: "active",
+              group: { id: 11, name: "OpenAI Chat", platform: "openai" }
+            },
+            {
+              id: 3,
+              key: "sk-openai-image",
+              name: "Image key",
+              status: "active",
+              group: { id: 12, name: "Image-2（生图专用）", platform: "openAI" }
+            }
+          ],
+          total: 2,
+          page: 1,
+          page_size: 100,
+          pages: 1
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getSub2ApiImageApiKey("access", "https://api.example.com/api/v1")).resolves.toBe(
+      "sk-openai-image"
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/api/v1/keys?page=1&page_size=100&status=active",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer access"
+        })
+      })
+    );
+  });
+
+  it("raises a setup error when no active OpenAI image group key exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          code: 0,
+          message: "success",
+          data: {
+            items: [
+              {
+                id: 1,
+                key: "sk-openai-chat",
+                name: "Chat key",
+                status: "active",
+                group: { id: 11, name: "OpenAI Chat", platform: "openai" }
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 100,
+            pages: 1
+          }
+        })
+      )
+    );
+
+    await expect(getSub2ApiImageApiKey("access", "https://api.example.com/api/v1")).rejects.toMatchObject({
+      status: 402,
+      code: "account_unavailable",
+      message: expect.stringContaining("Image-2")
+    });
   });
 
   it("raises clear errors when Sub2API returns a failed envelope", async () => {

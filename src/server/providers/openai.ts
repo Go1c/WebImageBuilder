@@ -15,11 +15,21 @@ type OpenAIImageResponse = {
   error?: {
     message?: string;
   };
+  message?: string;
+  detail?: string;
+  reason?: string;
 };
 
 const defaultImageRequestTimeoutMs = 48_000;
 
+type OpenAIImageProviderOptions = {
+  apiKey?: string;
+  baseUrl?: string;
+};
+
 export class OpenAIImageProvider implements ImageProvider {
+  constructor(private readonly options: OpenAIImageProviderOptions = {}) {}
+
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     if (input.mode === "text-to-image") {
       return this.generateTextToImage(input);
@@ -30,10 +40,12 @@ export class OpenAIImageProvider implements ImageProvider {
 
   private async generateTextToImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     const config = getAppConfig();
-    const response = await fetchOpenAI(openAIUrl("/v1/images/generations", config.openaiBaseUrl), {
+    const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
+    const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
+    const response = await fetchOpenAI(openAIUrl("/v1/images/generations", baseUrl), {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`,
+        Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
         "Content-Type": "application/json"
       },
@@ -73,11 +85,13 @@ export class OpenAIImageProvider implements ImageProvider {
     }
 
     const config = getAppConfig();
-    const response = await fetchOpenAI(openAIUrl("/v1/images/edits", config.openaiBaseUrl), {
+    const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
+    const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
+    const response = await fetchOpenAI(openAIUrl("/v1/images/edits", baseUrl), {
       method: "POST",
       headers: {
         Accept: "application/json",
-        Authorization: `Bearer ${requireEnv(config.openaiApiKey, "OPENAI_API_KEY")}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: form
     });
@@ -104,7 +118,7 @@ function buildEditPrompt(input: NormalizedGenerationInput): string {
 }
 
 function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string {
-  return `${baseUrl}${path}`;
+  return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
 async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
@@ -141,7 +155,7 @@ async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]
       throw new Error("图像网关超时，请稍后重试或先使用单页生成");
     }
 
-    throw new Error(body.error?.message || `OpenAI image request failed: ${response.status}`);
+    throw new Error(getOpenAIErrorMessage(body, response.status));
   }
 
   const images = body.data
@@ -158,6 +172,20 @@ async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]
   }
 
   return images;
+}
+
+function getOpenAIErrorMessage(body: OpenAIImageResponse, status: number): string {
+  return (
+    readMessage(body.error?.message) ||
+    readMessage(body.message) ||
+    readMessage(body.reason) ||
+    readMessage(body.detail) ||
+    `OpenAI image request failed: ${status}`
+  );
+}
+
+function readMessage(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 async function readOpenAIJson(response: Response): Promise<OpenAIImageResponse> {
