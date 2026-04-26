@@ -133,34 +133,51 @@ describe("studio action helpers", () => {
 
     expect(states.save).toEqual({
       enabled: false,
-      label: "Save to portfolio",
-      reason: "Wait for generation to finish before saving."
+      label: "保存到作品集",
+      reason: "生成完成后才能保存。"
     });
     expect(states.referenceReuse).toEqual({
       enabled: false,
-      label: "Use as reference",
-      reason: "Wait for generation to finish before reusing this image as a reference."
+      label: "用作参考图",
+      reason: "生成完成后才能用作参考图。"
     });
     expect(states.download).toEqual({
       enabled: false,
-      label: "Download",
-      reason: "Wait for generation to finish before downloading."
+      label: "下载图片",
+      reason: "生成完成后才能下载。"
     });
     expect(states.delete).toEqual({
       enabled: false,
-      label: "Delete",
-      reason: "Wait for generation to finish before deleting."
+      label: "删除当前图片",
+      reason: "生成完成后才能删除。"
     });
     expect(states.regenerate).toEqual({
       enabled: false,
-      label: "Regenerate",
-      reason: "Wait for the current generation to finish before regenerating."
+      label: "重新生成",
+      reason: "当前生成完成后才能重新生成。"
     });
     expect(states.zoom).toEqual({
       enabled: false,
-      label: "Open image",
-      reason: "Wait for generation to finish before opening the image."
+      label: "打开大图",
+      reason: "生成完成后才能打开大图。"
     });
+  });
+
+  it("enables image actions for library preview images", () => {
+    const states = getStudioActionStates({
+      image: {
+        url: "/prompt-library/case1.jpg",
+        mimeType: "image/jpeg"
+      },
+      canRegenerate: true,
+      loading: false
+    });
+
+    expect(states.save).toEqual({ enabled: true, label: "保存到作品集" });
+    expect(states.referenceReuse).toEqual({ enabled: true, label: "用作参考图" });
+    expect(states.download).toEqual({ enabled: true, label: "下载图片" });
+    expect(states.delete).toEqual({ enabled: true, label: "删除当前图片" });
+    expect(states.regenerate).toEqual({ enabled: true, label: "重新生成" });
   });
 
   it("enables regenerate without a canvas image when regeneration is available", () => {
@@ -172,7 +189,7 @@ describe("studio action helpers", () => {
 
     expect(states.regenerate).toEqual({
       enabled: true,
-      label: "Regenerate"
+      label: "重新生成"
     });
   });
 
@@ -180,33 +197,33 @@ describe("studio action helpers", () => {
     expect(getStudioActionStates({ image: null, canRegenerate: false, loading: false })).toEqual({
       save: {
         enabled: false,
-        label: "Save to portfolio",
-        reason: "No canvas image is available to save."
+        label: "保存到作品集",
+        reason: "画布上没有可保存的图片。"
       },
       referenceReuse: {
         enabled: false,
-        label: "Use as reference",
-        reason: "No canvas image is available to use as a reference."
+        label: "用作参考图",
+        reason: "画布上没有可用作参考图的图片。"
       },
       download: {
         enabled: false,
-        label: "Download",
-        reason: "No canvas image is available to download."
+        label: "下载图片",
+        reason: "画布上没有可下载的图片。"
       },
       delete: {
         enabled: false,
-        label: "Delete",
-        reason: "No canvas image is available to delete."
+        label: "删除当前图片",
+        reason: "画布上没有可删除的图片。"
       },
       regenerate: {
         enabled: false,
-        label: "Regenerate",
-        reason: "No prompt is available to regenerate."
+        label: "重新生成",
+        reason: "没有可用于重新生成的提示词。"
       },
       zoom: {
         enabled: false,
-        label: "Open image",
-        reason: "No canvas image is available to zoom."
+        label: "打开大图",
+        reason: "画布上没有可打开的大图。"
       }
     });
   });

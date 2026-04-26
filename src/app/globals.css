@@ -76,7 +76,8 @@ textarea:focus-visible {
   position: relative;
   width: 100%;
   height: 100vh;
-  min-height: 663px;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
   background: var(--studio-bg);
 }
@@ -182,7 +183,10 @@ textarea:focus-visible {
 
 .quota-pill,
 .invite-pill,
-.login-pill {
+.login-pill,
+.balance-pill,
+.account-email-pill,
+.logout-pill {
   height: 31.5px;
   display: inline-flex;
   align-items: center;
@@ -214,14 +218,44 @@ textarea:focus-visible {
 
 .login-pill {
   width: 58px;
+  border: 0;
   background: var(--studio-black);
   color: white;
   font-weight: 500;
 }
 
+.balance-pill {
+  border: 1px solid rgba(0, 188, 125, 0.22);
+  padding: 0 12px;
+  background: rgba(0, 188, 125, 0.08);
+  color: #047857;
+  font-weight: 600;
+}
+
+.account-email-pill {
+  max-width: 210px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--studio-line-strong);
+  padding: 0 12px;
+  background: white;
+  color: var(--studio-text);
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.logout-pill {
+  border: 0;
+  padding: 0 12px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--studio-muted);
+  font-weight: 500;
+}
+
 .studio-grid {
   height: calc(100vh - 56px);
-  min-height: 607px;
+  height: calc(100dvh - 56px);
+  min-height: 0;
   display: grid;
   grid-template-columns: 340px minmax(0, 1fr) 320px;
 }
@@ -243,6 +277,8 @@ textarea:focus-visible {
 .library-panel {
   border-left: 1px solid var(--studio-line);
   padding-left: 1px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel-header {
@@ -286,8 +322,8 @@ textarea:focus-visible {
 .left-panel-scroll {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 0 20px 64px;
+  gap: 14px;
+  padding: 0 20px max(24px, env(safe-area-inset-bottom));
 }
 
 .studio-section {
@@ -307,7 +343,7 @@ textarea:focus-visible {
 
 .prompt-card {
   position: relative;
-  min-height: 234px;
+  min-height: 188px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--studio-line-strong);
@@ -367,7 +403,7 @@ textarea:focus-visible {
 
 .prompt-card textarea {
   width: 100%;
-  min-height: 160px;
+  min-height: 118px;
   flex: 1 1 auto;
   resize: none;
   border: 0;
@@ -386,13 +422,41 @@ textarea:focus-visible {
 }
 
 .prompt-action-row {
-  min-height: 72px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 10px;
   border-top: 1px solid var(--studio-line);
   padding: 10px;
+}
+
+.resolution-select {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: white;
+  color: var(--studio-copy);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.resolution-select span {
+  color: var(--studio-muted);
+}
+
+.resolution-select select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--studio-text);
+  font-weight: 600;
 }
 
 .generate-fab {
@@ -411,12 +475,12 @@ textarea:focus-visible {
 }
 
 .negative-section {
-  height: 67.5px;
+  height: 58px;
 }
 
 .negative-input {
   width: 100%;
-  height: 41.5px;
+  height: 36px;
   border: 1px solid var(--studio-line-strong);
   border-radius: 16px;
   padding: 0 14px;
@@ -453,12 +517,12 @@ textarea:focus-visible {
 .type-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .option-tile {
   min-width: 0;
-  height: 56.5px;
+  height: 48px;
   display: grid;
   place-items: center;
   align-content: center;
@@ -549,7 +613,8 @@ textarea:focus-visible {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: 72.625px minmax(0, 389.375px) 60px 85px;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
   background: linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-bg-soft) 100%);
 }
 
@@ -612,7 +677,7 @@ textarea:focus-visible {
   border: 1px solid var(--studio-line-strong);
   border-radius: 999px;
   background: white;
-  color: var(--studio-muted);
+  color: var(--studio-text);
 }
 
 .icon-button.ghost {
@@ -625,21 +690,27 @@ textarea:focus-visible {
 .icon-button.is-disabled,
 .save-button.is-disabled,
 .generate-fab.is-disabled {
+  color: var(--studio-muted);
   opacity: 0.58;
   cursor: not-allowed;
 }
 
+.icon-button.is-disabled {
+  color: var(--studio-muted);
+}
+
 .image-stage {
   min-width: 0;
+  min-height: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 6.1875px;
+  padding: clamp(24px, 5vh, 56px) 0 14px;
 }
 
 .main-image-frame {
   position: relative;
-  width: min(377px, calc(100% - 64px));
+  width: min(377px, calc(100% - 64px), max(180px, calc(100dvh - 286px)));
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
@@ -658,22 +729,32 @@ textarea:focus-visible {
   font-weight: 500;
 }
 
+.main-image-frame.is-loading {
+  border-style: solid;
+  border-color: #e5e5e5;
+  background: #f5f5f5;
+  box-shadow: none;
+}
+
 .image-loading {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(23, 23, 23, 0.38);
-  color: white;
-  font-size: 14px;
-  font-weight: 500;
+  background: transparent;
+  color: #525252;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .canvas-actions {
+  position: relative;
+  z-index: 11;
+  min-height: 52px;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  padding: 0 32px;
+  padding: 8px 32px;
 }
 
 .icon-button[data-tooltip]::after {
@@ -852,6 +933,7 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   padding: 16px 20px 28px;
@@ -1102,15 +1184,15 @@ textarea:focus-visible {
 
 .studio-tip {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
+  right: 24px;
+  bottom: 24px;
   z-index: 10;
-  width: min(460px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  transform: translateX(-50%);
+  transform: none;
   border: 1px solid var(--studio-line-strong);
   border-radius: 16px;
   padding: 10px 12px;
@@ -1186,8 +1268,7 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .prompt-panel,
-  .library-panel {
+  .prompt-panel {
     height: auto;
     min-height: 0;
     grid-template-rows: auto auto;
@@ -1206,6 +1287,11 @@ textarea:focus-visible {
   .library-panel {
     border-left: 0;
     border-top: 1px solid var(--studio-line);
+    height: calc(100vh - 24px);
+    max-height: calc(100vh - 24px);
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
   }
 
   .prompt-panel {
@@ -1220,12 +1306,15 @@ textarea:focus-visible {
   }
 
   .library-scroll {
+    min-height: 0;
     max-height: none;
-    overflow: visible;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 
-  .library-panel {
-    grid-template-rows: auto auto auto;
+  .library-scroll::-webkit-scrollbar {
+    display: block;
+    width: 6px;
   }
 
   .header-context-panel {
@@ -1246,7 +1335,10 @@ textarea:focus-visible {
 
   .quota-pill,
   .invite-pill,
-  .login-pill {
+  .login-pill,
+  .balance-pill,
+  .account-email-pill,
+  .logout-pill {
     flex: 1 1 auto;
   }
 
@@ -1270,6 +1362,13 @@ textarea:focus-visible {
 
   .canvas-history {
     padding: 13px 16px 12px;
+  }
+
+  .studio-tip {
+    left: 50%;
+    right: auto;
+    bottom: 18px;
+    transform: translateX(-50%);
   }
 
   .prompt-card textarea {

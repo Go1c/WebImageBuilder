@@ -35,7 +35,13 @@ export async function getAuthenticatedUser(
     return null;
   }
 
-  const verified = await jwtVerify(token, key);
+  let verified: { payload: JWTPayload };
+  try {
+    verified = await jwtVerify(token, key);
+  } catch {
+    return null;
+  }
+
   const externalUserId =
     verified.payload.sub ||
     String(verified.payload.user_id || verified.payload.id || "").trim();

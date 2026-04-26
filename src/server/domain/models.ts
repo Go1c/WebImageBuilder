@@ -4,6 +4,7 @@ export type Provider = "openai" | "gemini";
 export type ModelKey = "gpt-image-2" | "gemini-image";
 export type GenerationMode = "text-to-image" | "image-to-image" | "inpaint" | "variation";
 export type ReleasePhase = "v1" | "v1.1";
+export type ImageResolutionTier = "1K" | "2K" | "4K";
 
 export type ModelOption = {
   key: ModelKey;
@@ -33,7 +34,8 @@ export type NormalizedGenerationInput = {
   model: ModelKey;
   provider: Provider;
   providerModel: string;
-  size: "1024x1024" | "1024x1536" | "1536x1024";
+  size: `${number}x${number}`;
+  resolution: ImageResolutionTier;
   quality: "standard" | "high";
   count: number;
   referenceAssets: AssetReference[];
@@ -95,11 +97,16 @@ const assetSchema = z.object({
   mimeType: z.string().optional()
 });
 
+const generationSizeSchema = z
+  .string()
+  .regex(/^[1-9]\d{1,4}x[1-9]\d{1,4}$/);
+
 const generationInputSchema = z.object({
   prompt: z.string().trim().min(1).max(4000),
   mode: z.enum(["text-to-image", "image-to-image", "inpaint", "variation"]),
   model: z.enum(["gpt-image-2", "gemini-image"]),
-  size: z.enum(["1024x1024", "1024x1536", "1536x1024"]).default("1024x1024"),
+  size: generationSizeSchema.default("1024x1024"),
+  resolution: z.enum(["1K", "2K", "4K"]).default("1K"),
   quality: z.enum(["standard", "high"]).default("standard"),
   count: z.number().int().min(1).max(16).default(1),
   referenceAssets: z.array(assetSchema).default([]),
@@ -139,10 +146,12 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
   }
 
   const model = getModelOption(parsed.model);
+  const size = parsed.size as NormalizedGenerationInput["size"];
 
   return {
     ...parsed,
     prompt: parsed.prompt.trim(),
+    size,
     provider: model.provider,
     providerModel: model.providerModel,
     count: Math.min(parsed.count, 4)

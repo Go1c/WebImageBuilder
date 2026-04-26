@@ -16,6 +16,7 @@ export type GenerationRequestPreviewInput = {
   model: ModelKey;
   mode: GenerationMode;
   size: string;
+  resolution?: string;
   quality: string;
   count: number;
   referenceCount: number;
@@ -50,6 +51,7 @@ export function buildGenerationRequestPreview(input: GenerationRequestPreviewInp
         model: input.model,
         mode: input.mode,
         size: input.size,
+        ...(input.resolution ? { resolution: input.resolution } : {}),
         quality: input.quality,
         count: input.count,
         referenceCount: input.referenceCount,
