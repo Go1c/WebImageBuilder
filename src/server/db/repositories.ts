@@ -561,6 +561,19 @@ export async function claimInvite(input: {
   );
 }
 
+export async function getUserInviteCode(userId: string): Promise<string | null> {
+  if (shouldUseLocalRepository()) {
+    return `local-${hashString(userId)}`;
+  }
+
+  const result = await query<{ invite_code: string }>(
+    "select invite_code from users where id = $1",
+    [userId]
+  );
+
+  return result.rows[0]?.invite_code ?? null;
+}
+
 export async function settleInviteReward(inviteeUserId: string): Promise<void> {
   if (shouldUseLocalRepository()) {
     return;
@@ -615,6 +628,17 @@ function ownsLocalTask(actor: Actor, task: LocalTask): boolean {
 
 function findLocalTask(actor: Actor, taskId: string): LocalTask | undefined {
   return getLocalRepository().tasks.find((task) => task.id === taskId && ownsLocalTask(actor, task));
+}
+
+function hashString(value: string): string {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(36);
 }
 
 function localTaskToRow(task: LocalTask): unknown {

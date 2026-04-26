@@ -50,6 +50,12 @@ type QuotaResponse = {
   ipDailyUsed: number;
 };
 
+type InviteInfoResponse = {
+  inviteCode: string;
+  inviteUrl: string;
+  rewardGenerations: number;
+};
+
 type HistoryItem = {
   id: string;
   mode: string;
@@ -101,7 +107,6 @@ type StudioIconName =
 
 const generationTimeoutMs = 120_000;
 const portfolioStorageKey = "lumio:portfolio";
-const inviteCodeStorageKey = "lumio:invite-code";
 const urlOnlyReferenceSupportNote =
   "Canvas reuse is sent as a URL reference asset; uploaded files remain the most reliable provider reference path.";
 
@@ -236,7 +241,12 @@ export function ImageStudio() {
   }, []);
 
   useEffect(() => {
-    setCurrentInviteUrl(buildInviteUrl(quota?.actorType === "user"));
+    if (quota?.actorType !== "user") {
+      setCurrentInviteUrl(null);
+      return;
+    }
+
+    void refreshInviteInfo();
   }, [quota?.actorType]);
 
   useEffect(() => {
@@ -287,6 +297,27 @@ export function ImageStudio() {
 
     if (loadFailureTip) {
       showTip(loadFailureTip);
+    }
+  }
+
+  async function refreshInviteInfo() {
+    try {
+      const response = await fetch("/api/invite", { cache: "no-store" });
+
+      if (!response.ok) {
+        showTip(tipFromApiError(await readApiErrorDetail(response)));
+        setCurrentInviteUrl(null);
+        return;
+      }
+
+      const inviteInfo = await readApiJson<InviteInfoResponse>(
+        response,
+        "邀请接口返回了非 JSON 响应，请刷新页面后重试"
+      );
+      setCurrentInviteUrl(inviteInfo.inviteUrl);
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "加载邀请链接", error }));
+      setCurrentInviteUrl(null);
     }
   }
 
@@ -343,7 +374,7 @@ export function ImageStudio() {
   function toAssetRef(reference: ReferenceAssetDescriptor): AssetRef {
     return {
       key: reference.key,
-      url: reference.url,
+      url: toAbsoluteUrl(reference.url),
       mimeType: reference.mimeType
     };
   }
@@ -355,9 +386,10 @@ export function ImageStudio() {
     }
 
     const metadata = buildPromptMetadata(options.promptOverride ?? prompt);
+    const positivePrompt = metadata.finalPrompt.trim();
     const submissionPrompt = buildSubmissionPrompt(metadata);
 
-    if (!submissionPrompt) {
+    if (!positivePrompt) {
       showDisabledTip("生成图片", "请先输入提示词，或选择可作为提示词的风格预设。");
       return;
     }
@@ -468,7 +500,7 @@ export function ImageStudio() {
   function buildSubmissionPrompt(metadata: PromptEnhancementMetadata): string {
     const finalPrompt = metadata.finalPrompt.trim();
 
-    if (!metadata.negativePrompt) {
+    if (!finalPrompt || !metadata.negativePrompt) {
       return finalPrompt;
     }
 
@@ -603,6 +635,15 @@ export function ImageStudio() {
 
   async function handleCopyInviteUrl() {
     if (!currentInviteUrl) {
+      if (quota?.actorType === "user") {
+        showTip(tipFromActionFailure({
+          kind: "failed",
+          action: "加载邀请链接",
+          error: "后端暂未返回可复制的邀请码，请刷新后重试。"
+        }));
+        return;
+      }
+
       showTip(tipFromActionFailure({
         kind: "login_required",
         action: "复制邀请链接",
@@ -1222,37 +1263,12 @@ function readSavedPortfolioItems(): SavedPortfolioItem[] {
   }
 }
 
-function buildInviteUrl(isLoggedIn: boolean): string | null {
-  if (!isLoggedIn) {
-    return null;
-  }
-
-  const inviteCode = readOrCreateLocalInviteCode();
-  return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(inviteCode)}`;
-}
-
-function readOrCreateLocalInviteCode(): string {
+function toAbsoluteUrl(url: string): string {
   try {
-    const existingCode = window.localStorage.getItem(inviteCodeStorageKey);
-
-    if (existingCode) {
-      return existingCode;
-    }
-
-    const nextCode = `local-${randomInviteCodeSegment()}`;
-    window.localStorage.setItem(inviteCodeStorageKey, nextCode);
-    return nextCode;
+    return new URL(url, window.location.origin).toString();
   } catch {
-    return `local-${randomInviteCodeSegment()}`;
+    return url;
   }
-}
-
-function randomInviteCodeSegment(): string {
-  if (window.crypto?.randomUUID) {
-    return window.crypto.randomUUID().slice(0, 12);
-  }
-
-  return Math.random().toString(36).slice(2, 14);
 }
 
 function HeaderContextPanel({
@@ -1280,7 +1296,7 @@ function HeaderContextPanel({
             <ol>
               <li>写下主体、场景、用途和画幅。</li>
               <li>选择一个或多个类型，再按需要选择风格预设。</li>
-              <li>上传本地参考图可进入图生图；画布图片复用会作为视觉参考显示。</li>
+              <li>上传本地参考图可进入图生图；画布图片复用会作为 URL 参考图发送。</li>
               <li>生成后可保存到作品集、下载、打开大图或重新生成。</li>
             </ol>
           </>
@@ -1295,7 +1311,11 @@ function HeaderContextPanel({
               当前状态：{quota?.actorType === "user" ? "已登录，可绑定邀请奖励。" : "未登录，需先登录后才能绑定邀请奖励。"}
             </p>
             <div className="invite-copy-row">
-              <code>{inviteUrl || "登录后可生成可复制的邀请链接"}</code>
+              <code>
+                {inviteUrl || (quota?.actorType === "user"
+                  ? "正在从后端加载你的真实邀请链接"
+                  : "登录后可生成可复制的邀请链接")}
+              </code>
               <button type="button" onClick={onCopyInviteUrl}>复制</button>
             </div>
             {quota?.actorType !== "user" ? (

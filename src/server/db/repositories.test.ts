@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createTask,
+  getUserInviteCode,
   getQuotaState,
   listHistory,
   markTaskSucceeded,
@@ -64,6 +65,28 @@ describe("local repository fallback", () => {
       status: "succeeded",
       assets: [{ type: "result", url: "data:image/png;base64,ZmFrZQ==" }]
     });
+  });
+
+  it("returns a stable local invite code for authenticated users without DATABASE_URL", async () => {
+    const actor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+
+    expect(actor.type).toBe("user");
+    if (actor.type !== "user") {
+      throw new Error("Expected local authenticated actor");
+    }
+
+    const inviteCode = await getUserInviteCode(actor.userId);
+    const secondInviteCode = await getUserInviteCode(actor.userId);
+
+    expect(inviteCode).toMatch(/^local-[a-z0-9]+$/);
+    expect(secondInviteCode).toBe(inviteCode);
   });
 });
 
