@@ -77,6 +77,10 @@ export function getCanvasPlaceholderText(input: { loading: boolean }): string | 
   return input.loading ? null : "生成预览";
 }
 
+export function getCanvasLoadingWarningText(input: { loading: boolean }): string | null {
+  return input.loading ? "受网络延迟等原因，生图过程中请勿刷新浏览器，可能会多次扣费。" : null;
+}
+
 export function buildCanvasHistoryThumbs(input: {
   images: CanvasImageCandidate[];
   history: CanvasHistoryItem[];

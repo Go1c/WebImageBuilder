@@ -57,6 +57,7 @@ import {
 import {
   buildCanvasMeta,
   buildCanvasHistoryThumbs,
+  getCanvasLoadingWarningText,
   getCanvasPlaceholderText,
   selectCanvasImage,
   selectVisibleCanvasImage
@@ -208,6 +209,7 @@ export function ImageStudio() {
   const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
   const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
   const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
+  const canvasLoadingWarningText = getCanvasLoadingWarningText({ loading });
   const promptEnhancement = useMemo(
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
@@ -1132,6 +1134,7 @@ export function ImageStudio() {
               {loading ? (
                 <div className="image-loading">
                   <span>生成中 {loadingSeconds}s</span>
+                  {canvasLoadingWarningText ? <p>{canvasLoadingWarningText}</p> : null}
                 </div>
               ) : null}
             </div>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCanvasMeta,
   buildCanvasHistoryThumbs,
+  getCanvasLoadingWarningText,
   getCanvasPlaceholderText,
   selectCanvasImage,
   selectVisibleCanvasImage
@@ -59,6 +60,11 @@ describe("studio canvas helpers", () => {
   it("does not show the empty preview label behind the loading state", () => {
     expect(getCanvasPlaceholderText({ loading: true })).toBeNull();
     expect(getCanvasPlaceholderText({ loading: false })).toBe("生成预览");
+  });
+
+  it("shows a refresh warning only while generation is loading", () => {
+    expect(getCanvasLoadingWarningText({ loading: true })).toBe("受网络延迟等原因，生图过程中请勿刷新浏览器，可能会多次扣费。");
+    expect(getCanvasLoadingWarningText({ loading: false })).toBeNull();
   });
 
   it("deduplicates generated and persisted history thumbs by URL", () => {
