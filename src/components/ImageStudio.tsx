@@ -7,10 +7,8 @@ import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { downloadGeneratedImage } from "./imageDownload";
 import {
   buildPromptEnhancementMetadata,
-  promptStylePresets,
   promptTypeChoices,
   type PromptEnhancementMetadata,
-  type PromptStylePreset,
   type PromptStylePresetKey,
   type PromptTypeKey
 } from "./promptEnhancers";
@@ -20,13 +18,12 @@ import {
   buildLocalPortfolioItem,
   buildReferenceAssetDescriptor,
   getStudioActionStates,
-  getZoomAction,
   upsertLocalPortfolioItem,
   type LocalPortfolioItem,
   type ReferenceAssetDescriptor,
   type StudioActionState
 } from "./studioActions";
-import { selectCanvasImage } from "./studioCanvas";
+import { buildCanvasHistoryThumbs, selectCanvasImage, selectVisibleCanvasImage } from "./studioCanvas";
 import { appendPromptToken } from "./studioPrompt";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 
@@ -130,15 +127,6 @@ const ratioOptions: Array<{ label: string; size: "1024x1024" | "1024x1536" | "15
   { label: "9:16", size: "1024x1536", meta: "1024 × 1536" }
 ];
 
-const stylePresetGradients: Record<PromptStylePresetKey, string> = {
-  cinematic: "linear-gradient(143deg, rgb(254, 230, 133) 0%, rgb(255, 184, 106) 100%)",
-  cyberpunk: "linear-gradient(143deg, rgb(244, 168, 255) 0%, rgb(124, 134, 255) 100%)",
-  "minimal-japanese": "linear-gradient(143deg, rgb(255, 228, 230) 0%, rgb(231, 229, 228) 100%)",
-  "watercolor-illustration": "linear-gradient(143deg, rgb(184, 230, 254) 0%, rgb(164, 244, 207) 100%)",
-  "studio-3d-render": "linear-gradient(143deg, rgb(196, 180, 255) 0%, rgb(253, 165, 213) 100%)",
-  "black-and-white-film": "linear-gradient(143deg, rgb(212, 212, 212) 0%, rgb(115, 115, 115) 100%)"
-};
-
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
@@ -175,6 +163,7 @@ export function ImageStudio() {
   const quality = detailStrength >= 72 ? "high" : "standard";
   const activeRatio = ratioOptions.find((option) => option.label === ratioLabel) || ratioOptions[0];
   const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
+  const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
   const promptEnhancement = useMemo(
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
@@ -187,23 +176,7 @@ export function ImageStudio() {
   const loginUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/";
 
   const historyThumbs = useMemo(() => {
-    const generatedThumbs: HistoryThumb[] = images.map((image, index) => ({
-      id: `generated-${image.key || index}`,
-      url: image.url,
-      mimeType: image.mimeType,
-      prompt: canvasPrompt || undefined
-    }));
-    const persistedThumbs: HistoryThumb[] = history.flatMap((item) =>
-      (item.assets || [])
-        .filter((asset) => asset.type === "result")
-        .map((asset, index) => ({
-          id: `${item.id}-${index}`,
-          url: asset.url,
-          prompt: item.prompt
-        }))
-    );
-
-    return [...generatedThumbs, ...persistedThumbs].slice(0, 4);
+    return buildCanvasHistoryThumbs({ images, history, canvasPrompt });
   }, [canvasPrompt, history, images]);
 
   const quotaText = useMemo(() => {
@@ -543,18 +516,6 @@ export function ImageStudio() {
     );
   }
 
-  function handleApplyStyle(preset: PromptStylePreset) {
-    const willSelect = selectedStyle !== preset.key;
-    setSelectedStyle(willSelect ? preset.key : null);
-    showTip({
-      type: "info",
-      title: willSelect ? "风格已应用" : "风格已取消",
-      message: willSelect
-        ? `${preset.label} 会追加到最终提示词，原始输入会保留。`
-        : `${preset.label} 已从最终提示词中移除。`
-    });
-  }
-
   function handleApplyTag(tag: string) {
     setPrompt((current) => appendPromptToken(current, tag));
   }
@@ -757,29 +718,6 @@ export function ImageStudio() {
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "下载图片", error }));
-    }
-  }
-
-  function handleOpenCurrentImage() {
-    if (!ensureActionEnabled("打开大图", actionStates.zoom)) {
-      return;
-    }
-
-    const zoomAction = getZoomAction({ image: canvasImage });
-
-    if (!zoomAction.enabled) {
-      showDisabledTip("打开大图", zoomAction.reason);
-      return;
-    }
-
-    const openedWindow = window.open(zoomAction.url, "_blank", "noopener,noreferrer");
-
-    if (!openedWindow) {
-      showTip({
-        type: "warning",
-        title: "未能打开大图",
-        message: "浏览器可能拦截了新窗口，请允许弹窗后重试。"
-      });
     }
   }
 
@@ -1040,10 +978,10 @@ export function ImageStudio() {
           </div>
 
           <div className="image-stage">
-            <div className={canvasImage ? "main-image-frame" : "main-image-frame is-empty"}>
-              {canvasImage ? (
+            <div className={visibleCanvasImage ? "main-image-frame" : "main-image-frame is-empty"}>
+              {visibleCanvasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={canvasImage.url} alt="生成预览" />
+                <img src={visibleCanvasImage.url} alt="生成预览" />
               ) : (
                 <span>生成预览</span>
               )}
@@ -1053,65 +991,15 @@ export function ImageStudio() {
 
           <div className="canvas-actions">
             <button
-              className={actionStates.save.enabled ? "save-button" : "save-button is-disabled"}
-              type="button"
-              aria-disabled={!actionStates.save.enabled}
-              title={actionStates.save.reason}
-              onClick={handleSaveToPortfolio}
-            >
-              <StudioIcon name="check" size={14} />
-              保存到作品集
-            </button>
-            <button
-              className={actionStates.delete.enabled ? "icon-button" : "icon-button is-disabled"}
-              type="button"
-              aria-disabled={!actionStates.delete.enabled}
-              title={actionStates.delete.reason}
-              onClick={handleClearCanvas}
-              aria-label="删除当前图片"
-            >
-              <StudioIcon name="trash" size={16} />
-            </button>
-            <span className="action-divider" />
-            <button
-              className={actionStates.referenceReuse.enabled ? "icon-button" : "icon-button is-disabled"}
-              type="button"
-              aria-disabled={!actionStates.referenceReuse.enabled}
-              title={actionStates.referenceReuse.reason}
-              onClick={handleUseCurrentAsReference}
-              aria-label="用作参考图"
-            >
-              <StudioIcon name="imagePlus" size={16} />
-            </button>
-            <button
               className={actionStates.download.enabled ? "icon-button" : "icon-button is-disabled"}
               type="button"
               aria-disabled={!actionStates.download.enabled}
-              title={actionStates.download.reason}
+              title={actionStates.download.reason || "下载图片"}
+              data-tooltip={actionStates.download.reason || "下载图片"}
               onClick={() => void handleDownloadCurrentImage()}
               aria-label="下载图片"
             >
               <StudioIcon name="download" size={16} />
-            </button>
-            <button
-              className={actionStates.regenerate.enabled ? "icon-button" : "icon-button is-disabled"}
-              type="button"
-              aria-disabled={!actionStates.regenerate.enabled}
-              title={actionStates.regenerate.reason}
-              onClick={handleRegenerate}
-              aria-label="重新生成"
-            >
-              <StudioIcon name="refresh" size={16} />
-            </button>
-            <button
-              className={actionStates.zoom.enabled ? "icon-button" : "icon-button is-disabled"}
-              type="button"
-              aria-disabled={!actionStates.zoom.enabled}
-              title={actionStates.zoom.reason}
-              onClick={handleOpenCurrentImage}
-              aria-label="打开大图"
-            >
-              <StudioIcon name="expand" size={16} />
             </button>
           </div>
 
@@ -1164,24 +1052,6 @@ export function ImageStudio() {
           </div>
 
           <div className="panel-scroll library-scroll">
-            <section className="studio-section library-section">
-              <p className="library-title">风格预设</p>
-              <div className="preset-grid">
-                {promptStylePresets.map((preset) => (
-                  <button
-                    key={preset.key}
-                    className={selectedStyle === preset.key ? "preset-card is-selected" : "preset-card"}
-                    type="button"
-                    aria-pressed={selectedStyle === preset.key}
-                    style={{ "--preset-gradient": stylePresetGradients[preset.key] } as CSSProperties}
-                    onClick={() => handleApplyStyle(preset)}
-                  >
-                    <span>{preset.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
             {activeLibraryTab === "我的" ? (
               <section className="studio-section library-section">
                 <div className="library-title-row">
