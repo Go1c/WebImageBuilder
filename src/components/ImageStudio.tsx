@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
 import { readApiError, readApiJson } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { downloadGeneratedImage } from "./imageDownload";
+import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
+import { selectCanvasImage } from "./studioCanvas";
 import { appendPromptToken, buildPromptFromLibraryItem } from "./studioPrompt";
 
 type AssetRef = {
@@ -44,6 +46,21 @@ type GeneratedImage = {
   mimeType: string;
 };
 
+type HistoryThumb = {
+  id: string;
+  url: string;
+  mimeType?: string;
+  prompt?: string;
+};
+
+type SavedPortfolioItem = {
+  id: string;
+  url: string;
+  mimeType: string;
+  prompt: string;
+  savedAt: string;
+};
+
 type StudioIconName =
   | "sparkle"
   | "grid"
@@ -67,11 +84,7 @@ type StudioIconName =
   | "expand";
 
 const generationTimeoutMs = 120_000;
-
-const fallbackPrompt = "柔和晨光下的山间湖泊，极简构图，电影感";
-const sampleMainImage = "/figma-assets/canvas-main.jpg";
-const sampleHistoryImage = "/figma-assets/canvas-history.jpg";
-const sampleReferenceImage = "/figma-assets/prompt-reference.jpg";
+const portfolioStorageKey = "lumio:portfolio";
 
 const artTypes: Array<{ label: string; icon: StudioIconName }> = [
   { label: "UI", icon: "grid" },
@@ -125,15 +138,6 @@ const stylePresets = [
   }
 ];
 
-const communityItems = [
-  { src: "/figma-assets/community-1.jpg", prompt: "暗调电影感人像，柔和逆光，细腻肤色" },
-  { src: "/figma-assets/community-2.jpg", prompt: "梦幻霓虹抽象背景，渐变光影，高饱和色彩" },
-  { src: "/figma-assets/community-3.jpg", prompt: "写实游戏场景，清晨雾气，开阔构图" },
-  { src: "/figma-assets/community-4.jpg", prompt: "潮流角色立绘，精致服装，干净背景" },
-  { src: "/figma-assets/community-5.jpg", prompt: "产品级 3D 图标，柔和反射，简洁构图" },
-  { src: "/figma-assets/community-6.jpg", prompt: "高质感概念艺术，戏剧化光线，丰富层次" }
-];
-
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
@@ -147,12 +151,14 @@ export function ImageStudio() {
   const [ratioLabel, setRatioLabel] = useState("1:1");
   const [detailStrength, setDetailStrength] = useState(55);
   const [artType, setArtType] = useState("写实");
-  const [referenceFiles, setReferenceFiles] = useState<FileList | null>(null);
+  const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedInspirationImage, setSelectedInspirationImage] = useState<string | null>(null);
+  const [canvasPrompt, setCanvasPrompt] = useState<string | null>(null);
+  const [savedPortfolioItems, setSavedPortfolioItems] = useState<SavedPortfolioItem[]>([]);
   const [activeLibraryTab, setActiveLibraryTab] = useState("热门");
   const [librarySearch, setLibrarySearch] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
@@ -163,20 +169,29 @@ export function ImageStudio() {
 
   const quality = detailStrength >= 72 ? "high" : "standard";
   const activeRatio = ratioOptions.find((option) => option.label === ratioLabel) || ratioOptions[0];
-  const mainImage = images[0]?.url || selectedInspirationImage || sampleMainImage;
-  const mainImageMimeType = images[0]?.mimeType || "image/jpeg";
-  const generatedPrompt = prompt.trim() || fallbackPrompt;
-  const referenceCount = referenceFiles?.length || 0;
+  const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
+  const referenceCount = referenceFiles.length;
   const submitMode: GenerationMode = referenceCount > 0 ? mode : "text-to-image";
 
   const historyThumbs = useMemo(() => {
-    const generatedThumbs = images.map((image) => image.url);
-    const persistedThumbs = history.flatMap((item) =>
-      (item.assets || []).filter((asset) => asset.type === "result").map((asset) => asset.url)
+    const generatedThumbs: HistoryThumb[] = images.map((image, index) => ({
+      id: `generated-${image.key || index}`,
+      url: image.url,
+      mimeType: image.mimeType,
+      prompt: canvasPrompt || undefined
+    }));
+    const persistedThumbs: HistoryThumb[] = history.flatMap((item) =>
+      (item.assets || [])
+        .filter((asset) => asset.type === "result")
+        .map((asset, index) => ({
+          id: `${item.id}-${index}`,
+          url: asset.url,
+          prompt: item.prompt
+        }))
     );
 
-    return [...generatedThumbs, ...persistedThumbs, sampleMainImage, sampleHistoryImage].slice(0, 4);
-  }, [history, images]);
+    return [...generatedThumbs, ...persistedThumbs].slice(0, 4);
+  }, [canvasPrompt, history, images]);
 
   const quotaText = useMemo(() => {
     if (!quota) {
@@ -186,15 +201,21 @@ export function ImageStudio() {
     return `${quota.quota.remaining} 次`;
   }, [quota]);
 
-  const filteredCommunityItems = useMemo(() => {
-    const query = librarySearch.trim();
+  const filteredPromptLibraryItems = useMemo(() => {
+    const query = librarySearch.trim().toLowerCase();
 
-    if (!query) {
-      return communityItems;
-    }
+    return promptLibraryItems.filter((item) => {
+      if (!matchesLibraryTab(item, activeLibraryTab)) {
+        return false;
+      }
 
-    return communityItems.filter((item) => item.prompt.includes(query));
-  }, [librarySearch]);
+      if (!query) {
+        return true;
+      }
+
+      return `${item.title} ${item.category} ${item.prompt}`.toLowerCase().includes(query);
+    });
+  }, [activeLibraryTab, librarySearch]);
 
   useEffect(() => {
     void (async () => {
@@ -210,7 +231,11 @@ export function ImageStudio() {
   }, []);
 
   useEffect(() => {
-    if (!referenceFiles?.[0]) {
+    setSavedPortfolioItems(readSavedPortfolioItems());
+  }, []);
+
+  useEffect(() => {
+    if (!referenceFiles[0]) {
       setReferencePreviewUrl(null);
       return;
     }
@@ -294,12 +319,12 @@ export function ImageStudio() {
   }
 
   async function handleGenerate() {
-    const submissionPrompt = buildSubmissionPrompt();
-
     if (!prompt.trim()) {
       setMessage("请先输入提示词");
       return;
     }
+
+    const submissionPrompt = buildSubmissionPrompt();
 
     setLoading(true);
     setMessage(null);
@@ -345,10 +370,12 @@ export function ImageStudio() {
       const result = await readApiJson<{
         images: GeneratedImage[];
         quota: QuotaResponse["quota"];
+        prompt?: string;
       }>(response, "生成接口返回了非 JSON 响应，请刷新页面后重试");
 
       setImages(result.images);
       setSelectedInspirationImage(null);
+      setCanvasPrompt(result.prompt || submissionPrompt);
       setQuota((current) => (current ? { ...current, quota: result.quota } : current));
       setMessage("生成完成");
       await refreshData();
@@ -365,6 +392,10 @@ export function ImageStudio() {
   }
 
   function buildSubmissionPrompt() {
+    if (!prompt.trim()) {
+      return "";
+    }
+
     let nextPrompt = appendPromptToken(prompt, artType);
 
     if (detailStrength >= 72) {
@@ -379,8 +410,19 @@ export function ImageStudio() {
   }
 
   function handleReferenceChange(files: FileList | null) {
-    setReferenceFiles(files);
-    setMode(files?.length ? "image-to-image" : "text-to-image");
+    const nextFiles = Array.from(files || []);
+
+    if (!nextFiles.length) {
+      return;
+    }
+
+    setReferenceFiles(nextFiles);
+    setMode("image-to-image");
+  }
+
+  function handleReferenceInputChange(event: ChangeEvent<HTMLInputElement>) {
+    handleReferenceChange(event.currentTarget.files);
+    event.currentTarget.value = "";
   }
 
   function handleRatioChange(option: (typeof ratioOptions)[number]) {
@@ -397,23 +439,79 @@ export function ImageStudio() {
     setPrompt((current) => appendPromptToken(current, tag));
   }
 
-  function handleApplyCommunity(item: (typeof communityItems)[number]) {
-    setSelectedInspirationImage(item.src);
-    setPrompt(buildPromptFromLibraryItem(prompt, item.prompt));
-    setMessage("灵感已套用");
+  function handleApplyPromptLibraryItem(item: PromptLibraryItem) {
+    setPrompt(item.prompt);
+    setImages([]);
+    setSelectedInspirationImage(item.image);
+    setCanvasPrompt(null);
+    setRequestPreview(null);
+    setMessage(`已套用：${item.title}`);
   }
 
-  function handleHistoryThumbClick(url: string) {
-    setSelectedInspirationImage(url);
+  function handleApplySavedPortfolioItem(item: SavedPortfolioItem) {
+    setPrompt(item.prompt);
     setImages([]);
+    setSelectedInspirationImage(item.url);
+    setCanvasPrompt(item.prompt || null);
+    setRequestPreview(null);
+    setMessage("已打开作品");
+  }
+
+  function handleHistoryThumbClick(thumb: HistoryThumb) {
+    setSelectedInspirationImage(thumb.url);
+    setImages([]);
+    setCanvasPrompt(thumb.prompt || null);
+  }
+
+  function handleClearCanvas() {
+    if (!canvasImage && !canvasPrompt) {
+      setMessage("暂无可删除图片");
+      return;
+    }
+
+    setImages([]);
+    setSelectedInspirationImage(null);
+    setCanvasPrompt(null);
+    setRequestPreview(null);
+    setMessage("已删除当前图片");
+  }
+
+  function handleSaveToPortfolio() {
+    if (!canvasImage) {
+      setMessage("暂无可保存图片");
+      return;
+    }
+
+    try {
+      const existingItems = readSavedPortfolioItems();
+      const savedItem: SavedPortfolioItem = {
+        id: `${Date.now()}-${canvasImage.url}`,
+        url: canvasImage.url,
+        mimeType: canvasImage.mimeType,
+        prompt: canvasPrompt || "",
+        savedAt: new Date().toISOString()
+      };
+
+      const nextItems = [savedItem, ...existingItems].slice(0, 100);
+      window.localStorage.setItem(portfolioStorageKey, JSON.stringify(nextItems));
+      setSavedPortfolioItems(nextItems);
+      setMessage("已保存到作品集");
+    } catch {
+      setMessage("作品集保存失败");
+    }
   }
 
   async function handleDownloadCurrentImage() {
+    if (!canvasImage) {
+      setMessage("暂无可保存图片");
+      return;
+    }
+
     try {
       await downloadGeneratedImage(
         {
-          url: mainImage,
-          mimeType: mainImageMimeType
+          url: canvasImage.url,
+          mimeType: canvasImage.mimeType
         },
         0
       );
@@ -424,7 +522,7 @@ export function ImageStudio() {
   }
 
   async function handleCopyRequestPreview() {
-    const text = requestPreview || buildSubmissionPrompt();
+    const text = requestPreview || canvasPrompt || buildSubmissionPrompt();
 
     if (!text.trim()) {
       setMessage("暂无可复制内容");
@@ -479,18 +577,20 @@ export function ImageStudio() {
             <section className="studio-section prompt-section">
               <SectionLabel>提示词</SectionLabel>
               <div className="prompt-card">
-                <div className="reference-row">
-                  <div className="reference-thumb">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={referencePreviewUrl || sampleReferenceImage} alt="" />
-                  </div>
+                <div className={referencePreviewUrl ? "reference-row has-reference" : "reference-row"}>
+                  {referencePreviewUrl ? (
+                    <div className="reference-thumb">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={referencePreviewUrl} alt="参考图" />
+                    </div>
+                  ) : null}
                   <label className="reference-add">
                     <StudioIcon name="plus" size={16} />
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       multiple
-                      onChange={(event) => handleReferenceChange(event.target.files)}
+                      onChange={handleReferenceInputChange}
                     />
                   </label>
                 </div>
@@ -585,7 +685,7 @@ export function ImageStudio() {
                 <span className="meta-dot">·</span>
                 <span>{loading ? "生成中" : "刚刚"}</span>
               </div>
-              <p>{generatedPrompt}</p>
+              {canvasPrompt ? <p>{canvasPrompt}</p> : null}
             </div>
             <button type="button" className="icon-button ghost" onClick={() => void handleCopyRequestPreview()} aria-label="复制提示词">
               <StudioIcon name="copy" size={16} />
@@ -593,19 +693,23 @@ export function ImageStudio() {
           </div>
 
           <div className="image-stage">
-            <div className="main-image-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={mainImage} alt="生成预览" />
+            <div className={canvasImage ? "main-image-frame" : "main-image-frame is-empty"}>
+              {canvasImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={canvasImage.url} alt="生成预览" />
+              ) : (
+                <span>生成预览</span>
+              )}
               {loading ? <div className="image-loading">生成中 {loadingSeconds}s</div> : null}
             </div>
           </div>
 
           <div className="canvas-actions">
-            <button className="save-button" type="button" onClick={() => setMessage("已保存到作品集")}>
+            <button className="save-button" type="button" onClick={handleSaveToPortfolio} disabled={!canvasImage}>
               <StudioIcon name="check" size={14} />
               保存到作品集
             </button>
-            <button className="icon-button" type="button" onClick={() => setImages([])} aria-label="删除当前图片">
+            <button className="icon-button" type="button" onClick={handleClearCanvas} aria-label="删除当前图片">
               <StudioIcon name="trash" size={16} />
             </button>
             <span className="action-divider" />
@@ -615,10 +719,10 @@ export function ImageStudio() {
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
                 multiple
-                onChange={(event) => handleReferenceChange(event.target.files)}
+                onChange={handleReferenceInputChange}
               />
             </label>
-            <button className="icon-button" type="button" onClick={() => void handleDownloadCurrentImage()} aria-label="下载图片">
+            <button className="icon-button" type="button" onClick={() => void handleDownloadCurrentImage()} disabled={!canvasImage} aria-label="下载图片">
               <StudioIcon name="download" size={16} />
             </button>
             <button className="icon-button" type="button" onClick={() => void handleGenerate()} disabled={loading} aria-label="重新生成">
@@ -633,13 +737,13 @@ export function ImageStudio() {
             <span>历史：</span>
             {historyThumbs.map((thumb, index) => (
               <button
-                key={`${thumb}-${index}`}
+                key={thumb.id}
                 className={index === 0 ? "history-thumb is-active" : "history-thumb"}
                 type="button"
                 onClick={() => handleHistoryThumbClick(thumb)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumb} alt="" />
+                <img src={thumb.url} alt="" />
                 {index === 0 ? (
                   <span className="thumb-check">
                     <StudioIcon name="check" size={8} />
@@ -695,17 +799,58 @@ export function ImageStudio() {
               </div>
             </section>
 
-            <section className="studio-section library-section">
-              <p className="library-title">社区热门</p>
-              <div className="community-grid">
-                {filteredCommunityItems.map((item) => (
-                  <button key={item.src} className="community-card" type="button" onClick={() => handleApplyCommunity(item)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.src} alt="" />
-                  </button>
-                ))}
-              </div>
-            </section>
+            {activeLibraryTab === "我的" ? (
+              <section className="studio-section library-section">
+                <div className="library-title-row">
+                  <p className="library-title">我的作品</p>
+                  <span>{savedPortfolioItems.length}</span>
+                </div>
+                {savedPortfolioItems.length ? (
+                  <div className="prompt-library-grid">
+                    {savedPortfolioItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className="prompt-library-card"
+                        type="button"
+                        onClick={() => handleApplySavedPortfolioItem(item)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.url} alt="" loading="lazy" decoding="async" />
+                        <span className="prompt-library-title">{item.prompt || "未命名作品"}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="library-empty">暂无保存作品</p>
+                )}
+              </section>
+            ) : (
+              <section className="studio-section library-section">
+                <div className="library-title-row">
+                  <p className="library-title">提示词库</p>
+                  <span>{filteredPromptLibraryItems.length}</span>
+                </div>
+                {filteredPromptLibraryItems.length ? (
+                  <div className="prompt-library-grid">
+                    {filteredPromptLibraryItems.map((item) => (
+                      <button
+                        key={item.id}
+                        className="prompt-library-card"
+                        type="button"
+                        onClick={() => handleApplyPromptLibraryItem(item)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.image} alt={item.title} loading="lazy" decoding="async" />
+                        <span className="prompt-library-title">{item.title}</span>
+                        <span className="prompt-library-meta">#{item.caseNumber} · {item.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="library-empty">没有匹配的素材</p>
+                )}
+              </section>
+            )}
 
             <section className="studio-section library-section keyword-section">
               <p className="library-title">关键词标签</p>
@@ -724,6 +869,40 @@ export function ImageStudio() {
       {message ? <p className="studio-toast" aria-live="polite">{message}</p> : null}
     </main>
   );
+}
+
+function readSavedPortfolioItems(): SavedPortfolioItem[] {
+  try {
+    const rawItems = window.localStorage.getItem(portfolioStorageKey);
+    const parsedItems = rawItems ? (JSON.parse(rawItems) as SavedPortfolioItem[]) : [];
+    return Array.isArray(parsedItems) ? parsedItems : [];
+  } catch {
+    return [];
+  }
+}
+
+function matchesLibraryTab(item: PromptLibraryItem, activeTab: string): boolean {
+  if (activeTab === "热门") {
+    return true;
+  }
+
+  if (activeTab === "人物") {
+    return libraryTextMatches(item, /人物|角色|人像|头像|少女|美女|男士|女性|模特|coser|写真|肖像/);
+  }
+
+  if (activeTab === "场景") {
+    return libraryTextMatches(item, /场景|城市|建筑|空间|室内|户外|地图|风景|海报|长卷|叙事/);
+  }
+
+  if (activeTab === "风格") {
+    return libraryTextMatches(item, /风格|插画|摄影|写实|动漫|国风|水彩|电影|视觉|品牌|标志|排版|信息图|界面/);
+  }
+
+  return false;
+}
+
+function libraryTextMatches(item: PromptLibraryItem, pattern: RegExp): boolean {
+  return pattern.test(`${item.title} ${item.category} ${item.prompt.slice(0, 500)}`);
 }
 
 function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
