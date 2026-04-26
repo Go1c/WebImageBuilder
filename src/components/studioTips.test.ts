@@ -53,6 +53,7 @@ describe("studio tips", () => {
       actionHref: "https://api.lumio.games/keys"
     });
     expect(tip.message).toContain("Image-2（生图专用）");
+    expect(tip.message).toContain("可以再试一次");
   });
 
   it("recognizes Cloudflare invalid origin responses as image gateway 502 errors", () => {
