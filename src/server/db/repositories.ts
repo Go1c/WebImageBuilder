@@ -153,12 +153,7 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
     if (actor.type === "anonymous") {
       return {
         actorType: "anonymous",
-        anonymousUsed: store.tasks.filter(
-          (task) =>
-            task.actor.type === "anonymous" &&
-            task.actor.anonymousDeviceId === actor.anonymousDeviceId &&
-            task.status === "succeeded"
-        ).length,
+        anonymousUsed: countLocalDeviceTrialUsage(store, actor.deviceId),
         loginUsed: 0,
         inviteCredits: 0,
         paidCredits: 0,
@@ -167,16 +162,10 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
     }
 
     const balance = getLocalUserBalance(actor.userId);
-    const anonymousUsed = store.tasks.filter(
-      (task) =>
-        task.actor.type === "anonymous" &&
-        task.actor.anonymousDeviceId === `local-anon-${actor.deviceId}` &&
-        task.status === "succeeded"
-    ).length;
     return {
       actorType: "user",
-      anonymousUsed,
-      loginUsed: balance.loginUsed,
+      anonymousUsed: countLocalDeviceTrialUsage(store, actor.deviceId),
+      loginUsed: 0,
       inviteCredits: balance.inviteCredits,
       paidCredits: balance.paidCredits,
       ipDailyUsed
@@ -197,36 +186,15 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   );
 
   if (actor.type === "anonymous") {
-    const usage = await query<{ used: string }>(
-      `
-        select count(*)::text as used
-        from generation_tasks
-        where anonymous_device_id = $1
-          and status = 'succeeded'
-      `,
-      [actor.anonymousDeviceId]
-    );
-
     return {
       actorType: "anonymous",
-      anonymousUsed: Number(usage.rows[0]?.used ?? 0),
+      anonymousUsed: await countDeviceTrialUsage(actor.deviceId),
       loginUsed: 0,
       inviteCredits: 0,
       paidCredits: 0,
       ipDailyUsed: Number(ipResult.rows[0]?.count ?? 0)
     };
   }
-
-  const userAnonymousUsage = await query<{ used: string }>(
-    `
-      select count(*)::text as used
-      from generation_tasks t
-      join anonymous_devices d on d.id = t.anonymous_device_id
-      where d.device_fingerprint = $1
-        and t.status = 'succeeded'
-    `,
-    [actor.deviceId]
-  );
 
   await query(
     `
@@ -253,12 +221,56 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   const row = usage.rows[0];
   return {
     actorType: "user",
-    anonymousUsed: Number(userAnonymousUsage.rows[0]?.used ?? 0),
-    loginUsed: Number(row?.login_used ?? 0),
+    anonymousUsed: await countDeviceTrialUsage(actor.deviceId),
+    loginUsed: 0,
     inviteCredits: Number(row?.invite_credits ?? 0),
     paidCredits: Number(row?.paid_credits ?? 0),
     ipDailyUsed: Number(ipResult.rows[0]?.count ?? 0)
   };
+}
+
+function countLocalDeviceTrialUsage(store: LocalRepository, deviceId: string): number {
+  return store.tasks.filter((task) => {
+    if (task.status !== "succeeded") {
+      return false;
+    }
+
+    if (task.actor.type === "anonymous") {
+      return task.actor.anonymousDeviceId === `local-anon-${deviceId}`;
+    }
+
+    return task.actor.deviceId === deviceId && task.spendSource === "login";
+  }).length;
+}
+
+async function countDeviceTrialUsage(deviceId: string): Promise<number> {
+  const usage = await query<{ used: string }>(
+    `
+      select count(*)::text as used
+      from generation_tasks t
+      where t.status = 'succeeded'
+        and (
+          exists (
+            select 1
+            from anonymous_devices d
+            where d.id = t.anonymous_device_id
+              and d.device_fingerprint = $1
+          )
+          or (
+            t.spend_source = 'login'
+            and exists (
+              select 1
+              from user_device_links l
+              where l.user_id = t.user_id
+                and l.device_fingerprint = $1
+            )
+          )
+        )
+    `,
+    [deviceId]
+  );
+
+  return Number(usage.rows[0]?.used ?? 0);
 }
 
 export async function createTask(input: {

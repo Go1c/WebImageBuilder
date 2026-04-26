@@ -48,10 +48,19 @@ export async function generateImagesForActor(input: {
 
   const funding = chooseGenerationFunding({
     quotaState,
-    allowSub2ApiFallback: input.actor.type === "user" && generation.provider === "openai"
+    allowSub2ApiFallback: input.actor.type === "user" && generation.provider === "openai",
+    allowSiteFunding: generation.resolution === "1K"
   });
 
   if (funding.kind === "blocked") {
+    if (funding.reason === "trial_resolution_unsupported") {
+      throw new ApiError(
+        402,
+        "trial_resolution_unsupported",
+        "免费 3 次体验只支持 1K。请选择 1K，或登录后使用 Lumio 账户生成 2K/4K。"
+      );
+    }
+
     throw new ApiError(402, "quota_exhausted", "No available generation quota");
   }
 

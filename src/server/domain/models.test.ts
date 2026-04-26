@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getGenerationTimeoutMs,
   getGenerationModeCapabilities,
   getModelOption,
   normalizeGenerationInput
@@ -83,6 +84,12 @@ describe("model and generation request rules", () => {
         resolution: "4K"
       }).providerModel
     ).toBe("gpt-image-2pro");
+  });
+
+  it("uses longer image request timeouts for high resolution generation", () => {
+    expect(getGenerationTimeoutMs("1K")).toBe(120_000);
+    expect(getGenerationTimeoutMs("2K")).toBe(240_000);
+    expect(getGenerationTimeoutMs("4K")).toBe(240_000);
   });
 
   it("rejects malformed generation sizes", () => {

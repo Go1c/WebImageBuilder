@@ -4,6 +4,7 @@ export type ApiErrorCode =
   | "bad_request"
   | "unauthorized"
   | "quota_exhausted"
+  | "trial_resolution_unsupported"
   | "rate_limited"
   | "account_unavailable"
   | "not_found"

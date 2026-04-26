@@ -5,6 +5,7 @@ import { tipFromActionFailure, tipFromApiError } from "./studioTips";
 describe("studio tips", () => {
   it.each([
     ["quota_exhausted", "额度已用完", "Lumio 账户"],
+    ["trial_resolution_unsupported", "免费试用仅支持 1K", "登录"],
     ["rate_limited", "请求过于频繁", "稍后再试"],
     ["account_unavailable", "需要创建图片生成 Key", "Image-2"],
     ["provider_error", "生成服务暂时不可用", "上游图像服务"],

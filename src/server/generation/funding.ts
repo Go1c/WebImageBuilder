@@ -14,13 +14,22 @@ export type SiteGenerationFunding = Extract<SpendQuotaResult, { allowed: true }>
 export type GenerationFundingDecision =
   | SiteGenerationFunding
   | { kind: "sub2api" }
-  | { kind: "blocked"; reason: "quota_exhausted" };
+  | { kind: "blocked"; reason: "quota_exhausted" | "trial_resolution_unsupported" };
 
 export function chooseGenerationFunding(input: {
   quotaState: DbQuotaState;
   allowSub2ApiFallback: boolean;
+  allowSiteFunding: boolean;
   config?: QuotaConfig;
 }): GenerationFundingDecision {
+  if (!input.allowSiteFunding) {
+    if (input.quotaState.actorType === "user" && input.allowSub2ApiFallback) {
+      return { kind: "sub2api" };
+    }
+
+    return { kind: "blocked", reason: "trial_resolution_unsupported" };
+  }
+
   const spend = spendQuota({
     actorType: input.quotaState.actorType,
     anonymousUsed: input.quotaState.anonymousUsed,

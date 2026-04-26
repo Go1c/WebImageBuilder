@@ -13,6 +13,7 @@ describe("generation funding", () => {
         ipDailyUsed: 0
       },
       allowSub2ApiFallback: true,
+      allowSiteFunding: true,
       config: {
         anonymousFreeGenerations: 3,
         loginFreeGenerations: 2,
@@ -41,6 +42,7 @@ describe("generation funding", () => {
         ipDailyUsed: 0
       },
       allowSub2ApiFallback: true,
+      allowSiteFunding: true,
       config: {
         anonymousFreeGenerations: 3,
         loginFreeGenerations: 2,
@@ -63,6 +65,7 @@ describe("generation funding", () => {
         ipDailyUsed: 0
       },
       allowSub2ApiFallback: true,
+      allowSiteFunding: true,
       config: {
         anonymousFreeGenerations: 3,
         loginFreeGenerations: 3,
@@ -72,5 +75,51 @@ describe("generation funding", () => {
     });
 
     expect(decision).toEqual({ kind: "sub2api" });
+  });
+
+  it("uses the logged-in Sub2API account for 2K and 4K instead of site free trial quota", () => {
+    const decision = chooseGenerationFunding({
+      quotaState: {
+        actorType: "user",
+        anonymousUsed: 0,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        ipDailyUsed: 0
+      },
+      allowSub2ApiFallback: true,
+      allowSiteFunding: false,
+      config: {
+        anonymousFreeGenerations: 3,
+        loginFreeGenerations: 3,
+        inviteRewardGenerations: 0,
+        ipDailyAnonymousLimit: 30
+      }
+    });
+
+    expect(decision).toEqual({ kind: "sub2api" });
+  });
+
+  it("blocks anonymous 2K and 4K requests because free trial only supports 1K", () => {
+    const decision = chooseGenerationFunding({
+      quotaState: {
+        actorType: "anonymous",
+        anonymousUsed: 0,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        ipDailyUsed: 0
+      },
+      allowSub2ApiFallback: false,
+      allowSiteFunding: false,
+      config: {
+        anonymousFreeGenerations: 3,
+        loginFreeGenerations: 3,
+        inviteRewardGenerations: 0,
+        ipDailyAnonymousLimit: 30
+      }
+    });
+
+    expect(decision).toEqual({ kind: "blocked", reason: "trial_resolution_unsupported" });
   });
 });

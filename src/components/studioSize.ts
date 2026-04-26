@@ -17,6 +17,10 @@ const resolutionLongEdges: Record<ImageResolutionTier, number> = {
 
 export const imageResolutionOptions: ImageResolutionTier[] = ["1K", "2K", "4K"];
 
+export function getGenerationRequestTimeoutMs(resolution: ImageResolutionTier): number {
+  return resolution === "1K" ? 120_000 : 240_000;
+}
+
 export function buildGenerationSize(input: {
   ratio: AspectRatioLabel;
   resolution: ImageResolutionTier;

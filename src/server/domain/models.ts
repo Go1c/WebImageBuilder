@@ -133,6 +133,10 @@ export function listGenerationModeCapabilities(): GenerationModeCapability[] {
   return generationModes.map((mode) => getGenerationModeCapabilities(mode));
 }
 
+export function getGenerationTimeoutMs(resolution: ImageResolutionTier): number {
+  return resolution === "1K" ? 120_000 : 240_000;
+}
+
 export function normalizeGenerationInput(input: unknown): NormalizedGenerationInput {
   const parsed = generationInputSchema.parse(input);
   const capability = getGenerationModeCapabilities(parsed.mode);

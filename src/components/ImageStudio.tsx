@@ -40,6 +40,7 @@ import {
 } from "./portfolioStorage";
 import {
   buildGenerationSize,
+  getGenerationRequestTimeoutMs,
   imageResolutionOptions,
   type AspectRatioLabel,
   type ImageResolutionTier
@@ -141,7 +142,6 @@ type StudioIconName =
   | "refresh"
   | "expand";
 
-const generationTimeoutMs = 120_000;
 const emptySub2ApiSession: Sub2ApiSessionResponse = {
   authenticated: false,
   user: null
@@ -472,7 +472,8 @@ export function ImageStudio() {
     setSelectedHistoryThumb(null);
     setRequestPreview(buildRequestPreview(metadata));
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
+    const timeoutMs = getGenerationRequestTimeoutMs(imageResolution);
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const uploadedReferences = referenceFiles.length
@@ -526,7 +527,7 @@ export function ImageStudio() {
         showTip({
           type: "error",
           title: "生成超时",
-          message: "生成请求超过 120 秒未完成，请稍后重试。"
+          message: `生成请求超过 ${Math.round(timeoutMs / 1000)} 秒未完成，请稍后重试。`
         });
       } else if (error instanceof StudioApiResponseError) {
         showTip(tipFromApiError(error.detail));
@@ -1384,13 +1385,14 @@ function HeaderContextPanel({
             </div>
             <div className="context-section-list">
               <p>生成价格：1K 每张 0.05 元，2K 和 4K 每张 0.2 元。</p>
-              <p>本站只记录普通用户免费体验 3 次。</p>
+              <p>本站只记录普通用户免费体验 3 次，免费体验仅支持 1K。</p>
+              <p>1K 请求超时时间为 120 秒；2K/4K 请求超时时间为 240 秒。</p>
               <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 的 Lumio 账户中心管理。</p>
             </div>
             <h3>快速生成流程</h3>
             <ol>
               <li>写下主体、场景、用途和画幅。</li>
-              <li>选择 1K、2K 或 4K 分辨率；2K/4K 会使用高分辨率模型。</li>
+              <li>选择 1K、2K 或 4K 分辨率；免费体验只支持 1K，2K/4K 会使用登录账号的 Lumio Key/余额。</li>
               <li>上传本地参考图可进入图生图；画布图片复用会作为 URL 参考图发送。</li>
               <li>免费额度用完后，会使用已登录账号绑定的 Image-2（生图专用）Key 继续生成。</li>
             </ol>
@@ -1405,9 +1407,9 @@ function HeaderContextPanel({
               <span>邀请 1 人送 20 次</span>
             </div>
             <div className="context-section-list">
-              <p>本站只记录普通用户免费体验 3 次；本地 3 次用完后，会使用已登录账号的 Lumio Key/余额生成。</p>
+              <p>本站只记录普通用户免费体验 3 次且仅支持 1K；本地 3 次用完后，会使用已登录账号的 Lumio Key/余额生成。</p>
               <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，请到 Lumio 账户中心查看邀请链接和奖励到账。</p>
-              <p>账户权益用量和邀请奖励不计入本站本地 quota；生成价格为 1K 0.05 元，2K/4K 0.2 元。</p>
+              <p>账户权益用量和邀请奖励不计入本站本地 quota；生成价格为 1K 0.05 元，2K/4K 0.2 元，2K/4K 超时时间为 240 秒。</p>
               <p className="context-status-line">
                 当前状态：
                 <strong className={quota?.actorType === "user" ? "is-signed-in" : "is-signed-out"}>

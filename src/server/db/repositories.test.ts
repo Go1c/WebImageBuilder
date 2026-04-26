@@ -123,6 +123,78 @@ describe("local repository fallback", () => {
       loginUsed: 0
     });
   });
+
+  it("carries authenticated local trial usage back to the same anonymous device", async () => {
+    const deviceId = `device-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+    const userActor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId,
+      ipHash
+    });
+
+    for (let index = 0; index < 3; index += 1) {
+      const taskId = await createTask({ actor: userActor, generation: buildGeneration() });
+      await markTaskSucceeded({
+        taskId,
+        actor: userActor,
+        spendSource: "login",
+        assets: []
+      });
+    }
+
+    const anonymousActor = await resolveActor({
+      authUser: null,
+      deviceId,
+      ipHash
+    });
+
+    await expect(getQuotaState(anonymousActor)).resolves.toMatchObject({
+      actorType: "anonymous",
+      anonymousUsed: 3
+    });
+  });
+
+  it("carries authenticated local trial usage across accounts on the same device", async () => {
+    const deviceId = `device-${randomUUID()}`;
+    const ipHash = `ip-${randomUUID()}`;
+    const firstUserActor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId,
+      ipHash
+    });
+
+    for (let index = 0; index < 3; index += 1) {
+      const taskId = await createTask({ actor: firstUserActor, generation: buildGeneration() });
+      await markTaskSucceeded({
+        taskId,
+        actor: firstUserActor,
+        spendSource: "login",
+        assets: []
+      });
+    }
+
+    const secondUserActor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId,
+      ipHash
+    });
+
+    await expect(getQuotaState(secondUserActor)).resolves.toMatchObject({
+      actorType: "user",
+      anonymousUsed: 3,
+      loginUsed: 0
+    });
+  });
 });
 
 function buildGeneration(): NormalizedGenerationInput {

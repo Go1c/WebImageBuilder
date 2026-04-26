@@ -44,6 +44,14 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
     }
   ],
   [
+    "trial_resolution_unsupported",
+    {
+      type: "warning",
+      title: "免费试用仅支持 1K",
+      message: "免费 3 次体验只支持 1K 生成。请选择 1K，或登录后使用 Lumio 账户 Key/余额生成 2K 和 4K。"
+    }
+  ],
+  [
     "rate_limited",
     {
       type: "warning",

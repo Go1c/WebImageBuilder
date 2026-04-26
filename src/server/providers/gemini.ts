@@ -1,13 +1,11 @@
 import { getAppConfig, requireEnv } from "../config";
-import type { NormalizedGenerationInput } from "../domain/models";
+import { getGenerationTimeoutMs, type NormalizedGenerationInput } from "../domain/models";
 import {
   base64ToGeneratedImage,
   fetchAsset,
   type GeneratedImage,
   type ImageProvider
 } from "./types";
-
-const defaultImageRequestTimeoutMs = 48_000;
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -61,31 +59,35 @@ export class GeminiImageProvider implements ImageProvider {
       requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY")
     )}`;
 
-    const response = await fetchGemini(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts
+    const response = await fetchGemini(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts
+            }
+          ],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"]
           }
-        ],
-        generationConfig: {
-          responseModalities: ["TEXT", "IMAGE"]
-        }
-      })
-    });
+        })
+      },
+      getGenerationTimeoutMs(input.resolution)
+    );
 
     return parseGeminiResponse((await response.json()) as GeminiResponse, response.status);
   }
 }
 
-async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
+async function fetchGemini(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), getImageRequestTimeoutMs());
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
@@ -101,12 +103,6 @@ async function fetchGemini(url: string, init: RequestInit): Promise<Response> {
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-function getImageRequestTimeoutMs(): number {
-  const raw = process.env.IMAGE_PROVIDER_TIMEOUT_MS;
-  const parsed = raw ? Number(raw) : defaultImageRequestTimeoutMs;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultImageRequestTimeoutMs;
 }
 
 function buildPrompt(input: NormalizedGenerationInput): string {

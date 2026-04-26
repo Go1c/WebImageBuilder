@@ -1,5 +1,5 @@
 import { getAppConfig, requireEnv } from "../config";
-import type { NormalizedGenerationInput } from "../domain/models";
+import { getGenerationTimeoutMs, type NormalizedGenerationInput } from "../domain/models";
 import {
   base64ToGeneratedImage,
   fetchAsset,
@@ -19,8 +19,6 @@ type OpenAIImageResponse = {
   detail?: string;
   reason?: string;
 };
-
-const defaultImageRequestTimeoutMs = 48_000;
 
 type OpenAIImageProviderOptions = {
   apiKey?: string;
@@ -42,22 +40,26 @@ export class OpenAIImageProvider implements ImageProvider {
     const config = getAppConfig();
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
-    const response = await fetchOpenAI(openAIUrl("/v1/images/generations", baseUrl), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
-        "Content-Type": "application/json"
+    const response = await fetchOpenAI(
+      openAIUrl("/v1/images/generations", baseUrl),
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: input.providerModel,
+          prompt: input.prompt,
+          n: input.count,
+          size: input.size,
+          quality: input.quality,
+          response_format: "b64_json"
+        })
       },
-      body: JSON.stringify({
-        model: input.providerModel,
-        prompt: input.prompt,
-        n: input.count,
-        size: input.size,
-        quality: input.quality,
-        response_format: "b64_json"
-      })
-    });
+      getGenerationTimeoutMs(input.resolution)
+    );
 
     return parseOpenAIResponse(response);
   }
@@ -87,14 +89,18 @@ export class OpenAIImageProvider implements ImageProvider {
     const config = getAppConfig();
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
-    const response = await fetchOpenAI(openAIUrl("/v1/images/edits", baseUrl), {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${apiKey}`
+    const response = await fetchOpenAI(
+      openAIUrl("/v1/images/edits", baseUrl),
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: form
       },
-      body: form
-    });
+      getGenerationTimeoutMs(input.resolution)
+    );
 
     return parseOpenAIResponse(response);
   }
@@ -121,9 +127,9 @@ function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
-async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
+async function fetchOpenAI(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), getImageRequestTimeoutMs());
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
@@ -139,12 +145,6 @@ async function fetchOpenAI(url: string, init: RequestInit): Promise<Response> {
   } finally {
     clearTimeout(timeoutId);
   }
-}
-
-function getImageRequestTimeoutMs(): number {
-  const raw = process.env.IMAGE_PROVIDER_TIMEOUT_MS;
-  const parsed = raw ? Number(raw) : defaultImageRequestTimeoutMs;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultImageRequestTimeoutMs;
 }
 
 async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]> {
