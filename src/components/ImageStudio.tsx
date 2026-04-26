@@ -1,10 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode
+} from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
 import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { downloadGeneratedImage } from "./imageDownload";
+import {
+  formatSub2ApiBalance,
+  getSub2ApiAccountLabel,
+  type Sub2ApiSessionView
+} from "./sub2ApiAccount";
+import {
+  buildSub2ApiLoginUrl,
+  readSub2ApiTokenFromUrl,
+  stripSub2ApiAuthParamsFromUrl
+} from "./sub2ApiLogin";
 import {
   buildPromptEnhancementMetadata,
   promptTypeChoices,
@@ -15,6 +34,12 @@ import {
 import { getPromptLibraryImageLoading } from "./promptLibraryImages";
 import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
 import {
+  buildGenerationSize,
+  imageResolutionOptions,
+  type AspectRatioLabel,
+  type ImageResolutionTier
+} from "./studioSize";
+import {
   buildLocalPortfolioItem,
   buildReferenceAssetDescriptor,
   getStudioActionStates,
@@ -23,7 +48,12 @@ import {
   type ReferenceAssetDescriptor,
   type StudioActionState
 } from "./studioActions";
-import { buildCanvasHistoryThumbs, selectCanvasImage, selectVisibleCanvasImage } from "./studioCanvas";
+import {
+  buildCanvasHistoryThumbs,
+  getCanvasPlaceholderText,
+  selectCanvasImage,
+  selectVisibleCanvasImage
+} from "./studioCanvas";
 import { appendPromptToken } from "./studioPrompt";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 
@@ -79,7 +109,9 @@ type HistoryThumb = {
 
 type SavedPortfolioItem = LocalPortfolioItem;
 
-type HeaderPanel = "tutorials" | "invite" | null;
+type HeaderPanel = "tutorials" | "invite" | "auth" | null;
+
+type Sub2ApiSessionResponse = Sub2ApiSessionView;
 
 type StudioIconName =
   | "sparkle"
@@ -105,6 +137,10 @@ type StudioIconName =
 
 const generationTimeoutMs = 120_000;
 const portfolioStorageKey = "lumio:portfolio";
+const emptySub2ApiSession: Sub2ApiSessionResponse = {
+  authenticated: false,
+  user: null
+};
 const urlOnlyReferenceSupportNote =
   "Canvas reuse is sent as a URL reference asset; uploaded files remain the most reliable provider reference path.";
 
@@ -119,12 +155,12 @@ const typeChoiceIcons: Record<PromptTypeKey, StudioIconName> = {
   "场景原画": "image"
 };
 
-const ratioOptions: Array<{ label: string; size: "1024x1024" | "1024x1536" | "1536x1024"; meta: string }> = [
-  { label: "1:1", size: "1024x1024", meta: "1024 × 1024" },
-  { label: "3:4", size: "1024x1536", meta: "1024 × 1536" },
-  { label: "4:3", size: "1536x1024", meta: "1536 × 1024" },
-  { label: "16:9", size: "1536x1024", meta: "1536 × 1024" },
-  { label: "9:16", size: "1024x1536", meta: "1024 × 1536" }
+const ratioOptions: Array<{ label: AspectRatioLabel }> = [
+  { label: "1:1" },
+  { label: "3:4" },
+  { label: "4:3" },
+  { label: "16:9" },
+  { label: "9:16" }
 ];
 
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
@@ -137,8 +173,8 @@ export function ImageStudio() {
   const [model] = useState<ModelKey>("gpt-image-2");
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
-  const [size, setSize] = useState<"1024x1024" | "1024x1536" | "1536x1024">("1024x1024");
-  const [ratioLabel, setRatioLabel] = useState("1:1");
+  const [ratioLabel, setRatioLabel] = useState<AspectRatioLabel>("1:1");
+  const [imageResolution, setImageResolution] = useState<ImageResolutionTier>("1K");
   const [detailStrength, setDetailStrength] = useState(55);
   const [selectedTypes, setSelectedTypes] = useState<PromptTypeKey[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<PromptStylePresetKey | null>(null);
@@ -159,11 +195,14 @@ export function ImageStudio() {
   const [tip, setTip] = useState<StudioTip | null>(null);
   const [requestPreview, setRequestPreview] = useState<string | null>(null);
   const [currentInviteUrl, setCurrentInviteUrl] = useState<string | null>(null);
+  const [sub2ApiSession, setSub2ApiSession] = useState<Sub2ApiSessionResponse | null>(null);
+  const [loginReturnToUrl, setLoginReturnToUrl] = useState<string | null>(null);
 
   const quality = detailStrength >= 72 ? "high" : "standard";
-  const activeRatio = ratioOptions.find((option) => option.label === ratioLabel) || ratioOptions[0];
+  const activeSize = buildGenerationSize({ ratio: ratioLabel, resolution: imageResolution });
   const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
   const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
+  const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
   const promptEnhancement = useMemo(
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
@@ -173,7 +212,13 @@ export function ImageStudio() {
   const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
   const actionStates = getStudioActionStates({ image: canvasImage, canRegenerate, loading });
-  const loginUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/";
+  const loginBaseUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/login";
+  const loginUrl = useMemo(
+    () => buildSub2ApiLoginUrl({ loginBaseUrl, returnToUrl: loginReturnToUrl }),
+    [loginBaseUrl, loginReturnToUrl]
+  );
+  const accountLabel = getSub2ApiAccountLabel(sub2ApiSession);
+  const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt });
@@ -204,7 +249,9 @@ export function ImageStudio() {
   }, [activeLibraryTab, librarySearch]);
 
   useEffect(() => {
+    setLoginReturnToUrl(stripSub2ApiAuthParamsFromUrl(window.location.href));
     void (async () => {
+      await initializeSub2ApiSession();
       await claimInviteFromUrl();
       await refreshData();
     })();
@@ -272,6 +319,74 @@ export function ImageStudio() {
     if (loadFailureTip) {
       showTip(loadFailureTip);
     }
+  }
+
+  async function initializeSub2ApiSession() {
+    const embeddedToken = readEmbeddedSub2ApiToken();
+
+    if (embeddedToken) {
+      try {
+        const session = await attachSub2ApiToken(embeddedToken);
+        setSub2ApiSession(session);
+        removeEmbeddedAuthQueryParams();
+        showTip({
+          type: "success",
+          title: "已登录",
+          message: session.user?.email
+            ? `已同步 Sub2API 账号：${session.user.email}`
+            : "已通过 Sub2API 嵌入登录态完成登录。"
+        });
+        return;
+      } catch (error) {
+        removeEmbeddedAuthQueryParams();
+        setSub2ApiSession(emptySub2ApiSession);
+        showTip(tipFromActionFailure({ kind: "failed", action: "同步 Sub2API 登录态", error }));
+        return;
+      }
+    }
+
+    await refreshSub2ApiSession();
+  }
+
+  async function refreshSub2ApiSession(options: { silent?: boolean } = {}) {
+    try {
+      const response = await fetch("/api/sub2api/session", { cache: "no-store" });
+      if (!response.ok) {
+        throw new StudioApiResponseError(await readApiErrorDetail(response));
+      }
+
+      setSub2ApiSession(
+        await readApiJson<Sub2ApiSessionResponse>(
+          response,
+          "Sub2API 会话接口返回了非 JSON 响应，请刷新页面后重试"
+        )
+      );
+    } catch (error) {
+      setSub2ApiSession(emptySub2ApiSession);
+      if (!options.silent) {
+        showTip(tipFromActionFailure({ kind: "failed", action: "加载 Sub2API 账号", error }));
+      }
+    }
+  }
+
+  async function attachSub2ApiToken(accessToken: string): Promise<Sub2ApiSessionResponse> {
+    const response = await fetch("/api/sub2api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "attachToken",
+        accessToken
+      })
+    });
+
+    if (!response.ok) {
+      throw new StudioApiResponseError(await readApiErrorDetail(response));
+    }
+
+    return readApiJson<Sub2ApiSessionResponse>(
+      response,
+      "Sub2API 会话接口返回了非 JSON 响应，请刷新页面后重试"
+    );
   }
 
   async function refreshInviteInfo() {
@@ -390,7 +505,8 @@ export function ImageStudio() {
           prompt: submissionPrompt,
           mode: submitMode,
           model,
-          size,
+          size: activeSize.size,
+          resolution: imageResolution,
           quality,
           count: 1,
           referenceAssets: references
@@ -418,6 +534,7 @@ export function ImageStudio() {
         message: "结果已更新到画布。"
       });
       await refreshData();
+      await refreshSub2ApiSession({ silent: true });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         showTip({
@@ -463,7 +580,8 @@ export function ImageStudio() {
       ],
       model,
       mode: submitMode,
-      size,
+      size: activeSize.size,
+      resolution: imageResolution,
       quality,
       count: 1,
       referenceCount,
@@ -505,7 +623,6 @@ export function ImageStudio() {
 
   function handleRatioChange(option: (typeof ratioOptions)[number]) {
     setRatioLabel(option.label);
-    setSize(option.size);
   }
 
   function handleToggleType(typeKey: PromptTypeKey) {
@@ -587,12 +704,38 @@ export function ImageStudio() {
     });
   }
 
-  function handleLoginClick() {
+  function handleLoginClick(event: MouseEvent<HTMLAnchorElement>) {
+    const nextLoginUrl = buildSub2ApiLoginUrl({
+      loginBaseUrl,
+      returnToUrl: window.location.href
+    });
+    event.currentTarget.href = nextLoginUrl;
+    setLoginReturnToUrl(stripSub2ApiAuthParamsFromUrl(window.location.href));
     showTip({
       type: "info",
-      title: "正在打开登录",
-      message: "Lumio 登录会在新窗口打开；登录后的 return-token 需要由外部登录服务回传。"
+      title: "登录",
+      message: "正在跳转到 Sub2API 登录页，登录成功后会回到当前页面。"
     });
+  }
+
+  async function handleSub2ApiLogout() {
+    try {
+      const response = await fetch("/api/sub2api/session", { method: "DELETE" });
+      if (!response.ok) {
+        throw new StudioApiResponseError(await readApiErrorDetail(response));
+      }
+
+      setSub2ApiSession(emptySub2ApiSession);
+      setActiveHeaderPanel(null);
+      await refreshData();
+      showTip({
+        type: "success",
+        title: "已退出登录",
+        message: "本地 Sub2API 登录态已清除。"
+      });
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "退出登录", error }));
+    }
   }
 
   async function handleCopyInviteUrl() {
@@ -818,23 +961,34 @@ export function ImageStudio() {
             <StudioIcon name="coin" size={14} />
             {quotaText}
           </span>
+          {sub2ApiSession?.authenticated ? (
+            <span className="balance-pill" title="Sub2API 实时余额">
+              <StudioIcon name="coin" size={14} />
+              {sub2ApiBalanceText}
+            </span>
+          ) : null}
           <button className="invite-pill" type="button" onClick={handleOpenInvitePanel}>
             <StudioIcon name="gift" size={14} />
             邀请有礼
           </button>
-          <a
-            className="login-pill"
-            href={loginUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={handleLoginClick}
-          >
-            登录
-          </a>
+          {sub2ApiSession?.authenticated ? (
+            <>
+              <button className="account-email-pill" type="button" onClick={() => void refreshSub2ApiSession()} title={accountLabel}>
+                {accountLabel}
+              </button>
+              <button className="logout-pill" type="button" onClick={() => void handleSub2ApiLogout()}>
+                退出
+              </button>
+            </>
+          ) : (
+            <a className="login-pill" href={loginUrl} onClick={handleLoginClick}>
+              登录
+            </a>
+          )}
         </div>
       </header>
 
-      {activeHeaderPanel ? (
+      {activeHeaderPanel && activeHeaderPanel !== "auth" ? (
         <HeaderContextPanel
           panel={activeHeaderPanel}
           inviteUrl={currentInviteUrl}
@@ -876,6 +1030,20 @@ export function ImageStudio() {
                       />
                     </label>
                   </div>
+                  <label className="resolution-select">
+                    <span>分辨率</span>
+                    <select
+                      value={imageResolution}
+                      onChange={(event) => setImageResolution(event.currentTarget.value as ImageResolutionTier)}
+                      aria-label="图片分辨率"
+                    >
+                      {imageResolutionOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     className={loading ? "generate-fab is-disabled" : "generate-fab"}
                     type="button"
@@ -964,7 +1132,7 @@ export function ImageStudio() {
                   <StudioIcon name="sparkle" size={12} />
                   Lumio v2.1
                 </span>
-                <span>{activeRatio.meta}</span>
+                <span>{activeSize.meta}</span>
                 <span className="meta-dot">·</span>
                 <span>{loading ? `${loadingSeconds || 1}.0s` : "6.2s"}</span>
                 <span className="meta-dot">·</span>
@@ -978,18 +1146,64 @@ export function ImageStudio() {
           </div>
 
           <div className="image-stage">
-            <div className={visibleCanvasImage ? "main-image-frame" : "main-image-frame is-empty"}>
+            <div
+              className={[
+                "main-image-frame",
+                visibleCanvasImage ? "" : "is-empty",
+                loading ? "is-loading" : ""
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               {visibleCanvasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={visibleCanvasImage.url} alt="生成预览" />
-              ) : (
-                <span>生成预览</span>
-              )}
-              {loading ? <div className="image-loading">生成中 {loadingSeconds}s</div> : null}
+              ) : canvasPlaceholderText ? (
+                <span>{canvasPlaceholderText}</span>
+              ) : null}
+              {loading ? (
+                <div className="image-loading">
+                  <span>生成中 {loadingSeconds}s</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
           <div className="canvas-actions">
+            <button
+              className={actionStates.save.enabled ? "save-button" : "save-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.save.enabled}
+              title={actionStates.save.reason || "保存到作品集"}
+              data-tooltip={actionStates.save.reason || "保存到作品集"}
+              onClick={handleSaveToPortfolio}
+            >
+              <StudioIcon name="check" size={14} />
+              保存到作品集
+            </button>
+            <button
+              className={actionStates.delete.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.delete.enabled}
+              title={actionStates.delete.reason || "删除当前图片"}
+              data-tooltip={actionStates.delete.reason || "删除当前图片"}
+              onClick={handleClearCanvas}
+              aria-label="删除当前图片"
+            >
+              <StudioIcon name="trash" size={16} />
+            </button>
+            <span className="action-divider" />
+            <button
+              className={actionStates.referenceReuse.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.referenceReuse.enabled}
+              title={actionStates.referenceReuse.reason || "用作参考图"}
+              data-tooltip={actionStates.referenceReuse.reason || "用作参考图"}
+              onClick={handleUseCurrentAsReference}
+              aria-label="用作参考图"
+            >
+              <StudioIcon name="imagePlus" size={16} />
+            </button>
             <button
               className={actionStates.download.enabled ? "icon-button" : "icon-button is-disabled"}
               type="button"
@@ -1000,6 +1214,17 @@ export function ImageStudio() {
               aria-label="下载图片"
             >
               <StudioIcon name="download" size={16} />
+            </button>
+            <button
+              className={actionStates.regenerate.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.regenerate.enabled}
+              title={actionStates.regenerate.reason || "重新生成"}
+              data-tooltip={actionStates.regenerate.reason || "重新生成"}
+              onClick={handleRegenerate}
+              aria-label="重新生成"
+            >
+              <StudioIcon name="refresh" size={16} />
             </button>
           </div>
 
@@ -1152,6 +1377,15 @@ function toAbsoluteUrl(url: string): string {
   }
 }
 
+function readEmbeddedSub2ApiToken(): string | null {
+  return readSub2ApiTokenFromUrl(window.location.href);
+}
+
+function removeEmbeddedAuthQueryParams() {
+  const url = new URL(stripSub2ApiAuthParamsFromUrl(window.location.href));
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 function HeaderContextPanel({
   panel,
   inviteUrl,
@@ -1160,7 +1394,7 @@ function HeaderContextPanel({
   onClose,
   onCopyInviteUrl
 }: {
-  panel: Exclude<HeaderPanel, null>;
+  panel: Exclude<HeaderPanel, null | "auth">;
   inviteUrl: string | null;
   loginUrl: string;
   quota: QuotaResponse | null;
@@ -1178,7 +1412,7 @@ function HeaderContextPanel({
               <li>写下主体、场景、用途和画幅。</li>
               <li>选择一个或多个类型，再按需要选择风格预设。</li>
               <li>上传本地参考图可进入图生图；画布图片复用会作为 URL 参考图发送。</li>
-              <li>生成后可保存到作品集、下载、打开大图或重新生成。</li>
+              <li>生成后可保存到作品集、下载或重新生成。</li>
             </ol>
           </>
         ) : (

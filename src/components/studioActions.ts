@@ -124,40 +124,40 @@ export function getStudioActionStates(input: {
 }): StudioActionStates {
   return {
     save: getImageActionState({
-      label: "Save to portfolio",
+      label: "保存到作品集",
       image: input.image,
       loading: input.loading,
-      loadingReason: "Wait for generation to finish before saving.",
-      missingImageReason: "No canvas image is available to save."
+      loadingReason: "生成完成后才能保存。",
+      missingImageReason: "画布上没有可保存的图片。"
     }),
     referenceReuse: getImageActionState({
-      label: "Use as reference",
+      label: "用作参考图",
       image: input.image,
       loading: input.loading,
-      loadingReason: "Wait for generation to finish before reusing this image as a reference.",
-      missingImageReason: "No canvas image is available to use as a reference."
+      loadingReason: "生成完成后才能用作参考图。",
+      missingImageReason: "画布上没有可用作参考图的图片。"
     }),
     download: getImageActionState({
-      label: "Download",
+      label: "下载图片",
       image: input.image,
       loading: input.loading,
-      loadingReason: "Wait for generation to finish before downloading.",
-      missingImageReason: "No canvas image is available to download."
+      loadingReason: "生成完成后才能下载。",
+      missingImageReason: "画布上没有可下载的图片。"
     }),
     delete: getImageActionState({
-      label: "Delete",
+      label: "删除当前图片",
       image: input.image,
       loading: input.loading,
-      loadingReason: "Wait for generation to finish before deleting.",
-      missingImageReason: "No canvas image is available to delete."
+      loadingReason: "生成完成后才能删除。",
+      missingImageReason: "画布上没有可删除的图片。"
     }),
     regenerate: getRegenerateActionState(input.loading, input.canRegenerate),
     zoom: getImageActionState({
-      label: "Open image",
+      label: "打开大图",
       image: input.image,
       loading: input.loading,
-      loadingReason: "Wait for generation to finish before opening the image.",
-      missingImageReason: "No canvas image is available to zoom."
+      loadingReason: "生成完成后才能打开大图。",
+      missingImageReason: "画布上没有可打开的大图。"
     })
   };
 }
@@ -166,22 +166,22 @@ function getRegenerateActionState(loading: boolean, canRegenerate: boolean): Stu
   if (loading) {
     return {
       enabled: false,
-      label: "Regenerate",
-      reason: "Wait for the current generation to finish before regenerating."
+      label: "重新生成",
+      reason: "当前生成完成后才能重新生成。"
     };
   }
 
   if (!canRegenerate) {
     return {
       enabled: false,
-      label: "Regenerate",
-      reason: "No prompt is available to regenerate."
+      label: "重新生成",
+      reason: "没有可用于重新生成的提示词。"
     };
   }
 
   return {
     enabled: true,
-    label: "Regenerate"
+    label: "重新生成"
   };
 }
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildCanvasHistoryThumbs, selectCanvasImage, selectVisibleCanvasImage } from "./studioCanvas";
+import {
+  buildCanvasHistoryThumbs,
+  getCanvasPlaceholderText,
+  selectCanvasImage,
+  selectVisibleCanvasImage
+} from "./studioCanvas";
 
 describe("studio canvas helpers", () => {
   it("does not select a default image before the user generates or chooses one", () => {
@@ -48,6 +53,11 @@ describe("studio canvas helpers", () => {
         loading: true
       })
     ).toBeNull();
+  });
+
+  it("does not show the empty preview label behind the loading state", () => {
+    expect(getCanvasPlaceholderText({ loading: true })).toBeNull();
+    expect(getCanvasPlaceholderText({ loading: false })).toBe("生成预览");
   });
 
   it("deduplicates generated and persisted history thumbs by URL", () => {

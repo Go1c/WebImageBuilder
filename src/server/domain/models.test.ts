@@ -40,14 +40,28 @@ describe("model and generation request rules", () => {
       mode: "text-to-image",
       model: "gpt-image-2",
       count: 9,
-      size: "1024x1536",
+      size: "1920x2560",
+      resolution: "2K",
       quality: "high"
     });
 
     expect(input.prompt).toBe("A red robot holding a skateboard");
     expect(input.count).toBe(4);
+    expect(input.size).toBe("1920x2560");
+    expect(input.resolution).toBe("2K");
     expect(input.provider).toBe("openai");
     expect(input.providerModel).toBeDefined();
+  });
+
+  it("rejects malformed generation sizes", () => {
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "gpt-image-2",
+        size: "large"
+      })
+    ).toThrow();
   });
 
   it("documents V1 and V1.1 capabilities separately", () => {

@@ -1,5 +1,6 @@
 export type AppConfig = {
   lumioApiBaseUrl: string;
+  sub2ApiBaseUrl: string;
   jwtSecret?: string;
   jwtPublicKey?: string;
   databaseUrl?: string;
@@ -18,8 +19,11 @@ export type AppConfig = {
 };
 
 export function getAppConfig(env = process.env): AppConfig {
+  const lumioApiBaseUrl = normalizeBaseUrl(env.LUMIO_API_BASE_URL || "https://api.lumio.games");
+
   return {
-    lumioApiBaseUrl: env.LUMIO_API_BASE_URL || "https://api.lumio.games",
+    lumioApiBaseUrl,
+    sub2ApiBaseUrl: normalizeBaseUrl(env.SUB2API_API_BASE_URL || `${lumioApiBaseUrl}/api/v1`),
     jwtSecret: env.JWT_SECRET,
     jwtPublicKey: env.JWT_PUBLIC_KEY,
     databaseUrl: env.DATABASE_URL,

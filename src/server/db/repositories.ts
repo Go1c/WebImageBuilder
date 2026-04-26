@@ -287,6 +287,7 @@ export async function createTask(input: {
       input.generation.prompt,
       JSON.stringify({
         size: input.generation.size,
+        resolution: input.generation.resolution,
         quality: input.generation.quality,
         count: input.generation.count,
         references: input.generation.referenceAssets,

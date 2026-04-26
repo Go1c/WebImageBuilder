@@ -57,6 +57,10 @@ export function selectVisibleCanvasImage(input: {
   return input.loading ? null : input.canvasImage;
 }
 
+export function getCanvasPlaceholderText(input: { loading: boolean }): string | null {
+  return input.loading ? null : "生成预览";
+}
+
 export function buildCanvasHistoryThumbs(input: {
   images: CanvasImageCandidate[];
   history: CanvasHistoryItem[];
