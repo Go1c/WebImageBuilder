@@ -1,12 +1,28 @@
 const maxErrorBodyLength = 500;
 
+export type ApiErrorDetail = {
+  status: number;
+  statusText: string;
+  code?: string;
+  message: string;
+  isStructured: boolean;
+};
+
 export async function readApiError(response: Response): Promise<string> {
-  const status = formatStatus(response);
+  return formatApiError(await readApiErrorDetail(response));
+}
+
+export async function readApiErrorDetail(response: Response): Promise<ApiErrorDetail> {
   const text = await response.text();
   const structuredMessage = parseStructuredError(text);
-  const detail = structuredMessage || summarizeResponseText(text);
 
-  return detail ? `${status} - ${detail}` : status;
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    code: structuredMessage?.code,
+    message: structuredMessage?.message || summarizeResponseText(text) || "",
+    isStructured: Boolean(structuredMessage)
+  };
 }
 
 export async function readApiJson<T>(response: Response, fallbackMessage: string): Promise<T> {
@@ -17,22 +33,40 @@ export async function readApiJson<T>(response: Response, fallbackMessage: string
   }
 }
 
-function formatStatus(response: Response): string {
-  return `请求失败：${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+function formatApiError(detail: ApiErrorDetail): string {
+  const status = formatStatus(detail);
+  return detail.message ? `${status} - ${detail.message}` : status;
 }
 
-function parseStructuredError(text: string): string | null {
+function formatStatus(detail: Pick<ApiErrorDetail, "status" | "statusText">): string {
+  return `请求失败：${detail.status}${detail.statusText ? ` ${detail.statusText}` : ""}`;
+}
+
+function parseStructuredError(text: string): Pick<ApiErrorDetail, "code" | "message"> | null {
   if (!text.trim()) {
     return null;
   }
 
   try {
-    const body = JSON.parse(text) as { error?: { message?: unknown }; message?: unknown };
-    const message = body.error?.message || body.message;
-    return typeof message === "string" && message.trim() ? message.trim() : null;
+    const body = JSON.parse(text) as {
+      error?: {
+        code?: unknown;
+        message?: unknown;
+      };
+      code?: unknown;
+      message?: unknown;
+    };
+    const code = pickString(body.error?.code) || pickString(body.code);
+    const message = summarizeResponseText(pickString(body.error?.message) || pickString(body.message) || "");
+
+    return code || message ? { ...(code ? { code } : {}), message: message || "" } : null;
   } catch {
     return null;
   }
+}
+
+function pickString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function summarizeResponseText(text: string): string | null {
