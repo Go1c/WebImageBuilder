@@ -101,8 +101,9 @@ type StudioIconName =
 
 const generationTimeoutMs = 120_000;
 const portfolioStorageKey = "lumio:portfolio";
+const inviteCodeStorageKey = "lumio:invite-code";
 const urlOnlyReferenceSupportNote =
-  "URL-only canvas reuse is shown as a visual reference in the studio; the current generation API only sends File-backed reference uploads.";
+  "Canvas reuse is sent as a URL reference asset; uploaded files remain the most reliable provider reference path.";
 
 const typeChoiceIcons: Record<PromptTypeKey, StudioIconName> = {
   UI: "grid",
@@ -172,9 +173,9 @@ export function ImageStudio() {
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
   );
-  const referenceCount = referenceFiles.length;
+  const referenceCount = referenceFiles.length + (reusedReference ? 1 : 0);
   const visibleReferencePreviewUrl = referencePreviewUrl || reusedReference?.url || null;
-  const submitMode: GenerationMode = referenceCount > 0 ? mode : "text-to-image";
+  const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
   const actionStates = getStudioActionStates({ image: canvasImage, canRegenerate, loading });
   const loginUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/";
@@ -235,9 +236,8 @@ export function ImageStudio() {
   }, []);
 
   useEffect(() => {
-    const inviteCode = new URLSearchParams(window.location.search).get("invite");
-    setCurrentInviteUrl(inviteCode ? `${window.location.origin}${window.location.pathname}?invite=${inviteCode}` : null);
-  }, []);
+    setCurrentInviteUrl(buildInviteUrl(quota?.actorType === "user"));
+  }, [quota?.actorType]);
 
   useEffect(() => {
     if (!referenceFiles[0]) {
@@ -270,14 +270,23 @@ export function ImageStudio() {
       fetch("/api/quota", { cache: "no-store" }),
       fetch("/api/history", { cache: "no-store" })
     ]);
+    let loadFailureTip: StudioTip | null = null;
 
     if (quotaResponse.status === "fulfilled" && quotaResponse.value.ok) {
       setQuota((await quotaResponse.value.json()) as QuotaResponse);
+    } else {
+      loadFailureTip = await tipFromSettledResponse("加载额度", quotaResponse);
     }
 
     if (historyResponse.status === "fulfilled" && historyResponse.value.ok) {
       const body = (await historyResponse.value.json()) as { history: HistoryItem[] };
       setHistory(body.history || []);
+    } else if (!loadFailureTip) {
+      loadFailureTip = await tipFromSettledResponse("加载历史记录", historyResponse);
+    }
+
+    if (loadFailureTip) {
+      showTip(loadFailureTip);
     }
   }
 
@@ -331,6 +340,14 @@ export function ImageStudio() {
     };
   }
 
+  function toAssetRef(reference: ReferenceAssetDescriptor): AssetRef {
+    return {
+      key: reference.key,
+      url: reference.url,
+      mimeType: reference.mimeType
+    };
+  }
+
   async function handleGenerate(options: { promptOverride?: string } = {}) {
     if (loading) {
       showDisabledTip("生成图片", "当前生成还未完成，请稍后再试。");
@@ -338,7 +355,7 @@ export function ImageStudio() {
     }
 
     const metadata = buildPromptMetadata(options.promptOverride ?? prompt);
-    const submissionPrompt = metadata.finalPrompt.trim();
+    const submissionPrompt = buildSubmissionPrompt(metadata);
 
     if (!submissionPrompt) {
       showDisabledTip("生成图片", "请先输入提示词，或选择可作为提示词的风格预设。");
@@ -352,9 +369,12 @@ export function ImageStudio() {
     const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
 
     try {
-      const references = referenceCount > 0
+      const uploadedReferences = referenceFiles.length
         ? await Promise.all(Array.from(referenceFiles || []).map((file) => uploadAsset(file, "reference")))
         : [];
+      const references = reusedReference
+        ? [toAssetRef(reusedReference), ...uploadedReferences]
+        : uploadedReferences;
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -425,7 +445,7 @@ export function ImageStudio() {
 
   function buildRequestPreview(metadata: PromptEnhancementMetadata): string {
     return buildGenerationRequestPreview({
-      prompt: metadata.finalPrompt,
+      prompt: buildSubmissionPrompt(metadata),
       rawPrompt: metadata.rawPrompt,
       finalPrompt: metadata.finalPrompt,
       selectedTypes: metadata.selectedTypes,
@@ -433,7 +453,7 @@ export function ImageStudio() {
       negativePrompt: metadata.negativePrompt,
       providerSupportNotes: [
         ...metadata.providerSupportNotes,
-        ...(reusedReference && referenceCount === 0 ? [urlOnlyReferenceSupportNote] : [])
+        ...(reusedReference ? [urlOnlyReferenceSupportNote] : [])
       ],
       model,
       mode: submitMode,
@@ -443,6 +463,16 @@ export function ImageStudio() {
       referenceCount,
       hasMask: false
     });
+  }
+
+  function buildSubmissionPrompt(metadata: PromptEnhancementMetadata): string {
+    const finalPrompt = metadata.finalPrompt.trim();
+
+    if (!metadata.negativePrompt) {
+      return finalPrompt;
+    }
+
+    return `${finalPrompt}\n避免：${metadata.negativePrompt}`;
   }
 
   function handleReferenceChange(files: FileList | null) {
@@ -660,8 +690,8 @@ export function ImageStudio() {
     setMode("image-to-image");
     showTip({
       type: "info",
-      title: "已设为视觉参考",
-      message: `${urlOnlyReferenceSupportNote} 若要让生成接口直接接收参考图，请使用提示词输入框下方的“+”上传本地文件。`
+      title: "已设为参考图",
+      message: "当前画布图片会作为 URL 参考图随下一次生成请求发送。"
     });
   }
 
@@ -756,6 +786,17 @@ export function ImageStudio() {
 
   function showTip(nextTip: StudioTip) {
     setTip(nextTip);
+  }
+
+  async function tipFromSettledResponse(
+    action: string,
+    response: PromiseSettledResult<Response>
+  ): Promise<StudioTip> {
+    if (response.status === "rejected") {
+      return tipFromActionFailure({ kind: "failed", action, error: response.reason });
+    }
+
+    return tipFromApiError(await readApiErrorDetail(response.value));
   }
 
   return (
@@ -1179,6 +1220,39 @@ function readSavedPortfolioItems(): SavedPortfolioItem[] {
   } catch {
     return [];
   }
+}
+
+function buildInviteUrl(isLoggedIn: boolean): string | null {
+  if (!isLoggedIn) {
+    return null;
+  }
+
+  const inviteCode = readOrCreateLocalInviteCode();
+  return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(inviteCode)}`;
+}
+
+function readOrCreateLocalInviteCode(): string {
+  try {
+    const existingCode = window.localStorage.getItem(inviteCodeStorageKey);
+
+    if (existingCode) {
+      return existingCode;
+    }
+
+    const nextCode = `local-${randomInviteCodeSegment()}`;
+    window.localStorage.setItem(inviteCodeStorageKey, nextCode);
+    return nextCode;
+  } catch {
+    return `local-${randomInviteCodeSegment()}`;
+  }
+}
+
+function randomInviteCodeSegment(): string {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID().slice(0, 12);
+  }
+
+  return Math.random().toString(36).slice(2, 14);
 }
 
 function HeaderContextPanel({
