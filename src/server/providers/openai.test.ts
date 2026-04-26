@@ -35,6 +35,36 @@ describe("OpenAI image provider", () => {
     );
   });
 
+  it("sends an explicit image-generation instruction to trigger drawing mode", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider().generate({
+      ...buildInput(),
+      prompt: "blue circle icon"
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      prompt: string;
+    };
+    expect(requestBody.prompt).toContain("Generate an image");
+    expect(requestBody.prompt).toContain("blue circle icon");
+    expect(requestBody.prompt).not.toBe("blue circle icon");
+  });
+
   it("can route a request through a supplied Sub2API gateway key", async () => {
     process.env = {
       ...originalEnv,

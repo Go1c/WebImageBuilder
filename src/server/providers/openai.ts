@@ -60,7 +60,7 @@ export class OpenAIImageProvider implements ImageProvider {
         },
         body: JSON.stringify({
           model: input.providerModel,
-          prompt: input.prompt,
+          prompt: buildImageGenerationPrompt(input.prompt),
           n: input.count,
           size: input.size,
           quality: input.quality,
@@ -76,7 +76,7 @@ export class OpenAIImageProvider implements ImageProvider {
   private async generateEdit(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     const form = new FormData();
     form.set("model", input.providerModel);
-    form.set("prompt", buildEditPrompt(input));
+    form.set("prompt", buildImageEditPrompt(input));
     form.set("n", String(input.count));
     form.set("size", input.size);
     form.set("response_format", "b64_json");
@@ -131,6 +131,22 @@ function buildEditPrompt(input: NormalizedGenerationInput): string {
   }
 
   return input.prompt;
+}
+
+function buildImageGenerationPrompt(prompt: string): string {
+  return [
+    "Generate an image from the following description. Do not answer with text.",
+    "Image description:",
+    prompt
+  ].join("\n");
+}
+
+function buildImageEditPrompt(input: NormalizedGenerationInput): string {
+  return [
+    "Generate an image edit using the provided reference image(s). Do not answer with text.",
+    "Image edit instruction:",
+    buildEditPrompt(input)
+  ].join("\n");
 }
 
 function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string {
