@@ -50,6 +50,26 @@ describe("model and generation request rules", () => {
     expect(input.providerModel).toBeDefined();
   });
 
+  it("accepts v2 inspector parameters without forwarding responsibility to UI code", () => {
+    const input = normalizeGenerationInput({
+      prompt: "A modular product render",
+      mode: "text-to-image",
+      model: "gpt-image-2",
+      size: "1024x1024",
+      seed: 12345,
+      cfg: 8.5,
+      steps: 36,
+      negativePrompt: "blurry, low quality"
+    });
+
+    expect(input).toMatchObject({
+      seed: 12345,
+      cfg: 8.5,
+      steps: 36,
+      negativePrompt: "blurry, low quality"
+    });
+  });
+
   it("documents V1 and V1.1 capabilities separately", () => {
     expect(getGenerationModeCapabilities("text-to-image").release).toBe("v1");
     expect(getGenerationModeCapabilities("image-to-image").release).toBe("v1");

@@ -32,6 +32,16 @@ type LocalTask = {
   updatedAt: string;
 };
 
+type LocalSession = {
+  id: string;
+  actor: Actor;
+  title: string;
+  palette: string[];
+  createdAt: string;
+  updatedAt: string;
+  lastTaskAt: string | null;
+};
+
 type LocalQuotaBalance = {
   loginUsed: number;
   inviteCredits: number;
@@ -39,8 +49,40 @@ type LocalQuotaBalance = {
 };
 
 type LocalRepository = {
+  sessions: LocalSession[];
   tasks: LocalTask[];
   userBalances: Map<string, LocalQuotaBalance>;
+};
+
+export type SessionRecord = {
+  id: string;
+  title: string;
+  description: string | null;
+  palette: string[];
+  coverImageUrl: string | null;
+  recentImages: string[];
+  taskCount: number;
+  lastTaskAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SessionTaskRecord = {
+  id: string;
+  mode: string;
+  modelKey: string;
+  provider: string;
+  prompt: string;
+  params: Record<string, unknown>;
+  status: string;
+  createdAt: string;
+  assets: Array<{
+    id: string;
+    type: string;
+    url: string;
+    width: number | null;
+    height: number | null;
+  }>;
 };
 
 declare global {
@@ -56,6 +98,7 @@ function shouldUseLocalRepository(): boolean {
 function getLocalRepository(): LocalRepository {
   if (!globalThis.lumioLocalRepository) {
     globalThis.lumioLocalRepository = {
+      sessions: [],
       tasks: [],
       userBalances: new Map()
     };
@@ -262,6 +305,14 @@ export async function createTask(input: {
       createdAt: now,
       updatedAt: now
     });
+
+    if (input.generation.sessionId) {
+      const session = findLocalSession(input.actor, input.generation.sessionId);
+      if (session) {
+        session.lastTaskAt = now;
+        session.updatedAt = now;
+      }
+    }
     return id;
   }
 
@@ -285,13 +336,7 @@ export async function createTask(input: {
       input.generation.provider,
       input.generation.providerModel,
       input.generation.prompt,
-      JSON.stringify({
-        size: input.generation.size,
-        quality: input.generation.quality,
-        count: input.generation.count,
-        references: input.generation.referenceAssets,
-        mask: input.generation.maskAsset
-      }),
+      JSON.stringify(buildGenerationParams(input.generation)),
       input.generation.count
     ]
   );
@@ -502,6 +547,237 @@ export async function recordUploadedAsset(input: AssetInput): Promise<string> {
   return transaction((client) => insertAsset(client, input));
 }
 
+export async function createSession(input: {
+  actor: Actor;
+  title?: string;
+}): Promise<SessionRecord> {
+  const now = new Date().toISOString();
+  const title = input.title?.trim() || "未命名项目";
+
+  if (shouldUseLocalRepository()) {
+    const session: LocalSession = {
+      id: randomUUID(),
+      actor: input.actor,
+      title,
+      palette: [],
+      createdAt: now,
+      updatedAt: now,
+      lastTaskAt: null
+    };
+    getLocalRepository().sessions.unshift(session);
+    return localSessionToRow(input.actor, session);
+  }
+
+  const result = await query<{
+    id: string;
+    title: string;
+    palette: string[] | null;
+    createdAt: string;
+    updatedAt: string;
+  }>(
+    `
+      insert into sessions (user_id, anonymous_device_id, title)
+      values ($1, $2, $3)
+      returning
+        id,
+        title,
+        palette,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+    `,
+    [
+      input.actor.type === "user" ? input.actor.userId : null,
+      input.actor.type === "anonymous" ? input.actor.anonymousDeviceId : null,
+      title
+    ]
+  );
+
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    title: row.title,
+    description: null,
+    palette: row.palette ?? [],
+    coverImageUrl: null,
+    recentImages: [],
+    taskCount: 0,
+    lastTaskAt: null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+export async function listSessions(actor: Actor): Promise<SessionRecord[]> {
+  if (shouldUseLocalRepository()) {
+    return getLocalRepository()
+      .sessions.filter((session) => ownsLocalSession(actor, session))
+      .map((session) => localSessionToRow(actor, session))
+      .sort((a, b) => {
+        const aTime = a.lastTaskAt ?? a.updatedAt;
+        const bTime = b.lastTaskAt ?? b.updatedAt;
+        return bTime.localeCompare(aTime);
+      });
+  }
+
+  const ownerColumn = actor.type === "user" ? "user_id" : "anonymous_device_id";
+  const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
+  const result = await query<SessionRecord>(
+    `
+      select
+        s.id,
+        s.title,
+        null::text as description,
+        coalesce(s.palette, '{}') as palette,
+        cover.url as "coverImageUrl",
+        coalesce(
+          array_remove(array_agg(a.url order by a.created_at desc), null),
+          '{}'
+        ) as "recentImages",
+        count(distinct t.id)::int as "taskCount",
+        max(t.created_at) as "lastTaskAt",
+        s.created_at as "createdAt",
+        s.updated_at as "updatedAt"
+      from sessions s
+      left join generation_tasks t on t.session_id = s.id and t.status = 'succeeded'
+      left join assets a on a.task_id = t.id and a.asset_type = 'result'
+      left join assets cover on cover.id = s.cover_asset_id
+      where s.${ownerColumn} = $1
+      group by s.id, s.title, s.palette, cover.url, s.created_at, s.updated_at
+      order by coalesce(max(t.created_at), s.updated_at) desc
+    `,
+    [ownerId]
+  );
+
+  return result.rows;
+}
+
+export async function getSession(actor: Actor, sessionId: string): Promise<SessionRecord | null> {
+  if (shouldUseLocalRepository()) {
+    const session = findLocalSession(actor, sessionId);
+    return session ? localSessionToRow(actor, session) : null;
+  }
+
+  const ownerColumn = actor.type === "user" ? "user_id" : "anonymous_device_id";
+  const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
+  const result = await query<SessionRecord>(
+    `
+      select
+        s.id,
+        s.title,
+        null::text as description,
+        coalesce(s.palette, '{}') as palette,
+        cover.url as "coverImageUrl",
+        coalesce(
+          array_remove(array_agg(a.url order by a.created_at desc), null),
+          '{}'
+        ) as "recentImages",
+        count(distinct t.id)::int as "taskCount",
+        max(t.created_at) as "lastTaskAt",
+        s.created_at as "createdAt",
+        s.updated_at as "updatedAt"
+      from sessions s
+      left join generation_tasks t on t.session_id = s.id and t.status = 'succeeded'
+      left join assets a on a.task_id = t.id and a.asset_type = 'result'
+      left join assets cover on cover.id = s.cover_asset_id
+      where s.id = $1 and s.${ownerColumn} = $2
+      group by s.id, s.title, s.palette, cover.url, s.created_at, s.updated_at
+    `,
+    [sessionId, ownerId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function updateSession(input: {
+  actor: Actor;
+  sessionId: string;
+  title?: string;
+  palette?: string[];
+}): Promise<SessionRecord | null> {
+  const title = input.title?.trim();
+  const palette = input.palette?.filter((color) => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 8);
+
+  if (shouldUseLocalRepository()) {
+    const session = findLocalSession(input.actor, input.sessionId);
+    if (!session) {
+      return null;
+    }
+    if (title) {
+      session.title = title;
+    }
+    if (palette) {
+      session.palette = palette;
+    }
+    session.updatedAt = new Date().toISOString();
+    return localSessionToRow(input.actor, session);
+  }
+
+  const ownerColumn = input.actor.type === "user" ? "user_id" : "anonymous_device_id";
+  const ownerId = input.actor.type === "user" ? input.actor.userId : input.actor.anonymousDeviceId;
+  await query(
+    `
+      update sessions
+      set
+        title = coalesce($3, title),
+        palette = coalesce($4, palette),
+        updated_at = now()
+      where id = $1 and ${ownerColumn} = $2
+    `,
+    [input.sessionId, ownerId, title ?? null, palette ?? null]
+  );
+
+  return getSession(input.actor, input.sessionId);
+}
+
+export async function listSessionTasks(
+  actor: Actor,
+  sessionId: string
+): Promise<SessionTaskRecord[]> {
+  if (shouldUseLocalRepository()) {
+    return getLocalRepository()
+      .tasks.filter((task) => ownsLocalTask(actor, task) && task.generation.sessionId === sessionId)
+      .map(localTaskToSessionTask)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  const ownerColumn = actor.type === "user" ? "user_id" : "anonymous_device_id";
+  const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
+  const result = await query<SessionTaskRecord>(
+    `
+      select
+        t.id,
+        t.mode,
+        t.model_key as "modelKey",
+        t.provider,
+        t.prompt,
+        t.params,
+        t.status,
+        t.created_at as "createdAt",
+        coalesce(
+          json_agg(
+            json_build_object(
+              'id', a.id,
+              'type', a.asset_type,
+              'url', a.url,
+              'width', a.width,
+              'height', a.height
+            ) order by a.created_at
+          ) filter (where a.id is not null),
+          '[]'
+        ) as assets
+      from generation_tasks t
+      left join assets a on a.task_id = t.id
+      where t.session_id = $1 and t.${ownerColumn} = $2 and t.status = 'succeeded'
+      group by t.id
+      order by t.created_at desc
+      limit 200
+    `,
+    [sessionId, ownerId]
+  );
+
+  return result.rows;
+}
+
 async function insertAsset(client: PoolClient, input: AssetInput): Promise<string> {
   const result = await client.query<{ id: string }>(
     `
@@ -630,6 +906,23 @@ function findLocalTask(actor: Actor, taskId: string): LocalTask | undefined {
   return getLocalRepository().tasks.find((task) => task.id === taskId && ownsLocalTask(actor, task));
 }
 
+function ownsLocalSession(actor: Actor, session: LocalSession): boolean {
+  if (actor.type === "user") {
+    return session.actor.type === "user" && session.actor.userId === actor.userId;
+  }
+
+  return (
+    session.actor.type === "anonymous" &&
+    session.actor.anonymousDeviceId === actor.anonymousDeviceId
+  );
+}
+
+function findLocalSession(actor: Actor, sessionId: string): LocalSession | undefined {
+  return getLocalRepository().sessions.find(
+    (session) => session.id === sessionId && ownsLocalSession(actor, session)
+  );
+}
+
 function hashString(value: string): string {
   let hash = 2166136261;
 
@@ -639,6 +932,20 @@ function hashString(value: string): string {
   }
 
   return (hash >>> 0).toString(36);
+}
+
+function buildGenerationParams(generation: NormalizedGenerationInput): Record<string, unknown> {
+  return {
+    size: generation.size,
+    quality: generation.quality,
+    count: generation.count,
+    references: generation.referenceAssets,
+    mask: generation.maskAsset,
+    seed: generation.seed ?? null,
+    cfg: generation.cfg ?? null,
+    steps: generation.steps ?? null,
+    negativePrompt: generation.negativePrompt ?? null
+  };
 }
 
 function localTaskToRow(task: LocalTask): unknown {
@@ -659,5 +966,50 @@ function localTaskToRow(task: LocalTask): unknown {
       width: asset.width ?? null,
       height: asset.height ?? null
     }))
+  };
+}
+
+function localTaskToSessionTask(task: LocalTask): SessionTaskRecord {
+  return {
+    id: task.id,
+    mode: task.generation.mode,
+    modelKey: task.generation.model,
+    provider: task.generation.provider,
+    prompt: task.generation.prompt,
+    params: buildGenerationParams(task.generation),
+    status: task.status,
+    createdAt: task.createdAt,
+    assets: task.assets.map((asset) => ({
+      id: asset.id,
+      type: asset.assetType,
+      url: asset.url,
+      width: asset.width ?? null,
+      height: asset.height ?? null
+    }))
+  };
+}
+
+function localSessionToRow(actor: Actor, session: LocalSession): SessionRecord {
+  const tasks = getLocalRepository()
+    .tasks.filter((task) => ownsLocalTask(actor, task) && task.generation.sessionId === session.id);
+  const recentImages = tasks
+    .flatMap((task) =>
+      task.assets
+        .filter((asset) => asset.assetType === "result")
+        .map((asset) => asset.url)
+    )
+    .slice(0, 6);
+
+  return {
+    id: session.id,
+    title: session.title,
+    description: null,
+    palette: session.palette,
+    coverImageUrl: recentImages[0] ?? null,
+    recentImages,
+    taskCount: tasks.length,
+    lastTaskAt: session.lastTaskAt,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt
   };
 }

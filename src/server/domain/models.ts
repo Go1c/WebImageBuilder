@@ -39,6 +39,10 @@ export type NormalizedGenerationInput = {
   referenceAssets: AssetReference[];
   maskAsset?: AssetReference;
   sessionId?: string;
+  seed?: number;
+  cfg?: number;
+  steps?: number;
+  negativePrompt?: string;
 };
 
 const modelOptions: Record<ModelKey, ModelOption> = {
@@ -104,7 +108,11 @@ const generationInputSchema = z.object({
   count: z.number().int().min(1).max(16).default(1),
   referenceAssets: z.array(assetSchema).default([]),
   maskAsset: assetSchema.optional(),
-  sessionId: z.string().uuid().optional()
+  sessionId: z.string().uuid().optional(),
+  seed: z.number().int().min(0).max(2147483647).optional(),
+  cfg: z.number().min(0).max(20).optional(),
+  steps: z.number().int().min(1).max(150).optional(),
+  negativePrompt: z.string().trim().max(2000).optional()
 });
 
 export const modelKeys = Object.keys(modelOptions) as ModelKey[];

@@ -16,11 +16,23 @@ const pool = new Pool({
   ssl: process.env.DATABASE_SSL === "false" ? false : { rejectUnauthorized: false }
 });
 
-const schemaPath = path.join(process.cwd(), "src", "server", "db", "schema.sql");
-const sql = await fs.readFile(schemaPath, "utf8");
+async function applyFile(filePath) {
+  const sql = await fs.readFile(filePath, "utf8");
+  await pool.query(sql);
+  console.log(`applied ${path.basename(filePath)}`);
+}
 
 try {
-  await pool.query(sql);
+  await applyFile(path.join(process.cwd(), "src", "server", "db", "schema.sql"));
+
+  const v2Path = path.join(process.cwd(), "src", "server", "db", "migrations", "v2.sql");
+  try {
+    await fs.access(v2Path);
+    await applyFile(v2Path);
+  } catch {
+    // Optional additive migrations are skipped when the file is absent.
+  }
+
   console.log("Database schema applied");
 } finally {
   await pool.end();

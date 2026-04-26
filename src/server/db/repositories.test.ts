@@ -2,8 +2,12 @@ import { randomUUID } from "crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createTask,
+  createSession,
   getUserInviteCode,
   getQuotaState,
+  getSession,
+  listSessionTasks,
+  listSessions,
   listHistory,
   markTaskSucceeded,
   resolveActor
@@ -88,9 +92,63 @@ describe("local repository fallback", () => {
     expect(inviteCode).toMatch(/^local-[a-z0-9]+$/);
     expect(secondInviteCode).toBe(inviteCode);
   });
+
+  it("tracks local v2 sessions and their generated tasks", async () => {
+    const actor = await resolveActor({
+      authUser: {
+        externalUserId: `external-${randomUUID()}`,
+        raw: {}
+      },
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+
+    const session = await createSession({ actor, title: "角色设定" });
+    const generation = buildGeneration({ sessionId: session.id, seed: 42, cfg: 7.5, steps: 28 });
+    const taskId = await createTask({ actor, generation });
+    await markTaskSucceeded({
+      taskId,
+      actor,
+      spendSource: "login",
+      assets: [
+        {
+          assetType: "result",
+          storageKey: "local/v2.png",
+          url: "data:image/png;base64,djI=",
+          mimeType: "image/png"
+        }
+      ]
+    });
+
+    await expect(listSessions(actor)).resolves.toMatchObject([
+      {
+        id: session.id,
+        title: "角色设定",
+        taskCount: 1,
+        recentImages: ["data:image/png;base64,djI="]
+      }
+    ]);
+    await expect(getSession(actor, session.id)).resolves.toMatchObject({
+      id: session.id,
+      title: "角色设定"
+    });
+    await expect(listSessionTasks(actor, session.id)).resolves.toMatchObject([
+      {
+        id: taskId,
+        params: {
+          seed: 42,
+          cfg: 7.5,
+          steps: 28
+        },
+        assets: [{ type: "result", url: "data:image/png;base64,djI=" }]
+      }
+    ]);
+  });
 });
 
-function buildGeneration(): NormalizedGenerationInput {
+function buildGeneration(
+  overrides: Partial<NormalizedGenerationInput> = {}
+): NormalizedGenerationInput {
   return {
     prompt: "A blue circle",
     mode: "text-to-image",
@@ -100,6 +158,7 @@ function buildGeneration(): NormalizedGenerationInput {
     size: "1024x1024",
     quality: "standard",
     count: 1,
-    referenceAssets: []
+    referenceAssets: [],
+    ...overrides
   };
 }
