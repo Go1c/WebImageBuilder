@@ -119,6 +119,7 @@ export function getZoomAction(input: { image: StudioActionImage | null }): ZoomA
 
 export function getStudioActionStates(input: {
   image: StudioActionImage | null;
+  canRegenerate: boolean;
   loading: boolean;
 }): StudioActionStates {
   return {
@@ -150,13 +151,7 @@ export function getStudioActionStates(input: {
       loadingReason: "Wait for generation to finish before deleting.",
       missingImageReason: "No canvas image is available to delete."
     }),
-    regenerate: getImageActionState({
-      label: "Regenerate",
-      image: input.image,
-      loading: input.loading,
-      loadingReason: "Wait for the current generation to finish before regenerating.",
-      missingImageReason: "No canvas image is available to regenerate."
-    }),
+    regenerate: getRegenerateActionState(input.loading, input.canRegenerate),
     zoom: getImageActionState({
       label: "Open image",
       image: input.image,
@@ -164,6 +159,29 @@ export function getStudioActionStates(input: {
       loadingReason: "Wait for generation to finish before opening the image.",
       missingImageReason: "No canvas image is available to zoom."
     })
+  };
+}
+
+function getRegenerateActionState(loading: boolean, canRegenerate: boolean): StudioActionState {
+  if (loading) {
+    return {
+      enabled: false,
+      label: "Regenerate",
+      reason: "Wait for the current generation to finish before regenerating."
+    };
+  }
+
+  if (!canRegenerate) {
+    return {
+      enabled: false,
+      label: "Regenerate",
+      reason: "No prompt is available to regenerate."
+    };
+  }
+
+  return {
+    enabled: true,
+    label: "Regenerate"
   };
 }
 

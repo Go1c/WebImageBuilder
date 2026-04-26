@@ -4,6 +4,7 @@ import {
   buildReferenceAssetDescriptor,
   getStudioActionStates,
   getZoomAction,
+  type LocalPortfolioItem,
   upsertLocalPortfolioItem
 } from "./studioActions";
 
@@ -54,7 +55,7 @@ describe("studio action helpers", () => {
     });
 
     const items = upsertLocalPortfolioItem([other, first], duplicate);
-    const repeatedItems = Array.from({ length: 5 }).reduce(
+    const repeatedItems = Array.from({ length: 5 }).reduce<LocalPortfolioItem[]>(
       (currentItems) => upsertLocalPortfolioItem(currentItems, duplicate),
       items
     );
@@ -126,6 +127,7 @@ describe("studio action helpers", () => {
         url: "https://cdn.lumio.games/generated/city.png",
         mimeType: "image/png"
       },
+      canRegenerate: true,
       loading: true
     });
 
@@ -161,8 +163,21 @@ describe("studio action helpers", () => {
     });
   });
 
+  it("enables regenerate without a canvas image when regeneration is available", () => {
+    const states = getStudioActionStates({
+      image: null,
+      canRegenerate: true,
+      loading: false
+    });
+
+    expect(states.regenerate).toEqual({
+      enabled: true,
+      label: "Regenerate"
+    });
+  });
+
   it("computes image-dependent disabled action states when no canvas image exists", () => {
-    expect(getStudioActionStates({ image: null, loading: false })).toEqual({
+    expect(getStudioActionStates({ image: null, canRegenerate: false, loading: false })).toEqual({
       save: {
         enabled: false,
         label: "Save to portfolio",
@@ -186,7 +201,7 @@ describe("studio action helpers", () => {
       regenerate: {
         enabled: false,
         label: "Regenerate",
-        reason: "No canvas image is available to regenerate."
+        reason: "No prompt is available to regenerate."
       },
       zoom: {
         enabled: false,
