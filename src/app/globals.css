@@ -1338,6 +1338,11 @@ textarea:focus-visible {
   box-shadow: 0 20px 60px -28px rgba(0, 0, 0, 0.22);
 }
 
+.share-unavailable-card {
+  width: min(520px, 100%);
+  grid-template-columns: 1fr;
+}
+
 .share-image-wrap {
   position: relative;
   min-width: 0;

@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import { ShareReportButton } from "@/components/ShareReportButton";
+import { ShareUnavailableRedirect } from "@/components/ShareUnavailableRedirect";
 import { getPromptShare } from "@/server/db/repositories";
 import { PROMPT_SHARE_COMPLIANCE_NOTICE, buildPromptTryUrl } from "@/server/shares";
 
@@ -29,7 +29,7 @@ export default async function PromptSharePage({
   const { id } = await params;
   const share = await getPromptShare(id);
   if (!share) {
-    notFound();
+    return <ShareUnavailableRedirect />;
   }
 
   const tryUrl = buildPromptTryUrl(share.prompt);
