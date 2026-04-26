@@ -25,6 +25,14 @@ type OpenAIImageProviderOptions = {
   baseUrl?: string;
 };
 
+type OpenAIRequestDiagnostics = {
+  endpoint: "/v1/images/generations" | "/v1/images/edits";
+  mode: NormalizedGenerationInput["mode"];
+  providerModel: string;
+  resolution: NormalizedGenerationInput["resolution"];
+  size: NormalizedGenerationInput["size"];
+};
+
 export class OpenAIImageProvider implements ImageProvider {
   constructor(private readonly options: OpenAIImageProviderOptions = {}) {}
 
@@ -40,8 +48,9 @@ export class OpenAIImageProvider implements ImageProvider {
     const config = getAppConfig();
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
+    const endpoint = "/v1/images/generations";
     const response = await fetchOpenAI(
-      openAIUrl("/v1/images/generations", baseUrl),
+      openAIUrl(endpoint, baseUrl),
       {
         method: "POST",
         headers: {
@@ -61,7 +70,7 @@ export class OpenAIImageProvider implements ImageProvider {
       getGenerationTimeoutMs(input.resolution)
     );
 
-    return parseOpenAIResponse(response);
+    return parseOpenAIResponse(response, buildOpenAIRequestDiagnostics(input, endpoint));
   }
 
   private async generateEdit(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
@@ -89,8 +98,9 @@ export class OpenAIImageProvider implements ImageProvider {
     const config = getAppConfig();
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
+    const endpoint = "/v1/images/edits";
     const response = await fetchOpenAI(
-      openAIUrl("/v1/images/edits", baseUrl),
+      openAIUrl(endpoint, baseUrl),
       {
         method: "POST",
         headers: {
@@ -102,7 +112,7 @@ export class OpenAIImageProvider implements ImageProvider {
       getGenerationTimeoutMs(input.resolution)
     );
 
-    return parseOpenAIResponse(response);
+    return parseOpenAIResponse(response, buildOpenAIRequestDiagnostics(input, endpoint));
   }
 }
 
@@ -147,10 +157,15 @@ async function fetchOpenAI(url: string, init: RequestInit, timeoutMs: number): P
   }
 }
 
-async function parseOpenAIResponse(response: Response): Promise<GeneratedImage[]> {
+async function parseOpenAIResponse(
+  response: Response,
+  diagnostics: OpenAIRequestDiagnostics
+): Promise<GeneratedImage[]> {
   const body = await readOpenAIJson(response);
 
   if (response.status >= 400) {
+    logOpenAIResponseFailure(response, diagnostics);
+
     if (response.status === 524 || response.status === 504 || response.status === 408) {
       throw new Error("图像网关超时，请稍后重试或先使用单页生成");
     }
@@ -186,6 +201,32 @@ function getOpenAIErrorMessage(body: OpenAIImageResponse, status: number): strin
 
 function readMessage(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function buildOpenAIRequestDiagnostics(
+  input: NormalizedGenerationInput,
+  endpoint: OpenAIRequestDiagnostics["endpoint"]
+): OpenAIRequestDiagnostics {
+  return {
+    endpoint,
+    mode: input.mode,
+    providerModel: input.providerModel,
+    resolution: input.resolution,
+    size: input.size
+  };
+}
+
+function logOpenAIResponseFailure(
+  response: Response,
+  diagnostics: OpenAIRequestDiagnostics
+): void {
+  console.warn("[image-provider/openai] upstream failure", {
+    ...diagnostics,
+    status: response.status,
+    contentType: response.headers.get("content-type") || null,
+    requestId: response.headers.get("x-request-id") || null,
+    cfRay: response.headers.get("cf-ray") || null
+  });
 }
 
 async function readOpenAIJson(response: Response): Promise<OpenAIImageResponse> {

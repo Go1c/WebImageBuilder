@@ -131,6 +131,60 @@ describe("OpenAI image provider", () => {
       "Upstream service temporarily unavailable"
     );
   });
+
+  it("logs sanitized upstream failure diagnostics", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          Response.json(
+            {
+              message: "origin failed"
+            },
+            {
+              status: 502,
+              headers: {
+                "cf-ray": "test-ray",
+                "content-type": "application/json",
+                "x-request-id": "upstream-request-id"
+              }
+            }
+          )
+      )
+    );
+
+    await expect(
+      new OpenAIImageProvider().generate({
+        ...buildInput(),
+        prompt: "do not log this prompt"
+      })
+    ).rejects.toThrow("origin failed");
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[image-provider/openai] upstream failure",
+      expect.objectContaining({
+        cfRay: "test-ray",
+        contentType: "application/json",
+        endpoint: "/v1/images/generations",
+        mode: "text-to-image",
+        providerModel: "gpt-image-2",
+        requestId: "upstream-request-id",
+        resolution: "1K",
+        size: "1024x1024",
+        status: 502
+      })
+    );
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("do not log this prompt");
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain("test-key");
+  });
 });
 
 function buildInput(): NormalizedGenerationInput {
@@ -141,6 +195,7 @@ function buildInput(): NormalizedGenerationInput {
     provider: "openai",
     providerModel: "gpt-image-2",
     size: "1024x1024",
+    resolution: "1K",
     quality: "standard",
     count: 1,
     referenceAssets: []
