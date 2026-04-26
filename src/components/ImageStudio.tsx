@@ -2,12 +2,32 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
-import { readApiError, readApiJson } from "./apiErrors";
+import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { downloadGeneratedImage } from "./imageDownload";
+import {
+  buildPromptEnhancementMetadata,
+  promptStylePresets,
+  promptTypeChoices,
+  type PromptEnhancementMetadata,
+  type PromptStylePreset,
+  type PromptStylePresetKey,
+  type PromptTypeKey
+} from "./promptEnhancers";
 import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
+import {
+  buildLocalPortfolioItem,
+  buildReferenceAssetDescriptor,
+  getStudioActionStates,
+  getZoomAction,
+  upsertLocalPortfolioItem,
+  type LocalPortfolioItem,
+  type ReferenceAssetDescriptor,
+  type StudioActionState
+} from "./studioActions";
 import { selectCanvasImage } from "./studioCanvas";
-import { appendPromptToken, buildPromptFromLibraryItem } from "./studioPrompt";
+import { appendPromptToken } from "./studioPrompt";
+import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 
 type AssetRef = {
   key: string;
@@ -53,13 +73,9 @@ type HistoryThumb = {
   prompt?: string;
 };
 
-type SavedPortfolioItem = {
-  id: string;
-  url: string;
-  mimeType: string;
-  prompt: string;
-  savedAt: string;
-};
+type SavedPortfolioItem = LocalPortfolioItem;
+
+type HeaderPanel = "tutorials" | "invite" | null;
 
 type StudioIconName =
   | "sparkle"
@@ -85,17 +101,19 @@ type StudioIconName =
 
 const generationTimeoutMs = 120_000;
 const portfolioStorageKey = "lumio:portfolio";
+const urlOnlyReferenceSupportNote =
+  "URL-only canvas reuse is shown as a visual reference in the studio; the current generation API only sends File-backed reference uploads.";
 
-const artTypes: Array<{ label: string; icon: StudioIconName }> = [
-  { label: "UI", icon: "grid" },
-  { label: "UE", icon: "cube" },
-  { label: "立绘", icon: "person" },
-  { label: "3D", icon: "layers" },
-  { label: "二次元", icon: "image" },
-  { label: "写实", icon: "aperture" },
-  { label: "特效", icon: "wand" },
-  { label: "场景原画", icon: "image" }
-];
+const typeChoiceIcons: Record<PromptTypeKey, StudioIconName> = {
+  UI: "grid",
+  UE: "cube",
+  "立绘": "person",
+  "3D": "layers",
+  "二次元": "image",
+  "写实": "aperture",
+  "特效": "wand",
+  "场景原画": "image"
+};
 
 const ratioOptions: Array<{ label: string; size: "1024x1024" | "1024x1536" | "1536x1024"; meta: string }> = [
   { label: "1:1", size: "1024x1024", meta: "1024 × 1024" },
@@ -105,44 +123,21 @@ const ratioOptions: Array<{ label: string; size: "1024x1024" | "1024x1536" | "15
   { label: "9:16", size: "1024x1536", meta: "1024 × 1536" }
 ];
 
-const stylePresets = [
-  {
-    label: "电影感",
-    prompt: "电影感光线，柔和晨光，山间湖泊，极简构图",
-    gradient: "linear-gradient(143deg, rgb(254, 230, 133) 0%, rgb(255, 184, 106) 100%)"
-  },
-  {
-    label: "赛博朋克",
-    prompt: "赛博朋克霓虹街道，高对比光影，未来城市",
-    gradient: "linear-gradient(143deg, rgb(244, 168, 255) 0%, rgb(124, 134, 255) 100%)"
-  },
-  {
-    label: "极简日系",
-    prompt: "极简日系构图，柔和色彩，留白，安静氛围",
-    gradient: "linear-gradient(143deg, rgb(255, 228, 230) 0%, rgb(231, 229, 228) 100%)"
-  },
-  {
-    label: "水彩插画",
-    prompt: "水彩插画质感，清透颜色，纸张纹理",
-    gradient: "linear-gradient(143deg, rgb(184, 230, 254) 0%, rgb(164, 244, 207) 100%)"
-  },
-  {
-    label: "3D 渲染",
-    prompt: "3D 渲染，精致材质，柔和棚拍光",
-    gradient: "linear-gradient(143deg, rgb(196, 180, 255) 0%, rgb(253, 165, 213) 100%)"
-  },
-  {
-    label: "黑白胶片",
-    prompt: "黑白胶片，高级灰阶，颗粒质感，强烈构图",
-    gradient: "linear-gradient(143deg, rgb(212, 212, 212) 0%, rgb(115, 115, 115) 100%)"
-  }
-];
+const stylePresetGradients: Record<PromptStylePresetKey, string> = {
+  cinematic: "linear-gradient(143deg, rgb(254, 230, 133) 0%, rgb(255, 184, 106) 100%)",
+  cyberpunk: "linear-gradient(143deg, rgb(244, 168, 255) 0%, rgb(124, 134, 255) 100%)",
+  "minimal-japanese": "linear-gradient(143deg, rgb(255, 228, 230) 0%, rgb(231, 229, 228) 100%)",
+  "watercolor-illustration": "linear-gradient(143deg, rgb(184, 230, 254) 0%, rgb(164, 244, 207) 100%)",
+  "studio-3d-render": "linear-gradient(143deg, rgb(196, 180, 255) 0%, rgb(253, 165, 213) 100%)",
+  "black-and-white-film": "linear-gradient(143deg, rgb(212, 212, 212) 0%, rgb(115, 115, 115) 100%)"
+};
 
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
 export function ImageStudio() {
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
+  const libraryPanelRef = useRef<HTMLElement | null>(null);
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
   const [model] = useState<ModelKey>("gpt-image-2");
   const [prompt, setPrompt] = useState("");
@@ -150,9 +145,11 @@ export function ImageStudio() {
   const [size, setSize] = useState<"1024x1024" | "1024x1536" | "1536x1024">("1024x1024");
   const [ratioLabel, setRatioLabel] = useState("1:1");
   const [detailStrength, setDetailStrength] = useState(55);
-  const [artType, setArtType] = useState("写实");
+  const [selectedTypes, setSelectedTypes] = useState<PromptTypeKey[]>([]);
+  const [selectedStyle, setSelectedStyle] = useState<PromptStylePresetKey | null>(null);
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
+  const [reusedReference, setReusedReference] = useState<ReferenceAssetDescriptor | null>(null);
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -160,18 +157,27 @@ export function ImageStudio() {
   const [canvasPrompt, setCanvasPrompt] = useState<string | null>(null);
   const [savedPortfolioItems, setSavedPortfolioItems] = useState<SavedPortfolioItem[]>([]);
   const [activeLibraryTab, setActiveLibraryTab] = useState("热门");
+  const [activeHeaderPanel, setActiveHeaderPanel] = useState<HeaderPanel>(null);
   const [librarySearch, setLibrarySearch] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
+  const [tip, setTip] = useState<StudioTip | null>(null);
   const [requestPreview, setRequestPreview] = useState<string | null>(null);
+  const [currentInviteUrl, setCurrentInviteUrl] = useState<string | null>(null);
 
   const quality = detailStrength >= 72 ? "high" : "standard";
   const activeRatio = ratioOptions.find((option) => option.label === ratioLabel) || ratioOptions[0];
   const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
+  const promptEnhancement = useMemo(
+    () => buildPromptMetadata(prompt),
+    [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
+  );
   const referenceCount = referenceFiles.length;
+  const visibleReferencePreviewUrl = referencePreviewUrl || reusedReference?.url || null;
   const submitMode: GenerationMode = referenceCount > 0 ? mode : "text-to-image";
+  const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
+  const actionStates = getStudioActionStates({ image: canvasImage, canRegenerate, loading });
+  const loginUrl = process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/";
 
   const historyThumbs = useMemo(() => {
     const generatedThumbs: HistoryThumb[] = images.map((image, index) => ({
@@ -225,13 +231,12 @@ export function ImageStudio() {
   }, []);
 
   useEffect(() => {
-    if (leftPanelRef.current) {
-      leftPanelRef.current.scrollTop = 169;
-    }
+    setSavedPortfolioItems(readSavedPortfolioItems());
   }, []);
 
   useEffect(() => {
-    setSavedPortfolioItems(readSavedPortfolioItems());
+    const inviteCode = new URLSearchParams(window.location.search).get("invite");
+    setCurrentInviteUrl(inviteCode ? `${window.location.origin}${window.location.pathname}?invite=${inviteCode}` : null);
   }, []);
 
   useEffect(() => {
@@ -282,11 +287,19 @@ export function ImageStudio() {
       return;
     }
 
-    await fetch("/api/invite/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteCode })
-    });
+    try {
+      const response = await fetch("/api/invite/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode })
+      });
+
+      if (!response.ok) {
+        showTip(tipFromApiError(await readApiErrorDetail(response)));
+      }
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "领取邀请奖励", error }));
+    }
   }
 
   async function uploadAsset(file: File, assetType: "reference" | "mask"): Promise<AssetRef> {
@@ -297,7 +310,7 @@ export function ImageStudio() {
     });
 
     if (!presignResponse.ok) {
-      throw new Error(await readApiError(presignResponse));
+      throw new StudioApiResponseError(await readApiErrorDetail(presignResponse));
     }
 
     const presign = (await presignResponse.json()) as AssetRef & { uploadUrl: string };
@@ -318,28 +331,23 @@ export function ImageStudio() {
     };
   }
 
-  async function handleGenerate() {
-    if (!prompt.trim()) {
-      setMessage("请先输入提示词");
+  async function handleGenerate(options: { promptOverride?: string } = {}) {
+    if (loading) {
+      showDisabledTip("生成图片", "当前生成还未完成，请稍后再试。");
       return;
     }
 
-    const submissionPrompt = buildSubmissionPrompt();
+    const metadata = buildPromptMetadata(options.promptOverride ?? prompt);
+    const submissionPrompt = metadata.finalPrompt.trim();
+
+    if (!submissionPrompt) {
+      showDisabledTip("生成图片", "请先输入提示词，或选择可作为提示词的风格预设。");
+      return;
+    }
 
     setLoading(true);
-    setMessage(null);
-    setRequestPreview(
-      buildGenerationRequestPreview({
-        prompt: submissionPrompt,
-        model,
-        mode: submitMode,
-        size,
-        quality,
-        count: 1,
-        referenceCount,
-        hasMask: false
-      })
-    );
+    setTip(null);
+    setRequestPreview(buildRequestPreview(metadata));
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), generationTimeoutMs);
 
@@ -364,7 +372,7 @@ export function ImageStudio() {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response));
+        throw new StudioApiResponseError(await readApiErrorDetail(response));
       }
 
       const result = await readApiJson<{
@@ -377,13 +385,24 @@ export function ImageStudio() {
       setSelectedInspirationImage(null);
       setCanvasPrompt(result.prompt || submissionPrompt);
       setQuota((current) => (current ? { ...current, quota: result.quota } : current));
-      setMessage("生成完成");
+      setReusedReference(null);
+      showTip({
+        type: "success",
+        title: "生成完成",
+        message: "结果已更新到画布。"
+      });
       await refreshData();
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        setMessage("生成超时，请稍后重试");
+        showTip({
+          type: "error",
+          title: "生成超时",
+          message: "生成请求超过 120 秒未完成，请稍后重试。"
+        });
+      } else if (error instanceof StudioApiResponseError) {
+        showTip(tipFromApiError(error.detail));
       } else {
-        setMessage(error instanceof Error ? error.message : "生成失败");
+        showTip(tipFromActionFailure({ kind: "failed", action: "生成图片", error }));
       }
     } finally {
       window.clearTimeout(timeoutId);
@@ -391,22 +410,39 @@ export function ImageStudio() {
     }
   }
 
-  function buildSubmissionPrompt() {
-    if (!prompt.trim()) {
-      return "";
-    }
+  function buildPromptMetadata(userPrompt: string): PromptEnhancementMetadata {
+    const promptWithDetail = detailStrength >= 72 && userPrompt.trim()
+      ? appendPromptToken(userPrompt, "细节锐利")
+      : userPrompt;
 
-    let nextPrompt = appendPromptToken(prompt, artType);
+    return buildPromptEnhancementMetadata({
+      userPrompt: promptWithDetail,
+      selectedTypes,
+      selectedStyle,
+      negativePrompt
+    });
+  }
 
-    if (detailStrength >= 72) {
-      nextPrompt = appendPromptToken(nextPrompt, "细节锐利");
-    }
-
-    if (negativePrompt.trim()) {
-      nextPrompt = `${nextPrompt}\n避免：${negativePrompt.trim()}`;
-    }
-
-    return nextPrompt;
+  function buildRequestPreview(metadata: PromptEnhancementMetadata): string {
+    return buildGenerationRequestPreview({
+      prompt: metadata.finalPrompt,
+      rawPrompt: metadata.rawPrompt,
+      finalPrompt: metadata.finalPrompt,
+      selectedTypes: metadata.selectedTypes,
+      selectedStyle: metadata.selectedStyle,
+      negativePrompt: metadata.negativePrompt,
+      providerSupportNotes: [
+        ...metadata.providerSupportNotes,
+        ...(reusedReference && referenceCount === 0 ? [urlOnlyReferenceSupportNote] : [])
+      ],
+      model,
+      mode: submitMode,
+      size,
+      quality,
+      count: 1,
+      referenceCount,
+      hasMask: false
+    });
   }
 
   function handleReferenceChange(files: FileList | null) {
@@ -417,7 +453,13 @@ export function ImageStudio() {
     }
 
     setReferenceFiles(nextFiles);
+    setReusedReference(null);
     setMode("image-to-image");
+    showTip({
+      type: "success",
+      title: "参考图已添加",
+      message: `已选择 ${nextFiles.length} 张参考图，生成时会作为文件上传。`
+    });
   }
 
   function handleReferenceInputChange(event: ChangeEvent<HTMLInputElement>) {
@@ -430,9 +472,24 @@ export function ImageStudio() {
     setSize(option.size);
   }
 
-  function handleApplyStyle(label: string, stylePrompt: string) {
-    setPrompt(buildPromptFromLibraryItem(prompt, stylePrompt || label));
-    setMessage(`${label} 已套用`);
+  function handleToggleType(typeKey: PromptTypeKey) {
+    setSelectedTypes((currentTypes) =>
+      currentTypes.includes(typeKey)
+        ? currentTypes.filter((currentType) => currentType !== typeKey)
+        : [...currentTypes, typeKey]
+    );
+  }
+
+  function handleApplyStyle(preset: PromptStylePreset) {
+    const willSelect = selectedStyle !== preset.key;
+    setSelectedStyle(willSelect ? preset.key : null);
+    showTip({
+      type: "info",
+      title: willSelect ? "风格已应用" : "风格已取消",
+      message: willSelect
+        ? `${preset.label} 会追加到最终提示词，原始输入会保留。`
+        : `${preset.label} 已从最终提示词中移除。`
+    });
   }
 
   function handleApplyTag(tag: string) {
@@ -445,7 +502,11 @@ export function ImageStudio() {
     setSelectedInspirationImage(item.image);
     setCanvasPrompt(null);
     setRequestPreview(null);
-    setMessage(`已套用：${item.title}`);
+    showTip({
+      type: "success",
+      title: "提示词已套用",
+      message: item.title
+    });
   }
 
   function handleApplySavedPortfolioItem(item: SavedPortfolioItem) {
@@ -454,7 +515,11 @@ export function ImageStudio() {
     setSelectedInspirationImage(item.url);
     setCanvasPrompt(item.prompt || null);
     setRequestPreview(null);
-    setMessage("已打开作品");
+    showTip({
+      type: "info",
+      title: "已打开作品",
+      message: item.prompt || "作品已显示在画布中。"
+    });
   }
 
   function handleHistoryThumbClick(thumb: HistoryThumb) {
@@ -463,9 +528,79 @@ export function ImageStudio() {
     setCanvasPrompt(thumb.prompt || null);
   }
 
+  function handleOpenExplore() {
+    setActiveHeaderPanel(null);
+    setActiveLibraryTab("热门");
+    scrollLibraryIntoView();
+    showTip({
+      type: "info",
+      title: "探索已打开",
+      message: "素材库已切换到热门灵感。"
+    });
+  }
+
+  function handleOpenPortfolio() {
+    setActiveHeaderPanel(null);
+    setActiveLibraryTab("我的");
+    scrollLibraryIntoView();
+    showTip({
+      type: "info",
+      title: "作品集已打开",
+      message: savedPortfolioItems.length
+        ? `本地作品集当前有 ${savedPortfolioItems.length} 个项目。`
+        : "本地作品集暂无项目，保存当前画布后会显示在这里。"
+    });
+  }
+
+  function handleOpenInvitePanel() {
+    setActiveHeaderPanel("invite");
+    showTip({
+      type: "info",
+      title: "邀请有礼",
+      message: quota?.actorType === "user"
+        ? "邀请面板已打开，可查看奖励规则和邀请链接。"
+        : "邀请奖励需要登录后绑定账号。"
+    });
+  }
+
+  function handleLoginClick() {
+    showTip({
+      type: "info",
+      title: "正在打开登录",
+      message: "Lumio 登录会在新窗口打开；登录后的 return-token 需要由外部登录服务回传。"
+    });
+  }
+
+  async function handleCopyInviteUrl() {
+    if (!currentInviteUrl) {
+      showTip(tipFromActionFailure({
+        kind: "login_required",
+        action: "复制邀请链接",
+        actionHref: loginUrl
+      }));
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(currentInviteUrl);
+      showTip({
+        type: "success",
+        title: "邀请链接已复制",
+        message: "可以发送给好友领取邀请奖励。"
+      });
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "复制邀请链接", error }));
+    }
+  }
+
+  function scrollLibraryIntoView() {
+    window.requestAnimationFrame(() => {
+      libraryPanelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }
+
   function handleClearCanvas() {
-    if (!canvasImage && !canvasPrompt) {
-      setMessage("暂无可删除图片");
+    if (!ensureActionEnabled("删除当前图片", actionStates.delete)) {
       return;
     }
 
@@ -473,37 +608,65 @@ export function ImageStudio() {
     setSelectedInspirationImage(null);
     setCanvasPrompt(null);
     setRequestPreview(null);
-    setMessage("已删除当前图片");
+    showTip({
+      type: "success",
+      title: "已删除当前图片",
+      message: "画布已清空。"
+    });
   }
 
   function handleSaveToPortfolio() {
-    if (!canvasImage) {
-      setMessage("暂无可保存图片");
+    if (!ensureActionEnabled("保存到作品集", actionStates.save) || !canvasImage) {
       return;
     }
 
     try {
       const existingItems = readSavedPortfolioItems();
-      const savedItem: SavedPortfolioItem = {
-        id: `${Date.now()}-${canvasImage.url}`,
-        url: canvasImage.url,
-        mimeType: canvasImage.mimeType,
-        prompt: canvasPrompt || "",
+      const savedItem = buildLocalPortfolioItem({
+        image: canvasImage,
+        prompt: canvasPrompt || promptEnhancement.rawPrompt,
         savedAt: new Date().toISOString()
-      };
+      });
 
-      const nextItems = [savedItem, ...existingItems].slice(0, 100);
+      const nextItems = upsertLocalPortfolioItem(existingItems, savedItem);
       window.localStorage.setItem(portfolioStorageKey, JSON.stringify(nextItems));
       setSavedPortfolioItems(nextItems);
-      setMessage("已保存到作品集");
-    } catch {
-      setMessage("作品集保存失败");
+      setActiveLibraryTab("我的");
+      showTip({
+        type: "success",
+        title: "已保存到作品集",
+        message: "可在素材库的“我的”标签查看。"
+      });
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "保存到作品集", error }));
     }
   }
 
+  function handleUseCurrentAsReference() {
+    if (!ensureActionEnabled("用作参考图", actionStates.referenceReuse)) {
+      return;
+    }
+
+    const result = buildReferenceAssetDescriptor({ image: canvasImage, prompt: canvasPrompt || prompt });
+
+    if (!result.ok) {
+      showDisabledTip("用作参考图", result.reason);
+      return;
+    }
+
+    setReferenceFiles([]);
+    setReusedReference(result.reference);
+    setSelectedInspirationImage(result.reference.url);
+    setMode("image-to-image");
+    showTip({
+      type: "info",
+      title: "已设为视觉参考",
+      message: `${urlOnlyReferenceSupportNote} 若要让生成接口直接接收参考图，请使用提示词输入框下方的“+”上传本地文件。`
+    });
+  }
+
   async function handleDownloadCurrentImage() {
-    if (!canvasImage) {
-      setMessage("暂无可保存图片");
+    if (!ensureActionEnabled("下载图片", actionStates.download) || !canvasImage) {
       return;
     }
 
@@ -515,26 +678,88 @@ export function ImageStudio() {
         },
         0
       );
-      setMessage("图片已开始保存");
+      showTip({
+        type: "success",
+        title: "下载已开始",
+        message: "浏览器正在保存当前图片。"
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "保存图片失败");
+      showTip(tipFromActionFailure({ kind: "failed", action: "下载图片", error }));
     }
   }
 
-  async function handleCopyRequestPreview() {
-    const text = requestPreview || canvasPrompt || buildSubmissionPrompt();
-
-    if (!text.trim()) {
-      setMessage("暂无可复制内容");
+  function handleOpenCurrentImage() {
+    if (!ensureActionEnabled("打开大图", actionStates.zoom)) {
       return;
     }
 
-    await navigator.clipboard.writeText(text);
-    setMessage("已复制");
+    const zoomAction = getZoomAction({ image: canvasImage });
+
+    if (!zoomAction.enabled) {
+      showDisabledTip("打开大图", zoomAction.reason);
+      return;
+    }
+
+    const openedWindow = window.open(zoomAction.url, "_blank", "noopener,noreferrer");
+
+    if (!openedWindow) {
+      showTip({
+        type: "warning",
+        title: "未能打开大图",
+        message: "浏览器可能拦截了新窗口，请允许弹窗后重试。"
+      });
+    }
+  }
+
+  function handleRegenerate() {
+    if (!ensureActionEnabled("重新生成", actionStates.regenerate)) {
+      return;
+    }
+
+    void handleGenerate({
+      promptOverride: prompt.trim() ? prompt : canvasPrompt || ""
+    });
+  }
+
+  async function handleCopyRequestPreview() {
+    const text = requestPreview || canvasPrompt || buildRequestPreview(promptEnhancement);
+
+    if (!text.trim()) {
+      showDisabledTip("复制提示词", "暂无可复制内容。");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showTip({
+        type: "success",
+        title: "已复制",
+        message: "请求预览已复制到剪贴板。"
+      });
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "复制请求预览", error }));
+    }
+  }
+
+  function ensureActionEnabled(action: string, state: StudioActionState): boolean {
+    if (state.enabled) {
+      return true;
+    }
+
+    showDisabledTip(action, state.reason);
+    return false;
+  }
+
+  function showDisabledTip(action: string, reason?: string) {
+    showTip(tipFromActionFailure({ kind: "disabled", action, reason }));
+  }
+
+  function showTip(nextTip: StudioTip) {
+    setTip(nextTip);
   }
 
   return (
-    <main className={isExpanded ? "studio-app is-expanded" : "studio-app"}>
+    <main className="studio-app">
       <header className="studio-topbar">
         <a className="studio-brand" href="/" aria-label="LumioImageStudio">
           <span className="studio-brand-mark">
@@ -544,9 +769,27 @@ export function ImageStudio() {
         </a>
 
         <nav className="studio-nav" aria-label="主导航">
-          <a href="#explore">探索</a>
-          <a href="#portfolio">作品集</a>
-          <a href="#tutorials">教程</a>
+          <button
+            className={activeLibraryTab === "热门" && !activeHeaderPanel ? "is-selected" : ""}
+            type="button"
+            onClick={handleOpenExplore}
+          >
+            探索
+          </button>
+          <button
+            className={activeLibraryTab === "我的" && !activeHeaderPanel ? "is-selected" : ""}
+            type="button"
+            onClick={handleOpenPortfolio}
+          >
+            作品集
+          </button>
+          <button
+            className={activeHeaderPanel === "tutorials" ? "is-selected" : ""}
+            type="button"
+            onClick={() => setActiveHeaderPanel("tutorials")}
+          >
+            教程
+          </button>
         </nav>
 
         <div className="studio-account">
@@ -554,20 +797,32 @@ export function ImageStudio() {
             <StudioIcon name="coin" size={14} />
             {quotaText}
           </span>
-          <a className="invite-pill" href="#invite">
+          <button className="invite-pill" type="button" onClick={handleOpenInvitePanel}>
             <StudioIcon name="gift" size={14} />
             邀请有礼
-          </a>
+          </button>
           <a
             className="login-pill"
-            href={process.env.NEXT_PUBLIC_LUMIO_LOGIN_URL || "https://api.lumio.games/"}
+            href={loginUrl}
             target="_blank"
             rel="noreferrer"
+            onClick={handleLoginClick}
           >
             登录
           </a>
         </div>
       </header>
+
+      {activeHeaderPanel ? (
+        <HeaderContextPanel
+          panel={activeHeaderPanel}
+          inviteUrl={currentInviteUrl}
+          loginUrl={loginUrl}
+          quota={quota}
+          onClose={() => setActiveHeaderPanel(null)}
+          onCopyInviteUrl={() => void handleCopyInviteUrl()}
+        />
+      ) : null}
 
       <div className="studio-grid">
         <section className="prompt-panel" aria-label="创作面板">
@@ -577,31 +832,39 @@ export function ImageStudio() {
             <section className="studio-section prompt-section">
               <SectionLabel>提示词</SectionLabel>
               <div className="prompt-card">
-                <div className={referencePreviewUrl ? "reference-row has-reference" : "reference-row"}>
-                  {referencePreviewUrl ? (
-                    <div className="reference-thumb">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={referencePreviewUrl} alt="参考图" />
-                    </div>
-                  ) : null}
-                  <label className="reference-add">
-                    <StudioIcon name="plus" size={16} />
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      multiple
-                      onChange={handleReferenceInputChange}
-                    />
-                  </label>
-                </div>
                 <textarea
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
                   placeholder="描述你想要的画面，例如：一只在赛博朋克霓虹街道上漫步的白猫，电影感光线"
                 />
-                <button className="generate-fab" type="button" disabled={loading} onClick={() => void handleGenerate()} aria-label="生成图片">
-                  <StudioIcon name="arrowUp" size={16} />
-                </button>
+                <div className="prompt-action-row">
+                  <div className={visibleReferencePreviewUrl ? "reference-row has-reference" : "reference-row"}>
+                    {visibleReferencePreviewUrl ? (
+                      <div className="reference-thumb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={visibleReferencePreviewUrl} alt="参考图" />
+                      </div>
+                    ) : null}
+                    <label className="reference-add" aria-label="添加参考图">
+                      <StudioIcon name="plus" size={16} />
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        multiple
+                        onChange={handleReferenceInputChange}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    className={loading ? "generate-fab is-disabled" : "generate-fab"}
+                    type="button"
+                    aria-disabled={loading}
+                    onClick={() => void handleGenerate()}
+                    aria-label="生成图片"
+                  >
+                    <StudioIcon name="arrowUp" size={16} />
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -616,22 +879,23 @@ export function ImageStudio() {
             </section>
 
             <section className="studio-section type-section">
-              <div className="section-label-row">
-                <SectionLabel>类型</SectionLabel>
-                <span>游戏美术方向</span>
-              </div>
+              <SectionLabel>类型</SectionLabel>
               <div className="type-grid" role="group" aria-label="选择类型">
-                {artTypes.map((item) => (
+                {promptTypeChoices.map((item) => {
+                  const isSelected = selectedTypes.includes(item.key);
+                  return (
                   <button
-                    key={item.label}
-                    className={artType === item.label ? "option-tile is-selected" : "option-tile"}
+                    key={item.key}
+                    className={isSelected ? "option-tile is-selected" : "option-tile"}
                     type="button"
-                    onClick={() => setArtType(item.label)}
+                    aria-pressed={isSelected}
+                    onClick={() => handleToggleType(item.key)}
                   >
-                    <StudioIcon name={item.icon} size={14} />
+                    <StudioIcon name={typeChoiceIcons[item.key]} size={14} />
                     <span>{item.label}</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -705,30 +969,65 @@ export function ImageStudio() {
           </div>
 
           <div className="canvas-actions">
-            <button className="save-button" type="button" onClick={handleSaveToPortfolio} disabled={!canvasImage}>
+            <button
+              className={actionStates.save.enabled ? "save-button" : "save-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.save.enabled}
+              title={actionStates.save.reason}
+              onClick={handleSaveToPortfolio}
+            >
               <StudioIcon name="check" size={14} />
               保存到作品集
             </button>
-            <button className="icon-button" type="button" onClick={handleClearCanvas} aria-label="删除当前图片">
+            <button
+              className={actionStates.delete.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.delete.enabled}
+              title={actionStates.delete.reason}
+              onClick={handleClearCanvas}
+              aria-label="删除当前图片"
+            >
               <StudioIcon name="trash" size={16} />
             </button>
             <span className="action-divider" />
-            <label className="icon-button upload-action" aria-label="添加参考图">
+            <button
+              className={actionStates.referenceReuse.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.referenceReuse.enabled}
+              title={actionStates.referenceReuse.reason}
+              onClick={handleUseCurrentAsReference}
+              aria-label="用作参考图"
+            >
               <StudioIcon name="imagePlus" size={16} />
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                multiple
-                onChange={handleReferenceInputChange}
-              />
-            </label>
-            <button className="icon-button" type="button" onClick={() => void handleDownloadCurrentImage()} disabled={!canvasImage} aria-label="下载图片">
+            </button>
+            <button
+              className={actionStates.download.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.download.enabled}
+              title={actionStates.download.reason}
+              onClick={() => void handleDownloadCurrentImage()}
+              aria-label="下载图片"
+            >
               <StudioIcon name="download" size={16} />
             </button>
-            <button className="icon-button" type="button" onClick={() => void handleGenerate()} disabled={loading} aria-label="重新生成">
+            <button
+              className={actionStates.regenerate.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.regenerate.enabled}
+              title={actionStates.regenerate.reason}
+              onClick={handleRegenerate}
+              aria-label="重新生成"
+            >
               <StudioIcon name="refresh" size={16} />
             </button>
-            <button className="icon-button" type="button" onClick={() => setIsExpanded((current) => !current)} aria-label="切换全屏预览">
+            <button
+              className={actionStates.zoom.enabled ? "icon-button" : "icon-button is-disabled"}
+              type="button"
+              aria-disabled={!actionStates.zoom.enabled}
+              title={actionStates.zoom.reason}
+              onClick={handleOpenCurrentImage}
+              aria-label="打开大图"
+            >
               <StudioIcon name="expand" size={16} />
             </button>
           </div>
@@ -754,7 +1053,7 @@ export function ImageStudio() {
           </div>
         </section>
 
-        <aside className="library-panel" aria-label="素材库">
+        <aside className="library-panel" aria-label="素材库" ref={libraryPanelRef}>
           <PanelHeader title="素材库" subtitle="点击直接套用提示词" />
 
           <div className="library-controls">
@@ -785,13 +1084,14 @@ export function ImageStudio() {
             <section className="studio-section library-section">
               <p className="library-title">风格预设</p>
               <div className="preset-grid">
-                {stylePresets.map((preset) => (
+                {promptStylePresets.map((preset) => (
                   <button
-                    key={preset.label}
-                    className="preset-card"
+                    key={preset.key}
+                    className={selectedStyle === preset.key ? "preset-card is-selected" : "preset-card"}
                     type="button"
-                    style={{ "--preset-gradient": preset.gradient } as CSSProperties}
-                    onClick={() => handleApplyStyle(preset.label, preset.prompt)}
+                    aria-pressed={selectedStyle === preset.key}
+                    style={{ "--preset-gradient": stylePresetGradients[preset.key] } as CSSProperties}
+                    onClick={() => handleApplyStyle(preset)}
                   >
                     <span>{preset.label}</span>
                   </button>
@@ -866,7 +1166,7 @@ export function ImageStudio() {
         </aside>
       </div>
 
-      {message ? <p className="studio-toast" aria-live="polite">{message}</p> : null}
+      {tip ? <StudioTipToast tip={tip} /> : null}
     </main>
   );
 }
@@ -878,6 +1178,90 @@ function readSavedPortfolioItems(): SavedPortfolioItem[] {
     return Array.isArray(parsedItems) ? parsedItems : [];
   } catch {
     return [];
+  }
+}
+
+function HeaderContextPanel({
+  panel,
+  inviteUrl,
+  loginUrl,
+  quota,
+  onClose,
+  onCopyInviteUrl
+}: {
+  panel: Exclude<HeaderPanel, null>;
+  inviteUrl: string | null;
+  loginUrl: string;
+  quota: QuotaResponse | null;
+  onClose: () => void;
+  onCopyInviteUrl: () => void;
+}) {
+  return (
+    <section className="header-context-panel" aria-live="polite">
+      <div>
+        {panel === "tutorials" ? (
+          <>
+            <p className="context-eyebrow">教程</p>
+            <h2>快速生成流程</h2>
+            <ol>
+              <li>写下主体、场景、用途和画幅。</li>
+              <li>选择一个或多个类型，再按需要选择风格预设。</li>
+              <li>上传本地参考图可进入图生图；画布图片复用会作为视觉参考显示。</li>
+              <li>生成后可保存到作品集、下载、打开大图或重新生成。</li>
+            </ol>
+          </>
+        ) : (
+          <>
+            <p className="context-eyebrow">邀请有礼</p>
+            <h2>邀请好友领取生成额度</h2>
+            <p>
+              邀请奖励规则：好友通过你的链接完成注册并完成首次成功生成后，邀请人获得 10 次邀请额度。
+            </p>
+            <p>
+              当前状态：{quota?.actorType === "user" ? "已登录，可绑定邀请奖励。" : "未登录，需先登录后才能绑定邀请奖励。"}
+            </p>
+            <div className="invite-copy-row">
+              <code>{inviteUrl || "登录后可生成可复制的邀请链接"}</code>
+              <button type="button" onClick={onCopyInviteUrl}>复制</button>
+            </div>
+            {quota?.actorType !== "user" ? (
+              <a className="context-login-link" href={loginUrl} target="_blank" rel="noreferrer">
+                去登录
+              </a>
+            ) : null}
+          </>
+        )}
+      </div>
+      <button className="context-close" type="button" onClick={onClose} aria-label="关闭提示面板">
+        ×
+      </button>
+    </section>
+  );
+}
+
+function StudioTipToast({ tip }: { tip: StudioTip }) {
+  return (
+    <aside className={`studio-tip studio-tip-${tip.type}`} aria-live="polite">
+      <div>
+        <strong>{tip.title}</strong>
+        <p>{tip.message}</p>
+      </div>
+      {tip.actionHref ? (
+        <a href={tip.actionHref} target="_blank" rel="noreferrer">
+          {tip.actionLabel || "打开"}
+        </a>
+      ) : null}
+    </aside>
+  );
+}
+
+class StudioApiResponseError extends Error {
+  readonly detail: ApiErrorDetail;
+
+  constructor(detail: ApiErrorDetail) {
+    super(detail.message || `HTTP ${detail.status}`);
+    this.name = "StudioApiResponseError";
+    this.detail = detail;
   }
 }
 

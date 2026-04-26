@@ -154,17 +154,25 @@ textarea:focus-visible {
   justify-content: center;
 }
 
-.studio-nav a {
+.studio-nav a,
+.studio-nav button {
   height: 36px;
   display: grid;
   place-items: center;
+  border: 0;
   border-radius: 999px;
   padding: 0 12px;
+  background: transparent;
   color: var(--studio-muted);
   font-size: 16px;
   font-weight: 500;
   line-height: 24px;
   letter-spacing: 0;
+}
+
+.studio-nav button.is-selected {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--studio-text);
 }
 
 .studio-account {
@@ -197,6 +205,7 @@ textarea:focus-visible {
 
 .invite-pill {
   min-width: 96px;
+  border: 0;
   padding: 0 12px;
   background: rgba(0, 0, 0, 0.05);
   color: var(--studio-text);
@@ -296,13 +305,11 @@ textarea:focus-visible {
   letter-spacing: 0;
 }
 
-.prompt-section {
-  height: 260px;
-}
-
 .prompt-card {
   position: relative;
-  height: 234px;
+  min-height: 234px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--studio-line-strong);
   border-radius: 16px;
   background: var(--studio-surface);
@@ -311,25 +318,22 @@ textarea:focus-visible {
 }
 
 .reference-row {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 297px;
-  height: 58px;
+  width: auto;
+  min-width: 48px;
+  height: 48px;
+  gap: 6px;
 }
 
 .reference-thumb,
 .reference-add {
-  position: absolute;
-  top: 10px;
   width: 48px;
   height: 48px;
+  flex: 0 0 48px;
   overflow: hidden;
   border-radius: 10px;
 }
 
 .reference-thumb {
-  left: 10px;
   border: 1px solid var(--studio-line-strong);
   padding: 1px;
 }
@@ -345,16 +349,12 @@ textarea:focus-visible {
 }
 
 .reference-add {
-  left: 10px;
+  position: relative;
   display: grid;
   place-items: center;
   border: 1px dashed rgba(0, 0, 0, 0.15);
   background: white;
   color: var(--studio-copy);
-}
-
-.reference-row.has-reference .reference-add {
-  left: 64px;
 }
 
 .reference-add input,
@@ -366,14 +366,12 @@ textarea:focus-visible {
 }
 
 .prompt-card textarea {
-  position: absolute;
-  left: 0;
-  top: 58px;
-  width: 297px;
-  height: 128px;
+  width: 100%;
+  min-height: 160px;
+  flex: 1 1 auto;
   resize: none;
   border: 0;
-  padding: 12px 14px;
+  padding: 14px;
   outline: none;
   background: transparent;
   color: var(--studio-copy);
@@ -387,12 +385,20 @@ textarea:focus-visible {
   color: var(--studio-faint);
 }
 
+.prompt-action-row {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--studio-line);
+  padding: 10px;
+}
+
 .generate-fab {
-  position: absolute;
-  right: 10px;
-  top: 192px;
   width: 32px;
   height: 32px;
+  flex: 0 0 32px;
   display: grid;
   place-items: center;
   border: 0;
@@ -425,10 +431,6 @@ textarea:focus-visible {
   color: var(--studio-faint);
 }
 
-.type-section {
-  height: 147px;
-}
-
 .section-label-row {
   height: 18px;
   display: flex;
@@ -449,7 +451,6 @@ textarea:focus-visible {
 }
 
 .type-grid {
-  height: 121px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
@@ -479,12 +480,7 @@ textarea:focus-visible {
   color: white;
 }
 
-.ratio-section {
-  height: 58px;
-}
-
 .ratio-grid {
-  height: 32px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
@@ -507,10 +503,6 @@ textarea:focus-visible {
   border-color: var(--studio-black);
   background: var(--studio-black);
   color: white;
-}
-
-.detail-section {
-  height: 70.5px;
 }
 
 .detail-slider {
@@ -630,6 +622,13 @@ textarea:focus-visible {
   background: transparent;
 }
 
+.icon-button.is-disabled,
+.save-button.is-disabled,
+.generate-fab.is-disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
 .image-stage {
   min-width: 0;
   display: flex;
@@ -671,6 +670,7 @@ textarea:focus-visible {
 }
 
 .canvas-actions {
+  flex-wrap: wrap;
   gap: 8px;
   padding-left: 32px;
 }
@@ -868,6 +868,13 @@ textarea:focus-visible {
   background: var(--preset-gradient);
 }
 
+.preset-card.is-selected {
+  border-color: var(--studio-black);
+  box-shadow:
+    0 0 0 2px white inset,
+    0 0 0 2px var(--studio-black);
+}
+
 .preset-card::after {
   content: "";
   position: absolute;
@@ -963,22 +970,153 @@ textarea:focus-visible {
   flex: 0 0 auto;
 }
 
-.studio-toast {
+.header-context-panel {
+  position: fixed;
+  left: 50%;
+  top: 68px;
+  z-index: 10;
+  width: min(560px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 12px;
+  transform: translateX(-50%);
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--studio-copy);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.header-context-panel h2 {
+  margin: 0 0 8px;
+  color: var(--studio-text);
+  font-size: 18px;
+  line-height: 27px;
+}
+
+.header-context-panel p,
+.header-context-panel li {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19.5px;
+}
+
+.header-context-panel ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.context-eyebrow {
+  color: var(--studio-muted);
+  font-weight: 600;
+}
+
+.invite-copy-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.invite-copy-row code {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--studio-bg-soft);
+  color: var(--studio-copy);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-copy-row button,
+.context-login-link {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: var(--studio-black);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.context-login-link {
+  width: fit-content;
+  margin-top: 10px;
+}
+
+.context-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 999px;
+  background: white;
+  color: var(--studio-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.studio-tip {
   position: fixed;
   left: 50%;
   bottom: 18px;
   z-index: 10;
-  max-width: min(440px, calc(100vw - 32px));
-  margin: 0;
+  width: min(460px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   transform: translateX(-50%);
   border: 1px solid var(--studio-line-strong);
-  border-radius: 999px;
-  padding: 9px 14px;
-  background: rgba(255, 255, 255, 0.92);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.94);
   color: var(--studio-copy);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.studio-tip strong {
+  display: block;
+  color: var(--studio-text);
   font-size: 13px;
   line-height: 19.5px;
+}
+
+.studio-tip p {
+  margin: 1px 0 0;
+  white-space: pre-line;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.studio-tip a {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: var(--studio-black);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.studio-tip-success {
+  border-color: rgba(0, 188, 125, 0.32);
+}
+
+.studio-tip-warning {
+  border-color: rgba(187, 77, 0, 0.35);
+}
+
+.studio-tip-error {
+  border-color: rgba(220, 38, 38, 0.3);
 }
 
 @media (max-width: 980px) {
@@ -1015,12 +1153,18 @@ textarea:focus-visible {
   .prompt-panel,
   .library-panel {
     height: auto;
-    min-height: 607px;
+    min-height: 0;
+    grid-template-rows: auto auto;
   }
 
   .canvas-area {
-    min-height: 607px;
+    min-height: 0;
+    grid-template-rows: auto auto auto auto;
     order: -1;
+  }
+
+  .image-stage {
+    padding: 16px 0;
   }
 
   .library-panel {
@@ -1034,11 +1178,22 @@ textarea:focus-visible {
   }
 
   .left-panel-scroll {
-    max-height: 530px;
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 28px;
   }
 
   .library-scroll {
-    max-height: 520px;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .library-panel {
+    grid-template-rows: auto auto auto;
+  }
+
+  .header-context-panel {
+    top: 76px;
   }
 }
 
@@ -1065,7 +1220,7 @@ textarea:focus-visible {
 
   .canvas-actions {
     justify-content: center;
-    padding-left: 0;
+    padding: 10px 16px;
   }
 
   .save-button {
@@ -1079,5 +1234,18 @@ textarea:focus-visible {
 
   .canvas-history {
     padding: 13px 16px 12px;
+  }
+
+  .prompt-card textarea {
+    min-height: 150px;
+  }
+
+  .preset-grid,
+  .prompt-library-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .invite-copy-row {
+    grid-template-columns: 1fr;
   }
 }
