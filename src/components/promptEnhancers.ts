@@ -58,6 +58,8 @@ export const promptTypeChoices = [
 ] as const satisfies readonly PromptTypeChoice[];
 
 export type PromptStylePresetKey =
+  | "cinematic"
+  | "cyberpunk"
   | "minimal-japanese"
   | "watercolor-illustration"
   | "studio-3d-render"
@@ -70,6 +72,16 @@ export type PromptStylePreset = {
 };
 
 export const promptStylePresets = [
+  {
+    key: "cinematic",
+    label: "电影感",
+    guidance: "cinematic lighting, soft morning light, mountain lake, minimal composition"
+  },
+  {
+    key: "cyberpunk",
+    label: "赛博朋克",
+    guidance: "cyberpunk neon street, high-contrast lighting, future city"
+  },
   {
     key: "minimal-japanese",
     label: "极简日系",
