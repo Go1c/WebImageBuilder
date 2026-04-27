@@ -105,6 +105,16 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
 ]);
 
 export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText">): StudioTip {
+  if (error.code === "provider_error" && isGiftBalanceRechargeRequired(error.message)) {
+    return {
+      type: "warning",
+      title: "赠送余额暂不可用",
+      message: "为防止恶意注册，使用赠送余额生成图片前，需要账户历史充值金额大于 10 元。请先完成充值，满足条件后即可继续使用赠送余额。",
+      actionLabel: "去充值",
+      actionHref: "https://api.lumio.games/purchase"
+    };
+  }
+
   if (error.code === "provider_error" && isImageGatewayUnavailable(error.message)) {
     return {
       type: "error",
@@ -143,6 +153,15 @@ function isImageGatewayUnavailable(message: string | undefined): boolean {
     normalized.includes("upstream service temporarily unavailable") ||
     normalized.includes("origin web server returned an invalid or incomplete response") ||
     normalized.includes("origin is overloaded or misconfigured")
+  );
+}
+
+function isGiftBalanceRechargeRequired(message: string | undefined): boolean {
+  const normalized = message || "";
+  return (
+    normalized.includes("历史充值") &&
+    normalized.includes("余额服务") &&
+    normalized.includes("充值")
   );
 }
 

@@ -80,6 +80,25 @@ describe("studio tips", () => {
     expect(tip.message).not.toContain("Sub2API");
   });
 
+  it("explains why gift balance requires prior recharge history", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: "账户历史充值需大于 9.90 才能使用余额服务，请先充值。"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "赠送余额暂不可用",
+      actionLabel: "去充值",
+      actionHref: "https://api.lumio.games/purchase"
+    });
+    expect(tip.message).toBe(
+      "为防止恶意注册，使用赠送余额生成图片前，需要账户历史充值金额大于 10 元。请先完成充值，满足条件后即可继续使用赠送余额。"
+    );
+  });
+
   it("uses a useful fallback tip for unknown API errors", () => {
     const tip = tipFromApiError(apiErrorDetail({ code: "internal_error", message: "database unavailable" }));
 
