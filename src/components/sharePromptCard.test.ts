@@ -17,17 +17,13 @@ describe("prompt share card helpers", () => {
     expect(summary).not.toContain("\n");
   });
 
-  it("builds copy that gives recipients both the prompt and remix link", () => {
+  it("builds concise Image-2 copy with the remix link only", () => {
     expect(
       buildPromptShareCopyText({
         prompt: "赛博城市夜景，电影感构图",
-        shareUrl: "https://img.lumio.games/share/abc"
+        shareUrl: "https://img.lumio.games/share/XB9nyXuPDuVD"
       })
-    ).toBe(
-      "我在 Lumio 生成了一张图，可以直接复刻这个提示词：\n" +
-        "赛博城市夜景，电影感构图\n" +
-        "打开链接生成同款：https://img.lumio.games/share/abc"
-    );
+    ).toBe("我在 Lumio 使用Image-2生成了一张图，你可以打开链接生成同款：https://img.lumio.games/share/XB9nyXuPDuVD");
   });
 
   it("builds stable svg card file names", () => {

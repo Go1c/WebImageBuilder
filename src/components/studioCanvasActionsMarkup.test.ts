@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync("src/components/ImageStudio.tsx", "utf8");
+const shareDialogSource = readFileSync("src/components/SharePromptDialog.tsx", "utf8");
 
 function readCanvasActionsMarkup(): string {
   const actionsStart = source.indexOf('<div className="canvas-actions">');
@@ -56,6 +57,12 @@ describe("studio canvas actions markup", () => {
     expect(source).toContain("把这个提示词分享出去");
     expect(source).toContain("handleCopyCanvasPrompt");
     expect(source).toContain("<SharePromptDialog");
+  });
+
+  it("highlights copy share text instead of opening the share page", () => {
+    expect(shareDialogSource).toContain('<a href={share.shareUrl}');
+    expect(shareDialogSource).not.toContain('<a className="share-dialog-primary"');
+    expect(shareDialogSource).toContain('<button className="share-dialog-primary" type="button" onClick={() => void copyShareText()}>');
   });
 
   it("nudges users to share after saving a generated image", () => {

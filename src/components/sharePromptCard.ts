@@ -19,12 +19,7 @@ export function summarizePromptForShare(prompt: string, maxLength = 120): string
 }
 
 export function buildPromptShareCopyText(input: PromptShareCopyInput): string {
-  const prompt = normalizePrompt(input.prompt);
-  return [
-    "我在 Lumio 生成了一张图，可以直接复刻这个提示词：",
-    prompt || "这个提示词暂未公开。",
-    `打开链接生成同款：${input.shareUrl}`
-  ].join("\n");
+  return `我在 Lumio 使用Image-2生成了一张图，你可以打开链接生成同款：${input.shareUrl}`;
 }
 
 export function buildPromptShareCardSvg(input: PromptShareCardInput): string {

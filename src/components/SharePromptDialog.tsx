@@ -103,10 +103,10 @@ export function SharePromptDialog({ share, onClose, onCopyPrompt }: SharePromptD
           </article>
 
           <div className="share-dialog-actions">
-            <a className="share-dialog-primary" href={share.shareUrl} target="_blank" rel="noreferrer">
+            <a href={share.shareUrl} target="_blank" rel="noreferrer">
               打开分享页
             </a>
-            <button type="button" onClick={() => void copyShareText()}>
+            <button className="share-dialog-primary" type="button" onClick={() => void copyShareText()}>
               复制分享文案
             </button>
             <button type="button" onClick={() => void copyPrompt()}>
