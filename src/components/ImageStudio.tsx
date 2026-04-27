@@ -65,6 +65,7 @@ import {
 import { appendPromptToken, readPromptFromUrl } from "./studioPrompt";
 import { formatGlobalGenerationTotal } from "./studioStats";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
+import { uploadStudioAsset } from "./studioUpload";
 
 type AssetRef = {
   key: string;
@@ -456,35 +457,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     );
   }
 
-  async function uploadAsset(file: File, assetType: "reference" | "mask"): Promise<AssetRef> {
-    const presignResponse = await fetch("/api/uploads/presign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mimeType: file.type, assetType })
-    });
-
-    if (!presignResponse.ok) {
-      throw new StudioApiResponseError(await readApiErrorDetail(presignResponse));
-    }
-
-    const presign = (await presignResponse.json()) as AssetRef & { uploadUrl: string };
-    const uploadResponse = await fetch(presign.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error("参考图上传失败");
-    }
-
-    return {
-      key: presign.key,
-      url: presign.url,
-      mimeType: file.type
-    };
-  }
-
   function toAssetRef(reference: ReferenceAssetDescriptor): AssetRef {
     return {
       key: reference.key,
@@ -518,7 +490,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
     try {
       const uploadedReferences = referenceFiles.length
-        ? await Promise.all(Array.from(referenceFiles || []).map((file) => uploadAsset(file, "reference")))
+        ? await Promise.all(Array.from(referenceFiles || []).map((file) => uploadStudioAsset(file, "reference")))
         : [];
       const references = reusedReference
         ? [toAssetRef(reusedReference), ...uploadedReferences]
