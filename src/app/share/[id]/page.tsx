@@ -1,4 +1,5 @@
 import { ShareReportButton } from "@/components/ShareReportButton";
+import { SharePromptCopyButton } from "@/components/SharePromptCopyButton";
 import { ShareProtectedImage } from "@/components/ShareProtectedImage";
 import { ShareUnavailableRedirect } from "@/components/ShareUnavailableRedirect";
 import { getPromptShare } from "@/server/db/repositories";
@@ -50,9 +51,10 @@ export default async function PromptSharePage({
           <h1>用这个提示词生成图片</h1>
           <p className="share-compliance">{PROMPT_SHARE_COMPLIANCE_NOTICE}</p>
           <p className="share-prompt">{share.prompt}</p>
+          <SharePromptCopyButton prompt={share.prompt} />
           <div className="share-actions">
             <a className="share-primary" href={tryUrl}>
-              快去试试
+              用这个提示词生成
             </a>
             <ShareReportButton shareId={id} />
           </div>

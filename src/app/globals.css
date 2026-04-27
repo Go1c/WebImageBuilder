@@ -632,7 +632,7 @@ textarea:focus-visible {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto auto auto;
   align-content: start;
   background: linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-bg-soft) 100%);
 }
@@ -790,6 +790,60 @@ textarea:focus-visible {
   padding: 8px 32px;
 }
 
+.generation-success-panel {
+  width: min(620px, calc(100% - 48px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  justify-self: center;
+  border: 1px solid rgba(0, 188, 125, 0.24);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f0fdf8;
+  color: var(--studio-text);
+}
+
+.generation-success-panel strong {
+  display: block;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.generation-success-panel p {
+  margin: 2px 0 0;
+  color: #166534;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.generation-success-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.generation-success-actions button {
+  min-height: 32px;
+  border: 1px solid rgba(0, 188, 125, 0.28);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: white;
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.generation-success-actions button:first-child {
+  border-color: rgba(0, 188, 125, 0.48);
+  background: linear-gradient(135deg, #00bc7d, #047857);
+  color: white;
+  box-shadow: 0 12px 28px -18px rgba(0, 188, 125, 0.86);
+  animation: shareCtaPulse 2.4s ease-in-out infinite;
+}
+
 .icon-button[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -834,6 +888,56 @@ textarea:focus-visible {
   line-height: 19.5px;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.share-card-button {
+  min-width: 158px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(0, 188, 125, 0.48);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, #00bc7d, #047857);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 19.5px;
+  white-space: nowrap;
+  box-shadow: 0 12px 28px -18px rgba(0, 188, 125, 0.86);
+  animation: shareCtaPulse 2.4s ease-in-out infinite;
+}
+
+.share-card-button.is-disabled {
+  border-color: var(--studio-line-strong);
+  background: white;
+  color: var(--studio-muted);
+  opacity: 0.58;
+  cursor: not-allowed;
+  animation: none;
+  box-shadow: none;
+}
+
+@keyframes shareCtaPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 12px 28px -18px rgba(0, 188, 125, 0.86);
+  }
+
+  50% {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 34px -16px rgba(0, 188, 125, 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-card-button,
+  .generation-success-actions button:first-child {
+    animation: none;
+  }
 }
 
 .action-divider {
@@ -1319,6 +1423,153 @@ textarea:focus-visible {
   border-color: rgba(220, 38, 38, 0.3);
 }
 
+.share-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 23, 23, 0.42);
+}
+
+.prompt-share-dialog {
+  width: min(900px, 100%);
+  max-height: min(860px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 24px 70px -24px rgba(0, 0, 0, 0.35);
+}
+
+.share-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--studio-line);
+  padding: 20px 22px 16px;
+}
+
+.share-dialog-eyebrow {
+  margin: 0 0 4px;
+  color: var(--studio-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.share-dialog-header h2 {
+  margin: 0;
+  color: var(--studio-text);
+  font-size: 22px;
+  line-height: 30px;
+  letter-spacing: 0;
+}
+
+.share-dialog-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 999px;
+  background: white;
+  color: var(--studio-copy);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.share-dialog-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  padding: 22px;
+}
+
+.prompt-share-card-preview {
+  overflow: hidden;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 8px;
+  background: var(--studio-bg-soft);
+}
+
+.prompt-share-card-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.prompt-share-card-copy {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  background: white;
+}
+
+.prompt-share-card-copy span {
+  color: var(--studio-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.prompt-share-card-copy strong {
+  color: var(--studio-text);
+  font-size: 18px;
+  line-height: 25px;
+}
+
+.prompt-share-card-copy p {
+  margin: 0;
+  color: var(--studio-copy);
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.share-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.share-dialog-actions a,
+.share-dialog-actions button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 999px;
+  padding: 0 16px;
+  background: white;
+  color: var(--studio-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.share-dialog-actions .share-dialog-primary {
+  border-color: var(--studio-black);
+  background: var(--studio-black);
+  color: white;
+}
+
+.share-dialog-compliance,
+.share-dialog-status {
+  margin: 0;
+  padding: 0 22px 18px;
+  color: var(--studio-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.share-dialog-status.is-copied,
+.share-dialog-status.is-downloaded {
+  color: #047857;
+}
+
+.share-dialog-status.is-failed {
+  color: #b91c1c;
+}
+
 .share-page {
   min-height: 100vh;
   display: grid;
@@ -1433,6 +1684,37 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
+.share-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-copy-actions button {
+  min-height: 34px;
+  border: 1px solid var(--studio-line-strong);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: white;
+  color: var(--studio-copy);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.share-copy-actions span {
+  color: var(--studio-muted);
+  font-size: 12px;
+}
+
+.share-copy-actions .is-copied {
+  color: #047857;
+}
+
+.share-copy-actions .is-failed {
+  color: #b91c1c;
+}
+
 .share-actions {
   display: flex;
   align-items: center;
@@ -1518,12 +1800,16 @@ textarea:focus-visible {
 
   .canvas-area {
     min-height: 0;
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     order: -1;
   }
 
   .image-stage {
     padding: 16px 0;
+  }
+
+  .generation-success-panel {
+    width: min(620px, calc(100% - 32px));
   }
 
   .library-panel {
@@ -1567,6 +1853,10 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .share-dialog-body {
+    grid-template-columns: 1fr;
+  }
+
   .share-image-wrap {
     max-height: 420px;
   }
@@ -1607,9 +1897,27 @@ textarea:focus-visible {
     padding: 10px 16px;
   }
 
+  .generation-success-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .generation-success-actions {
+    justify-content: stretch;
+  }
+
+  .generation-success-actions button {
+    flex: 1 1 auto;
+  }
+
   .save-button {
     width: auto;
     padding: 0 14px;
+  }
+
+  .share-card-button {
+    min-width: 0;
+    flex: 1 1 160px;
   }
 
   .main-image-frame {
@@ -1642,6 +1950,19 @@ textarea:focus-visible {
 
   .share-content {
     padding: 20px;
+  }
+
+  .share-dialog-backdrop {
+    padding: 12px;
+  }
+
+  .prompt-share-dialog {
+    max-height: calc(100vh - 24px);
+  }
+
+  .share-dialog-header,
+  .share-dialog-body {
+    padding: 18px;
   }
 
   .share-content h1 {

@@ -15,7 +15,8 @@ describe("public prompt share page source", () => {
     expect(pageSource).toContain("revalidate = 0");
     expect(pageSource).toContain("<ShareUnavailableRedirect />");
     expect(pageSource).toContain("PROMPT_SHARE_COMPLIANCE_NOTICE");
-    expect(pageSource).toContain("快去试试");
+    expect(pageSource).toContain("用这个提示词生成");
+    expect(pageSource).toContain("<SharePromptCopyButton");
     expect(pageSource).toContain("<ShareProtectedImage");
     expect(protectedImageSource).toContain("share-watermark");
     expect(protectedImageSource).toContain("{watermark}");

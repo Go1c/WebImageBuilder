@@ -35,6 +35,7 @@ describe("studio canvas actions markup", () => {
 
     expect(markup).toContain("handleSaveToPortfolio");
     expect(markup).toContain("handleShareCurrentImage");
+    expect(markup).toContain("分享提示词卡片");
     expect(markup).toContain("handleClearCanvas");
     expect(markup).toContain("handleUseCurrentAsReference");
     expect(markup).toContain("handleDownloadCurrentImage");
@@ -47,6 +48,21 @@ describe("studio canvas actions markup", () => {
     const handler = readFunctionSource("handleShareCurrentImage");
 
     expect(handler).toContain("仅供学习交流，禁止传播任何色情非法内容。");
+    expect(handler).toContain("setShareDialog");
+  });
+
+  it("renders a post-generation sharing prompt", () => {
+    expect(source).toContain('className="generation-success-panel"');
+    expect(source).toContain("把这个提示词分享出去");
+    expect(source).toContain("handleCopyCanvasPrompt");
+    expect(source).toContain("<SharePromptDialog");
+  });
+
+  it("nudges users to share after saving a generated image", () => {
+    const handler = readFunctionSource("handleSaveToPortfolio");
+
+    expect(handler).toContain("已保存到作品集");
+    expect(handler).toContain("分享提示词卡片");
   });
 
   it("auto closes tips after the default timeout", () => {

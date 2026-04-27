@@ -66,6 +66,7 @@ import { appendPromptToken, readPromptFromUrl } from "./studioPrompt";
 import { formatGlobalGenerationTotal } from "./studioStats";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 import { uploadStudioAsset } from "./studioUpload";
+import { SharePromptDialog, type PromptShareDialogData } from "./SharePromptDialog";
 
 type AssetRef = {
   key: string;
@@ -213,6 +214,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [requestPreview, setRequestPreview] = useState<string | null>(null);
   const [sub2ApiSession, setSub2ApiSession] = useState<Sub2ApiSessionResponse | null>(null);
   const [loginReturnToUrl, setLoginReturnToUrl] = useState<string | null>(null);
+  const [shareDialog, setShareDialog] = useState<PromptShareDialogData | null>(null);
 
   const quality = detailStrength >= 72 ? "high" : "standard";
   const activeSize = buildGenerationSize({ ratio: ratioLabel, resolution: imageResolution });
@@ -246,6 +248,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
   const globalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations);
   const compactGlobalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations, { compact: true });
+  const canShowGenerationSuccessPanel = Boolean(canvasImage && currentTaskId && !loading);
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
@@ -482,6 +485,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
     setLoading(true);
     setTip(null);
+    setShareDialog(null);
     setSelectedHistoryThumb(null);
     setRequestPreview(buildRequestPreview(metadata));
     const controller = new AbortController();
@@ -647,6 +651,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
     setRequestPreview(null);
+    setShareDialog(null);
     showTip({
       type: "success",
       title: "提示词已套用",
@@ -662,6 +667,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedHistoryThumb(null);
     setCanvasPrompt(item.prompt || null);
     setRequestPreview(null);
+    setShareDialog(null);
     showTip({
       type: "info",
       title: "已打开作品",
@@ -676,6 +682,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setCurrentTaskId(thumb.taskId || null);
     setCanvasPrompt(thumb.prompt || null);
     setRequestPreview(null);
+    setShareDialog(null);
   }
 
   function handleOpenExplore() {
@@ -764,6 +771,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedHistoryThumb(null);
     setCanvasPrompt(null);
     setRequestPreview(null);
+    setShareDialog(null);
     showTip({
       type: "success",
       title: "已删除当前图片",
@@ -798,7 +806,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       showTip({
         type: "success",
         title: "已保存到作品集",
-        message: "可在素材库的“我的”标签查看。"
+        message: "可在素材库的“我的”标签查看。也可以点击绿色的“分享提示词卡片”，把图和提示词一起发给别人。"
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "保存到作品集", error }));
@@ -835,23 +843,19 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           complianceNotice?: string;
         };
       }>(response, "分享接口返回了非 JSON 响应，请刷新页面后重试");
-      let clipboardMessage = "分享链接已创建。";
-
-      if (navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(body.share.url);
-          clipboardMessage = "分享链接已复制到剪贴板。";
-        } catch {
-          clipboardMessage = "分享链接已创建，可打开分享页后复制。";
-        }
-      }
 
       const complianceNotice =
         body.share.complianceNotice || "仅供学习交流，禁止传播任何色情非法内容。";
+      setShareDialog({
+        imageUrl: canvasImage.url,
+        prompt: getCurrentSharePrompt(),
+        shareUrl: body.share.url,
+        complianceNotice
+      });
       showTip({
         type: "success",
-        title: "分享链接已创建",
-        message: `${clipboardMessage}${complianceNotice}`,
+        title: "分享卡片已准备好",
+        message: `可复制分享文案、下载卡片或打开分享页。${complianceNotice}`,
         actionLabel: "打开分享页",
         actionHref: body.share.url
       });
@@ -939,6 +943,31 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "复制请求预览", error }));
     }
+  }
+
+  async function handleCopyCanvasPrompt() {
+    const text = getCurrentSharePrompt();
+
+    if (!text.trim()) {
+      showDisabledTip("复制提示词", "暂无可复制内容。");
+      throw new Error("No prompt is available to copy.");
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showTip({
+        type: "success",
+        title: "已复制",
+        message: "提示词已复制到剪贴板。"
+      });
+    } catch (error) {
+      showTip(tipFromActionFailure({ kind: "failed", action: "复制提示词", error }));
+      throw error;
+    }
+  }
+
+  function getCurrentSharePrompt(): string {
+    return (canvasPrompt || promptEnhancement.finalPrompt || promptEnhancement.rawPrompt || "").trim();
   }
 
   function ensureActionEnabled(action: string, state: StudioActionState): boolean {
@@ -1223,6 +1252,26 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
             </div>
           </div>
 
+          {canShowGenerationSuccessPanel ? (
+            <div className="generation-success-panel">
+              <div>
+                <strong>生成完成</strong>
+                <p>把这个提示词分享出去，让别人一键生成同款。</p>
+              </div>
+              <div className="generation-success-actions">
+                <button type="button" onClick={() => void handleShareCurrentImage()}>
+                  分享提示词卡片
+                </button>
+                <button type="button" onClick={() => void handleCopyCanvasPrompt().catch(() => undefined)}>
+                  复制提示词
+                </button>
+                <button type="button" onClick={handleRegenerate}>
+                  再生成一张
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="canvas-actions">
             <button
               className={actionStates.save.enabled ? "save-button" : "save-button is-disabled"}
@@ -1236,15 +1285,16 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               保存到作品集
             </button>
             <button
-              className={actionStates.share.enabled ? "icon-button" : "icon-button is-disabled"}
+              className={actionStates.share.enabled ? "share-card-button" : "share-card-button is-disabled"}
               type="button"
               aria-disabled={!actionStates.share.enabled}
-              title={actionStates.share.reason || "分享提示词"}
-              data-tooltip={actionStates.share.reason || "分享提示词"}
+              title={actionStates.share.reason || "分享提示词卡片"}
+              data-tooltip={actionStates.share.reason || "分享提示词卡片"}
               onClick={() => void handleShareCurrentImage()}
-              aria-label="分享提示词"
+              aria-label="分享提示词卡片"
             >
               <StudioIcon name="share" size={16} />
+              分享提示词卡片
             </button>
             <button
               className={actionStates.delete.enabled ? "icon-button" : "icon-button is-disabled"}
@@ -1423,6 +1473,13 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         </aside>
       </div>
 
+      {shareDialog ? (
+        <SharePromptDialog
+          share={shareDialog}
+          onClose={() => setShareDialog(null)}
+          onCopyPrompt={handleCopyCanvasPrompt}
+        />
+      ) : null}
       {tip ? <StudioTipToast tip={tip} /> : null}
     </main>
   );

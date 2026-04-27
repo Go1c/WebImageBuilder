@@ -80,6 +80,17 @@ describe("studio layout CSS", () => {
     expect(disabledRules).toContain("color: var(--studio-muted)");
   });
 
+  it("emphasizes the prompt share entry with color and motion", () => {
+    const shareRule = readRule(".share-card-button");
+    const successShareRule = readRule(".generation-success-actions button:first-child");
+
+    expect(shareRule).toContain("background: linear-gradient");
+    expect(shareRule).toContain("animation: shareCtaPulse");
+    expect(successShareRule).toContain("animation: shareCtaPulse");
+    expect(css).toContain("@keyframes shareCtaPulse");
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
   it("keeps the prompt library scrollable on narrow viewports", () => {
     const rule = readMediaRule("@media (max-width: 980px)", ".library-scroll");
 
