@@ -105,6 +105,27 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
 ]);
 
 export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText">): StudioTip {
+  if (
+    (error.code === "rate_limited" || error.code === "quota_exhausted") &&
+    isDeviceQuotaExhausted(error.message)
+  ) {
+    return {
+      type: "warning",
+      title: "免费体验已用完",
+      message: "当前设备的免费体验次数已用完。请登录后使用 Lumio 账户 Key/余额继续生成；如果已经登录，请刷新页面或重新登录后再试。",
+      actionLabel: "去登录",
+      actionHref: "https://api.lumio.games/login"
+    };
+  }
+
+  if (error.code === "rate_limited" && isIpDailyLimitExhausted(error.message)) {
+    return {
+      type: "warning",
+      title: "请求过于频繁",
+      message: "当前网络今日匿名生成次数已达上限。请明天再试，或登录后使用 Lumio 账户继续生成。"
+    };
+  }
+
   if (error.code === "provider_error" && isGiftBalanceRechargeRequired(error.message)) {
     return {
       type: "warning",
@@ -144,6 +165,18 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
     title: "请求失败",
     message: withDebugDetail("请求没有完成，请稍后重试。", fallbackDetail)
   };
+}
+
+function isDeviceQuotaExhausted(message: string | undefined): boolean {
+  const normalized = message || "";
+  return (
+    normalized.includes("device_quota_exhausted") ||
+    (normalized.includes("当前设备") && normalized.includes("免费体验"))
+  );
+}
+
+function isIpDailyLimitExhausted(message: string | undefined): boolean {
+  return (message || "").includes("ip_daily_limit_exhausted");
 }
 
 function isImageGatewayUnavailable(message: string | undefined): boolean {

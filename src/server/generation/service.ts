@@ -42,6 +42,14 @@ export async function generateImagesForActor(input: {
     });
 
     if (!anonymousDecision.allowed) {
+      if (anonymousDecision.reason === "device_quota_exhausted") {
+        throw new ApiError(
+          402,
+          "quota_exhausted",
+          "当前设备的免费体验次数已用完，请登录后使用 Lumio 账户 Key/余额继续生成。"
+        );
+      }
+
       throw new ApiError(429, "rate_limited", anonymousDecision.reason);
     }
   }

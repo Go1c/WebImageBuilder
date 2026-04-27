@@ -99,6 +99,38 @@ describe("studio tips", () => {
     );
   });
 
+  it("explains exhausted anonymous device trials instead of calling them frequent requests", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "rate_limited",
+        message: "device_quota_exhausted"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "免费体验已用完"
+    });
+    expect(tip.message).toContain("当前设备");
+    expect(tip.message).toContain("登录");
+    expect(tip.message).not.toContain("请求过于频繁");
+  });
+
+  it("keeps IP daily limits as frequency protection", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "rate_limited",
+        message: "ip_daily_limit_exhausted"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "请求过于频繁"
+    });
+    expect(tip.message).toContain("今日");
+  });
+
   it("uses a useful fallback tip for unknown API errors", () => {
     const tip = tipFromApiError(apiErrorDetail({ code: "internal_error", message: "database unavailable" }));
 
