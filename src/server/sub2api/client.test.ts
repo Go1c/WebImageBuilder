@@ -158,6 +158,41 @@ describe("Sub2API client", () => {
     });
   });
 
+  it("raises a setup error when the key list endpoint cannot be fetched", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      })
+    );
+
+    await expect(getSub2ApiImageApiKey("access", "https://api.example.com/api/v1")).rejects.toMatchObject({
+      status: 402,
+      code: "account_unavailable",
+      message: expect.stringContaining("Image-2")
+    });
+  });
+
+  it("raises a setup error when the key list endpoint returns a non-JSON not found response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response("404 page not found", {
+          status: 404,
+          headers: {
+            "content-type": "text/plain"
+          }
+        })
+      )
+    );
+
+    await expect(getSub2ApiImageApiKey("access", "https://api.example.com/api/v1")).rejects.toMatchObject({
+      status: 402,
+      code: "account_unavailable",
+      message: expect.stringContaining("Image-2")
+    });
+  });
+
   it("raises clear errors when Sub2API returns a failed envelope", async () => {
     vi.stubGlobal(
       "fetch",

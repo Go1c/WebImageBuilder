@@ -97,6 +97,50 @@ describe("OpenAI image provider", () => {
     );
   });
 
+  it("sends reference asset URLs through the generations endpoint", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider().generate({
+      ...buildInput(),
+      mode: "image-to-image",
+      prompt: "keep this pose and render cinematic lighting",
+      referenceAssets: [
+        {
+          key: "uploads/reference.png",
+          url: "https://cdn.example.com/reference.png",
+          mimeType: "image/png"
+        }
+      ]
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lumio.games/v1/images/generations",
+      expect.objectContaining({ method: "POST" })
+    );
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      prompt: string;
+      reference_images?: string[];
+    };
+    expect(requestBody.prompt).toContain("keep this pose");
+    expect(requestBody.reference_images).toEqual(["https://cdn.example.com/reference.png"]);
+  });
+
   it("reports non-JSON image gateway responses clearly", async () => {
     process.env = {
       ...originalEnv,

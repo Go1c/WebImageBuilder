@@ -65,7 +65,7 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
       type: "warning",
       title: "需要创建图片生成 Key",
       message:
-        "未找到可用于图片生成的 Sub2API Key。请在 Sub2API 创建或启用一个 active API Key，并绑定到 OpenAI 平台下的 Image-2（生图专用）分组；可查看教程或帮助文档完成创建。",
+        "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。",
       actionLabel: "去创建 Key",
       actionHref: "https://api.lumio.games/keys"
     }

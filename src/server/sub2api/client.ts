@@ -96,17 +96,27 @@ export async function listSub2ApiKeys(
 }
 
 export async function getSub2ApiImageApiKey(accessToken: string, baseUrl?: string): Promise<string> {
-  const keys = await listSub2ApiKeys(accessToken, baseUrl);
+  let keys: Sub2ApiPaginatedResponse<Sub2ApiApiKey>;
+  try {
+    keys = await listSub2ApiKeys(accessToken, baseUrl);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "unauthorized") {
+      throw error;
+    }
+
+    if (isKeyLookupSetupFailure(error)) {
+      throw missingSub2ApiImageKeyError();
+    }
+
+    throw error;
+  }
+
   const imageKey = (keys.items || []).find((item) => {
     return isImageOpenAIKey(item);
   });
 
   if (!imageKey?.key) {
-    throw new ApiError(
-      402,
-      "account_unavailable",
-      "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。"
-    );
+    throw missingSub2ApiImageKeyError();
   }
 
   return imageKey.key;
@@ -116,6 +126,26 @@ function isImageOpenAIKey(item: Sub2ApiApiKey): boolean {
   const platform = item.group?.platform?.trim().toLowerCase();
   const groupName = item.group?.name?.trim().toLowerCase() || "";
   return item.status === "active" && Boolean(item.key) && platform === "openai" && groupName.includes("image");
+}
+
+function missingSub2ApiImageKeyError(): ApiError {
+  return new ApiError(
+    402,
+    "account_unavailable",
+    "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。"
+  );
+}
+
+function isKeyLookupSetupFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+  return (
+    error instanceof TypeError ||
+    message.includes("failed to fetch") ||
+    message.includes("fetch failed") ||
+    message.includes("not found") ||
+    message.includes("(404,")
+  );
 }
 
 async function requestSub2Api<T>(

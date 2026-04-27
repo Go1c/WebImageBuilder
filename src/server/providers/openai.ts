@@ -37,18 +37,31 @@ export class OpenAIImageProvider implements ImageProvider {
   constructor(private readonly options: OpenAIImageProviderOptions = {}) {}
 
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
-    if (input.mode === "text-to-image") {
-      return this.generateTextToImage(input);
+    if (input.maskAsset) {
+      return this.generateEdit(input);
     }
 
-    return this.generateEdit(input);
+    return this.generateImage(input);
   }
 
-  private async generateTextToImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
+  private async generateImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     const config = getAppConfig();
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
     const endpoint = "/v1/images/generations";
+    const body: Record<string, unknown> = {
+      model: input.providerModel,
+      prompt: buildImagePrompt(input),
+      n: input.count,
+      size: input.size,
+      quality: input.quality,
+      response_format: "b64_json"
+    };
+
+    if (input.referenceAssets.length > 0) {
+      body.reference_images = input.referenceAssets.map((asset) => asset.url);
+    }
+
     const response = await fetchOpenAI(
       openAIUrl(endpoint, baseUrl),
       {
@@ -58,14 +71,7 @@ export class OpenAIImageProvider implements ImageProvider {
           Accept: "application/json",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model: input.providerModel,
-          prompt: buildImageGenerationPrompt(input.prompt),
-          n: input.count,
-          size: input.size,
-          quality: input.quality,
-          response_format: "b64_json"
-        })
+        body: JSON.stringify(body)
       },
       getGenerationTimeoutMs(input.resolution)
     );
@@ -131,6 +137,14 @@ function buildEditPrompt(input: NormalizedGenerationInput): string {
   }
 
   return input.prompt;
+}
+
+function buildImagePrompt(input: NormalizedGenerationInput): string {
+  if (input.mode === "text-to-image") {
+    return buildImageGenerationPrompt(input.prompt);
+  }
+
+  return buildImageEditPrompt(input);
 }
 
 function buildImageGenerationPrompt(prompt: string): string {

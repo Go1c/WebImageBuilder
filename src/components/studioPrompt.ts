@@ -13,6 +13,20 @@ export function buildPromptFromLibraryItem(prompt: string, itemLabel: string): s
   return appendPromptToken(appendPromptToken(prompt, itemLabel), "精致构图，高质量图像");
 }
 
+export function insertPromptTextAtSelection(
+  prompt: string,
+  text: string,
+  selectionStart: number,
+  selectionEnd: number
+): string {
+  const start = clampSelectionIndex(selectionStart, prompt.length);
+  const end = clampSelectionIndex(selectionEnd, prompt.length);
+  const from = Math.min(start, end);
+  const to = Math.max(start, end);
+
+  return `${prompt.slice(0, from)}${text}${prompt.slice(to)}`;
+}
+
 export function readPromptFromSearchParam(
   value: string | string[] | null | undefined
 ): string | null {
@@ -27,4 +41,12 @@ export function readPromptFromUrl(urlValue: string): string | null {
   } catch {
     return null;
   }
+}
+
+function clampSelectionIndex(index: number, max: number): number {
+  if (!Number.isFinite(index)) {
+    return max;
+  }
+
+  return Math.min(Math.max(Math.floor(index), 0), max);
 }
