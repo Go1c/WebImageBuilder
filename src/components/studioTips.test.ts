@@ -95,6 +95,21 @@ describe("studio tips", () => {
     expect(tip.message).toContain("16:9");
   });
 
+  it("turns invalid 4K ratio sizes into a direct size recommendation", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "bad_request",
+        message: "status_code=400, size分辨率不合法，推荐使用 3312x2480。"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "4K 尺寸不支持"
+    });
+    expect(tip.message).toContain("3312x2480");
+  });
+
   it("explains why gift balance requires prior recharge history", () => {
     const tip = tipFromApiError(
       apiErrorDetail({

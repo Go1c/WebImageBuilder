@@ -1,18 +1,28 @@
 export type AspectRatioLabel = "1:1" | "3:4" | "4:3" | "16:9" | "9:16";
 export type ImageResolutionTier = "1K" | "2K" | "4K";
 
-const ratioValues: Record<AspectRatioLabel, { width: number; height: number }> = {
-  "1:1": { width: 1, height: 1 },
-  "3:4": { width: 3, height: 4 },
-  "4:3": { width: 4, height: 3 },
-  "16:9": { width: 16, height: 9 },
-  "9:16": { width: 9, height: 16 }
-};
-
-const resolutionLongEdges: Record<ImageResolutionTier, number> = {
-  "1K": 1024,
-  "2K": 2560,
-  "4K": 3840
+const generationSizes: Record<ImageResolutionTier, Record<AspectRatioLabel, `${number}x${number}`>> = {
+  "1K": {
+    "1:1": "1024x1024",
+    "3:4": "768x1024",
+    "4:3": "1024x768",
+    "16:9": "1024x576",
+    "9:16": "576x1024"
+  },
+  "2K": {
+    "1:1": "2560x2560",
+    "3:4": "1920x2560",
+    "4:3": "2560x1920",
+    "16:9": "2560x1440",
+    "9:16": "1440x2560"
+  },
+  "4K": {
+    "1:1": "3840x3840",
+    "3:4": "2480x3312",
+    "4:3": "3312x2480",
+    "16:9": "3840x2160",
+    "9:16": "2160x3840"
+  }
 };
 
 export const imageResolutionOptions: ImageResolutionTier[] = ["1K", "2K", "4K"];
@@ -42,14 +52,11 @@ export function buildGenerationSize(input: {
   ratio: AspectRatioLabel;
   resolution: ImageResolutionTier;
 }): { size: `${number}x${number}`; meta: string } {
-  const ratio = ratioValues[input.ratio];
-  const longEdge = resolutionLongEdges[input.resolution];
-  const scale = longEdge / Math.max(ratio.width, ratio.height);
-  const width = Math.round(ratio.width * scale);
-  const height = Math.round(ratio.height * scale);
+  const size = generationSizes[input.resolution][input.ratio];
+  const [width, height] = size.split("x").map(Number);
 
   return {
-    size: `${width}x${height}`,
+    size,
     meta: `${width} × ${height}`
   };
 }

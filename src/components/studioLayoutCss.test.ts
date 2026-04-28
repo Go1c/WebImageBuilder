@@ -44,8 +44,8 @@ describe("studio layout CSS", () => {
     expect(gridRule).toContain("height: calc(100dvh - 56px)");
     expect(gridRule).toContain("min-height: 0");
     expect(gridRule).not.toContain("min-height: 607px");
-    expect(canvasRule).toContain("grid-template-rows: auto auto auto auto");
-    expect(canvasRule).toContain("align-content: start");
+    expect(canvasRule).toContain("grid-template-rows: auto minmax(0, 1fr) auto auto");
+    expect(canvasRule).toContain("align-content: stretch");
     expect(actionsRule).toContain("position: relative");
     expect(actionsRule).toContain("z-index: 11");
   });
@@ -82,13 +82,23 @@ describe("studio layout CSS", () => {
 
   it("emphasizes the prompt share entry with color and motion", () => {
     const shareRule = readRule(".share-card-button");
-    const successShareRule = readRule(".generation-success-actions button:first-child");
 
     expect(shareRule).toContain("background: linear-gradient");
     expect(shareRule).toContain("animation: shareCtaPulse");
-    expect(successShareRule).toContain("animation: shareCtaPulse");
+    expect(css).not.toContain(".generation-success-actions");
     expect(css).toContain("@keyframes shareCtaPulse");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("lets the main canvas preview follow the image aspect ratio", () => {
+    const frameRule = readRule(".main-image-frame");
+    const imageRule = readRule(".main-image-frame img");
+
+    expect(frameRule).not.toContain("aspect-ratio: 1 / 1");
+    expect(frameRule).toContain("max-height:");
+    expect(imageRule).toContain("width: auto");
+    expect(imageRule).toContain("height: auto");
+    expect(imageRule).toContain("object-fit: contain");
   });
 
   it("keeps the prompt library scrollable on narrow viewports", () => {

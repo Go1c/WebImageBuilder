@@ -92,7 +92,8 @@ textarea:focus-visible {
 }
 
 .studio-app.is-expanded .main-image-frame {
-  width: min(72vh, calc(100vw - 96px));
+  max-width: min(72vh, calc(100vw - 96px));
+  max-height: calc(100dvh - 190px);
 }
 
 .studio-topbar {
@@ -656,8 +657,8 @@ textarea:focus-visible {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: auto auto auto auto auto;
-  align-content: start;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: stretch;
   background: linear-gradient(180deg, var(--studio-bg) 0%, var(--studio-bg-soft) 100%);
 }
 
@@ -748,15 +749,18 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(24px, 5vh, 56px) 0 14px;
+  overflow: hidden;
+  padding: clamp(18px, 4vh, 44px) 0 12px;
 }
 
 .main-image-frame {
   position: relative;
-  width: min(377px, calc(100% - 64px), max(180px, calc(100dvh - 286px)));
-  aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
+  width: fit-content;
+  max-width: min(720px, calc(100% - 64px));
+  max-height: min(620px, calc(100dvh - 240px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   border: 1px solid var(--studio-line);
   border-radius: 24px;
@@ -764,7 +768,19 @@ textarea:focus-visible {
   box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.25);
 }
 
+.main-image-frame img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(620px, calc(100dvh - 240px));
+  object-fit: contain;
+}
+
 .main-image-frame.is-empty {
+  width: min(377px, calc(100% - 64px), max(180px, calc(100dvh - 286px)));
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
   border-style: dashed;
   box-shadow: none;
   color: var(--studio-muted);
@@ -773,6 +789,10 @@ textarea:focus-visible {
 }
 
 .main-image-frame.is-loading {
+  width: min(377px, calc(100% - 64px), max(180px, calc(100dvh - 286px)));
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
   border-style: solid;
   border-color: #e5e5e5;
   background: #f5f5f5;
@@ -812,60 +832,6 @@ textarea:focus-visible {
   justify-content: center;
   gap: 8px;
   padding: 8px 32px;
-}
-
-.generation-success-panel {
-  width: min(620px, calc(100% - 48px));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  justify-self: center;
-  border: 1px solid rgba(0, 188, 125, 0.24);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: #f0fdf8;
-  color: var(--studio-text);
-}
-
-.generation-success-panel strong {
-  display: block;
-  font-size: 13px;
-  line-height: 19px;
-}
-
-.generation-success-panel p {
-  margin: 2px 0 0;
-  color: #166534;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.generation-success-actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.generation-success-actions button {
-  min-height: 32px;
-  border: 1px solid rgba(0, 188, 125, 0.28);
-  border-radius: 999px;
-  padding: 0 12px;
-  background: white;
-  color: #065f46;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.generation-success-actions button:first-child {
-  border-color: rgba(0, 188, 125, 0.48);
-  background: linear-gradient(135deg, #00bc7d, #047857);
-  color: white;
-  box-shadow: 0 12px 28px -18px rgba(0, 188, 125, 0.86);
-  animation: shareCtaPulse 2.4s ease-in-out infinite;
 }
 
 .icon-button[data-tooltip]::after {
@@ -958,8 +924,7 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .share-card-button,
-  .generation-success-actions button:first-child {
+  .share-card-button {
     animation: none;
   }
 }
@@ -1859,16 +1824,12 @@ textarea:focus-visible {
 
   .canvas-area {
     min-height: 0;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
     order: -1;
   }
 
   .image-stage {
     padding: 16px 0;
-  }
-
-  .generation-success-panel {
-    width: min(620px, calc(100% - 32px));
   }
 
   .library-panel {
@@ -1956,19 +1917,6 @@ textarea:focus-visible {
     padding: 10px 16px;
   }
 
-  .generation-success-panel {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .generation-success-actions {
-    justify-content: stretch;
-  }
-
-  .generation-success-actions button {
-    flex: 1 1 auto;
-  }
-
   .save-button {
     width: auto;
     padding: 0 14px;
@@ -1980,7 +1928,8 @@ textarea:focus-visible {
   }
 
   .main-image-frame {
-    width: min(377px, calc(100% - 32px));
+    max-width: calc(100% - 32px);
+    max-height: min(70vh, 520px);
   }
 
   .canvas-history {

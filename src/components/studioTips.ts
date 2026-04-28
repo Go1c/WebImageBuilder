@@ -137,6 +137,17 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
     };
   }
 
+  if (error.code === "bad_request" && isUnsupported4KRatioSize(error.message)) {
+    return {
+      type: "warning",
+      title: "4K 尺寸不支持",
+      message: withDebugDetail(
+        "4K 的 4:3 请使用 3312x2480，3:4 请使用 2480x3312；16:9 推荐 3840x2160。",
+        error.message
+      )
+    };
+  }
+
   if (error.code === "provider_error" && isGiftBalanceRechargeRequired(error.message)) {
     return {
       type: "warning",
@@ -193,6 +204,18 @@ function isIpDailyLimitExhausted(message: string | undefined): boolean {
 function isUnsupported4KSquareSize(message: string | undefined): boolean {
   const normalized = message || "";
   return normalized.includes("4K") && normalized.includes("1:1");
+}
+
+function isUnsupported4KRatioSize(message: string | undefined): boolean {
+  const normalized = message || "";
+  const includesRecommendedSize =
+    normalized.includes("3312x2480") || normalized.includes("2480x3312");
+
+  return (
+    (normalized.includes("4K") &&
+      (includesRecommendedSize || normalized.includes("size分辨率不合法"))) ||
+    (normalized.includes("size分辨率不合法") && includesRecommendedSize)
+  );
 }
 
 function isImageGatewayUnavailable(message: string | undefined): boolean {

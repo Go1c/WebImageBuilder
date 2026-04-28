@@ -114,6 +114,13 @@ const generationInputSchema = z.object({
   sessionId: z.string().uuid().optional()
 });
 
+const supported4KGenerationSizes = new Set<NormalizedGenerationInput["size"]>([
+  "3840x2160",
+  "2160x3840",
+  "3312x2480",
+  "2480x3312"
+]);
+
 export const modelKeys = Object.keys(modelOptions) as ModelKey[];
 export const generationModes = Object.keys(modeCapabilities) as GenerationMode[];
 
@@ -186,9 +193,27 @@ function assertResolutionSupportsSize(
   resolution: ImageResolutionTier,
   size: NormalizedGenerationInput["size"]
 ): void {
+  if (resolution !== "4K") {
+    return;
+  }
+
   const [width, height] = size.split("x").map(Number);
 
-  if (resolution === "4K" && width === height) {
+  if (supported4KGenerationSizes.has(size)) {
+    return;
+  }
+
+  if (width === height) {
     throw new Error("4K 不支持 1:1 尺寸，请改用 16:9（推荐 3840x2160）。");
   }
+
+  if (size === "3840x2880") {
+    throw new Error("4K 4:3 尺寸不支持 3840x2880，请改用 3312x2480。");
+  }
+
+  if (size === "2880x3840") {
+    throw new Error("4K 3:4 尺寸不支持 2880x3840，请改用 2480x3312。");
+  }
+
+  throw new Error("4K 尺寸不支持，请改用 3840x2160、2160x3840、3312x2480 或 2480x3312。");
 }

@@ -115,6 +115,38 @@ describe("model and generation request rules", () => {
     ).toThrow("4K 不支持 1:1");
   });
 
+  it("accepts provider-supported 4K 4:3 and 3:4 generation sizes", () => {
+    const baseInput = {
+      prompt: "A red robot",
+      mode: "text-to-image" as const,
+      model: "gpt-image-2" as const,
+      resolution: "4K" as const
+    };
+
+    expect(normalizeGenerationInput({ ...baseInput, size: "3312x2480" }).size).toBe(
+      "3312x2480"
+    );
+    expect(normalizeGenerationInput({ ...baseInput, size: "2480x3312" }).size).toBe(
+      "2480x3312"
+    );
+  });
+
+  it("rejects old calculated 4K 4:3 and 3:4 generation sizes with direct guidance", () => {
+    const baseInput = {
+      prompt: "A red robot",
+      mode: "text-to-image" as const,
+      model: "gpt-image-2" as const,
+      resolution: "4K" as const
+    };
+
+    expect(() => normalizeGenerationInput({ ...baseInput, size: "3840x2880" })).toThrow(
+      "3312x2480"
+    );
+    expect(() => normalizeGenerationInput({ ...baseInput, size: "2880x3840" })).toThrow(
+      "2480x3312"
+    );
+  });
+
   it("documents V1 and V1.1 capabilities separately", () => {
     expect(getGenerationModeCapabilities("text-to-image").release).toBe("v1");
     expect(getGenerationModeCapabilities("image-to-image").release).toBe("v1");

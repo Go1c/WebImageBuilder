@@ -52,8 +52,9 @@ describe("studio canvas actions markup", () => {
     expect(handler).toContain("setShareDialog");
   });
 
-  it("renders a post-generation sharing prompt", () => {
-    expect(source).toContain('className="generation-success-panel"');
+  it("routes post-generation sharing guidance through the right-side tip instead of a blocking panel", () => {
+    expect(source).not.toContain('className="generation-success-panel"');
+    expect(source).not.toContain("generation-success-actions");
     expect(source).toContain("把这个提示词分享出去");
     expect(source).toContain("handleCopyCanvasPrompt");
     expect(source).toContain("<SharePromptDialog");

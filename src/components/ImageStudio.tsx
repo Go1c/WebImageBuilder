@@ -265,7 +265,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
   const globalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations);
   const compactGlobalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations, { compact: true });
-  const canShowGenerationSuccessPanel = Boolean(canvasImage && currentTaskId && !loading);
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
@@ -554,7 +553,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       showTip({
         type: "success",
         title: "生成完成",
-        message: "结果已更新到画布。"
+        message: "把这个提示词分享出去，让别人一键生成同款。"
       });
       await refreshData();
       await refreshSub2ApiSession({ silent: true });
@@ -1325,26 +1324,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               ) : null}
             </div>
           </div>
-
-          {canShowGenerationSuccessPanel ? (
-            <div className="generation-success-panel">
-              <div>
-                <strong>生成完成</strong>
-                <p>把这个提示词分享出去，让别人一键生成同款。</p>
-              </div>
-              <div className="generation-success-actions">
-                <button type="button" onClick={() => void handleShareCurrentImage()}>
-                  分享提示词卡片
-                </button>
-                <button type="button" onClick={() => void handleCopyCanvasPrompt().catch(() => undefined)}>
-                  复制提示词
-                </button>
-                <button type="button" onClick={handleRegenerate}>
-                  再生成一张
-                </button>
-              </div>
-            </div>
-          ) : null}
 
           <div className="canvas-actions">
             <button
