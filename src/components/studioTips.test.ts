@@ -80,6 +80,21 @@ describe("studio tips", () => {
     expect(tip.message).not.toContain("Sub2API");
   });
 
+  it("turns invalid 4K square requests into a direct size tip", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "bad_request",
+        message: "4K 不支持 1:1 尺寸，请改用 16:9。"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "4K 不支持 1:1"
+    });
+    expect(tip.message).toContain("16:9");
+  });
+
   it("explains why gift balance requires prior recharge history", () => {
     const tip = tipFromApiError(
       apiErrorDetail({

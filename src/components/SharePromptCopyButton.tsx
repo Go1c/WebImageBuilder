@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildPromptShareCopyText } from "./sharePromptCard";
 
 export function SharePromptCopyButton({ prompt }: { prompt: string }) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+
+  useEffect(() => {
+    if (status === "idle") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus("idle");
+    }, 2000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [status]);
 
   async function copyPrompt() {
     try {
@@ -38,9 +50,9 @@ export function SharePromptCopyButton({ prompt }: { prompt: string }) {
         复制分享文案
       </button>
       {status !== "idle" ? (
-        <span className={status === "copied" ? "is-copied" : "is-failed"} aria-live="polite">
+        <div className={`share-copy-toast ${status === "copied" ? "is-copied" : "is-failed"}`} role="status" aria-live="polite">
           {status === "copied" ? "已复制" : "复制失败"}
-        </span>
+        </div>
       ) : null}
     </div>
   );

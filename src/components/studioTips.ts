@@ -126,6 +126,17 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
     };
   }
 
+  if (error.code === "bad_request" && isUnsupported4KSquareSize(error.message)) {
+    return {
+      type: "warning",
+      title: "4K 不支持 1:1",
+      message: withDebugDetail(
+        "4K 分辨率不支持 1:1 方图。请改用 16:9（推荐 3840x2160），或先降到 1K/2K 再生成方图。",
+        error.message
+      )
+    };
+  }
+
   if (error.code === "provider_error" && isGiftBalanceRechargeRequired(error.message)) {
     return {
       type: "warning",
@@ -177,6 +188,11 @@ function isDeviceQuotaExhausted(message: string | undefined): boolean {
 
 function isIpDailyLimitExhausted(message: string | undefined): boolean {
   return (message || "").includes("ip_daily_limit_exhausted");
+}
+
+function isUnsupported4KSquareSize(message: string | undefined): boolean {
+  const normalized = message || "";
+  return normalized.includes("4K") && normalized.includes("1:1");
 }
 
 function isImageGatewayUnavailable(message: string | undefined): boolean {

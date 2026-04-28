@@ -103,6 +103,18 @@ describe("model and generation request rules", () => {
     ).toThrow();
   });
 
+  it("rejects square 4K generation sizes before provider submission", () => {
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "gpt-image-2",
+        size: "3840x3840",
+        resolution: "4K"
+      })
+    ).toThrow("4K 不支持 1:1");
+  });
+
   it("documents V1 and V1.1 capabilities separately", () => {
     expect(getGenerationModeCapabilities("text-to-image").release).toBe("v1");
     expect(getGenerationModeCapabilities("image-to-image").release).toBe("v1");

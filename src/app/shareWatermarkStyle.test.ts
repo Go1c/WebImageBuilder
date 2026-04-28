@@ -11,4 +11,19 @@ describe("share watermark style", () => {
     expect(rule).toContain("transform:");
     expect(rule).toContain("rotate(-");
   });
+
+  it("fits shared images inside the preview instead of cropping their top or bottom", () => {
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const protectedImageStart = css.indexOf(".share-protected-image");
+    const protectedImageEnd = css.indexOf("\n.", protectedImageStart + 1);
+    const protectedImageRule = css.slice(protectedImageStart, protectedImageEnd);
+    const dialogImageStart = css.indexOf(".prompt-share-card-preview img");
+    const dialogImageEnd = css.indexOf("\n.", dialogImageStart + 1);
+    const dialogImageRule = css.slice(dialogImageStart, dialogImageEnd);
+
+    expect(protectedImageRule).toContain("background-size: contain");
+    expect(protectedImageRule).not.toContain("background-size: cover");
+    expect(dialogImageRule).toContain("object-fit: contain");
+    expect(dialogImageRule).not.toContain("object-fit: cover");
+  });
 });

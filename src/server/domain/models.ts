@@ -151,6 +151,7 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
 
   const model = getModelOption(parsed.model);
   const size = parsed.size as NormalizedGenerationInput["size"];
+  assertResolutionSupportsSize(parsed.resolution, size);
 
   return {
     ...parsed,
@@ -179,4 +180,15 @@ function getOpenAIProviderModel(resolution: ImageResolutionTier): string {
   }
 
   return process.env.OPENAI_IMAGE_PRO_MODEL || "gpt-image-2pro";
+}
+
+function assertResolutionSupportsSize(
+  resolution: ImageResolutionTier,
+  size: NormalizedGenerationInput["size"]
+): void {
+  const [width, height] = size.split("x").map(Number);
+
+  if (resolution === "4K" && width === height) {
+    throw new Error("4K 不支持 1:1 尺寸，请改用 16:9（推荐 3840x2160）。");
+  }
 }

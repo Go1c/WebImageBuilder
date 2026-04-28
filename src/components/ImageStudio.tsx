@@ -41,6 +41,8 @@ import {
 import {
   buildGenerationSize,
   getGenerationRequestTimeoutMs,
+  getRecommendedRatioForResolution,
+  getUnsupportedGenerationSizeReason,
   imageResolutionOptions,
   type AspectRatioLabel,
   type ImageResolutionTier
@@ -63,6 +65,14 @@ import {
   selectVisibleCanvasImage
 } from "./studioCanvas";
 import { appendPromptToken, readPromptFromUrl } from "./studioPrompt";
+import {
+  appendReferenceFiles,
+  appendReusedReference,
+  buildReferencePreviewItems,
+  removeReferenceFileAt,
+  removeReusedReferenceAt,
+  type ReferencePreviewItem
+} from "./studioReferences";
 import { formatGlobalGenerationTotal } from "./studioStats";
 import { tipFromActionFailure, tipFromApiError, type StudioTip } from "./studioTips";
 import { uploadStudioAsset } from "./studioUpload";
@@ -194,8 +204,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [selectedTypes, setSelectedTypes] = useState<PromptTypeKey[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<PromptStylePresetKey | null>(null);
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
-  const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
-  const [reusedReference, setReusedReference] = useState<ReferenceAssetDescriptor | null>(null);
+  const [referencePreviewUrls, setReferencePreviewUrls] = useState<string[]>([]);
+  const [reusedReferences, setReusedReferences] = useState<ReferenceAssetDescriptor[]>([]);
   const [quota, setQuota] = useState<QuotaResponse | null>(null);
   const [globalStats, setGlobalStats] = useState<StatsResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -226,8 +236,15 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
   );
-  const referenceCount = referenceFiles.length + (reusedReference ? 1 : 0);
-  const visibleReferencePreviewUrl = referencePreviewUrl || reusedReference?.url || null;
+  const referenceCount = referenceFiles.length + reusedReferences.length;
+  const referencePreviewItems = useMemo(
+    () =>
+      buildReferencePreviewItems({
+        reusedReferenceUrls: reusedReferences.map((reference) => reference.url),
+        filePreviewUrls: referencePreviewUrls
+      }),
+    [referencePreviewUrls, reusedReferences]
+  );
   const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
   const canShareCurrentCanvas = Boolean(canvasImage && currentTaskId);
@@ -337,15 +354,17 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }, [portfolioAssetStore]);
 
   useEffect(() => {
-    if (!referenceFiles[0]) {
-      setReferencePreviewUrl(null);
+    if (!referenceFiles.length) {
+      setReferencePreviewUrls([]);
       return;
     }
 
-    const nextUrl = URL.createObjectURL(referenceFiles[0]);
-    setReferencePreviewUrl(nextUrl);
+    const nextUrls = referenceFiles.map((file) => URL.createObjectURL(file));
+    setReferencePreviewUrls(nextUrls);
 
-    return () => URL.revokeObjectURL(nextUrl);
+    return () => {
+      nextUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
   }, [referenceFiles]);
 
   useEffect(() => {
@@ -496,9 +515,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       const uploadedReferences = referenceFiles.length
         ? await Promise.all(Array.from(referenceFiles || []).map((file) => uploadStudioAsset(file, "reference")))
         : [];
-      const references = reusedReference
-        ? [toAssetRef(reusedReference), ...uploadedReferences]
-        : uploadedReferences;
+      const references = [...reusedReferences.map(toAssetRef), ...uploadedReferences];
 
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -533,7 +550,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       setSelectedHistoryThumb(null);
       setCanvasPrompt(result.prompt || submissionPrompt);
       setQuota((current) => (current ? { ...current, quota: result.quota } : current));
-      setReusedReference(null);
+      setReusedReferences([]);
       showTip({
         type: "success",
         title: "生成完成",
@@ -582,7 +599,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       negativePrompt: metadata.negativePrompt,
       providerSupportNotes: [
         ...metadata.providerSupportNotes,
-        ...(reusedReference ? [urlOnlyReferenceSupportNote] : [])
+        ...(reusedReferences.length ? [urlOnlyReferenceSupportNote] : [])
       ],
       model,
       mode: submitMode,
@@ -612,13 +629,12 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
-    setReferenceFiles(nextFiles);
-    setReusedReference(null);
+    setReferenceFiles((currentFiles) => appendReferenceFiles(currentFiles, nextFiles));
     setMode("image-to-image");
     showTip({
       type: "success",
       title: "参考图已添加",
-      message: `已选择 ${nextFiles.length} 张参考图，生成时会作为文件上传。`
+      message: `已追加 ${nextFiles.length} 张参考图，当前共 ${referenceCount + nextFiles.length} 张。`
     });
   }
 
@@ -627,7 +643,56 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     event.currentTarget.value = "";
   }
 
+  function handleRemoveReference(item: ReferencePreviewItem) {
+    if (item.kind === "reused") {
+      setReusedReferences((currentReferences) =>
+        removeReusedReferenceAt(currentReferences, item.reusedIndex ?? -1)
+      );
+    } else {
+      setReferenceFiles((currentFiles) => removeReferenceFileAt(currentFiles, item.fileIndex ?? -1));
+    }
+
+    showTip({
+      type: "info",
+      title: "参考图已删除",
+      message: `${item.alt} 已从下一次生成请求中移除。`
+    });
+  }
+
+  function handleResolutionChange(nextResolution: ImageResolutionTier) {
+    const recommendedRatio = getRecommendedRatioForResolution(nextResolution);
+    const unsupportedReason = getUnsupportedGenerationSizeReason({
+      ratio: ratioLabel,
+      resolution: nextResolution
+    });
+
+    setImageResolution(nextResolution);
+
+    if (recommendedRatio && unsupportedReason) {
+      setRatioLabel(recommendedRatio);
+      showTip({
+        type: "warning",
+        title: "已切换为 16:9",
+        message: `${unsupportedReason} 已为你切换到推荐的 ${recommendedRatio}。`
+      });
+    }
+  }
+
   function handleRatioChange(option: (typeof ratioOptions)[number]) {
+    const unsupportedReason = getUnsupportedGenerationSizeReason({
+      ratio: option.label,
+      resolution: imageResolution
+    });
+
+    if (unsupportedReason) {
+      showTip({
+        type: "warning",
+        title: "4K 不支持 1:1",
+        message: unsupportedReason
+      });
+      return;
+    }
+
     setRatioLabel(option.label);
   }
 
@@ -880,15 +945,16 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
-    setReferenceFiles([]);
-    setReusedReference(result.reference);
+    setReusedReferences((currentReferences) =>
+      appendReusedReference(currentReferences, result.reference)
+    );
     setSelectedInspirationImage(result.reference.url);
     setSelectedHistoryThumb(null);
     setMode("image-to-image");
     showTip({
       type: "info",
       title: "已设为参考图",
-      message: "当前画布图片会作为 URL 参考图随下一次生成请求发送。"
+      message: "当前画布图片已追加到参考图列表，会随下一次生成请求发送。"
     });
   }
 
@@ -1095,13 +1161,21 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                   placeholder="描述你想要的画面，例如：一只在赛博朋克霓虹街道上漫步的白猫，电影感光线"
                 />
                 <div className="prompt-action-row">
-                  <div className={visibleReferencePreviewUrl ? "reference-row has-reference" : "reference-row"}>
-                    {visibleReferencePreviewUrl ? (
-                      <div className="reference-thumb">
+                  <div className={referencePreviewItems.length ? "reference-row has-reference" : "reference-row"}>
+                    {referencePreviewItems.map((item) => (
+                      <div className="reference-thumb" key={item.id}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={visibleReferencePreviewUrl} alt="参考图" />
+                        <img src={item.url} alt={item.alt} />
+                        <button
+                          className="reference-remove"
+                          type="button"
+                          aria-label={`删除${item.alt}`}
+                          onClick={() => handleRemoveReference(item)}
+                        >
+                          x
+                        </button>
                       </div>
-                    ) : null}
+                    ))}
                     <label className="reference-add" aria-label="添加参考图">
                       <StudioIcon name="plus" size={16} />
                       <input
@@ -1116,7 +1190,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                     <span>分辨率</span>
                     <select
                       value={imageResolution}
-                      onChange={(event) => setImageResolution(event.currentTarget.value as ImageResolutionTier)}
+                      onChange={(event) => handleResolutionChange(event.currentTarget.value as ImageResolutionTier)}
                       aria-label="图片分辨率"
                     >
                       {imageResolutionOptions.map((option) => (

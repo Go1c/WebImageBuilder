@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildGenerationSize, getGenerationRequestTimeoutMs } from "./studioSize";
+import {
+  buildGenerationSize,
+  getGenerationRequestTimeoutMs,
+  getRecommendedRatioForResolution,
+  getUnsupportedGenerationSizeReason
+} from "./studioSize";
 
 describe("studio generation size", () => {
   it("keeps 1K square as the default generation size", () => {
@@ -20,5 +25,18 @@ describe("studio generation size", () => {
     expect(getGenerationRequestTimeoutMs("1K")).toBe(120_000);
     expect(getGenerationRequestTimeoutMs("2K")).toBe(240_000);
     expect(getGenerationRequestTimeoutMs("4K")).toBe(240_000);
+  });
+
+  it("recommends 16:9 when switching to 4K", () => {
+    expect(getRecommendedRatioForResolution("4K")).toBe("16:9");
+    expect(getRecommendedRatioForResolution("1K")).toBeNull();
+    expect(getRecommendedRatioForResolution("2K")).toBeNull();
+  });
+
+  it("blocks square 4K sizes before they reach the provider", () => {
+    expect(getUnsupportedGenerationSizeReason({ ratio: "1:1", resolution: "4K" })).toContain(
+      "4K 不支持 1:1"
+    );
+    expect(getUnsupportedGenerationSizeReason({ ratio: "16:9", resolution: "4K" })).toBeNull();
   });
 });

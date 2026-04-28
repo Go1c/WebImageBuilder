@@ -21,6 +21,23 @@ export function getGenerationRequestTimeoutMs(resolution: ImageResolutionTier): 
   return resolution === "1K" ? 120_000 : 240_000;
 }
 
+export function getRecommendedRatioForResolution(
+  resolution: ImageResolutionTier
+): AspectRatioLabel | null {
+  return resolution === "4K" ? "16:9" : null;
+}
+
+export function getUnsupportedGenerationSizeReason(input: {
+  ratio: AspectRatioLabel;
+  resolution: ImageResolutionTier;
+}): string | null {
+  if (input.resolution === "4K" && input.ratio === "1:1") {
+    return "4K 不支持 1:1 尺寸，请改用 16:9（推荐 3840x2160）。";
+  }
+
+  return null;
+}
+
 export function buildGenerationSize(input: {
   ratio: AspectRatioLabel;
   resolution: ImageResolutionTier;

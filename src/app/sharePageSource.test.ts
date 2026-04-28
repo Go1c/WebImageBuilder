@@ -45,4 +45,13 @@ describe("public prompt share page source", () => {
     expect(protectedImageSource).toContain("backgroundImage");
     expect(protectedImageSource).toContain("share-watermark");
   });
+
+  it("uses a temporary toast for public share copy feedback", () => {
+    const copyButtonSource = readFileSync("src/components/SharePromptCopyButton.tsx", "utf8");
+
+    expect(copyButtonSource).toContain("share-copy-toast");
+    expect(copyButtonSource).toContain("window.setTimeout");
+    expect(copyButtonSource).toContain("2000");
+    expect(copyButtonSource).toContain("setStatus(\"idle\")");
+  });
 });

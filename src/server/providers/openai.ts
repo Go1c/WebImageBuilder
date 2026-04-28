@@ -148,19 +148,26 @@ function buildImagePrompt(input: NormalizedGenerationInput): string {
 }
 
 function buildImageGenerationPrompt(prompt: string): string {
-  return [
-    "Generate an image from the following description. Do not answer with text.",
-    "Image description:",
-    prompt
-  ].join("\n");
+  return buildSectionedImagePrompt({
+    systemPrompt:
+      "You are in image generation mode. Generate an image according to the user prompt. Do not answer with conversational text, markdown, code, or analysis. If the prompt asks for visible text inside the image, render that text accurately as part of the image.",
+    userPrompt: prompt
+  });
 }
 
 function buildImageEditPrompt(input: NormalizedGenerationInput): string {
-  return [
-    "Generate an image edit using the provided reference image(s). Do not answer with text.",
-    "Image edit instruction:",
-    buildEditPrompt(input)
-  ].join("\n");
+  return buildSectionedImagePrompt({
+    systemPrompt:
+      "You are in image editing mode. Generate an edited image using the provided reference image(s). Do not answer with conversational text, markdown, code, or analysis. Preserve reference identity and composition when the user asks for it.",
+    userPrompt: buildEditPrompt(input)
+  });
+}
+
+function buildSectionedImagePrompt(input: {
+  systemPrompt: string;
+  userPrompt: string;
+}): string {
+  return ["System prompt:", input.systemPrompt, "", "User prompt:", input.userPrompt].join("\n");
 }
 
 function openAIUrl(path: string, baseUrl = getAppConfig().openaiBaseUrl): string {

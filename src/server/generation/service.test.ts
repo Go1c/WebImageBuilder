@@ -50,4 +50,33 @@ describe("generation service", () => {
       code: "quota_exhausted"
     });
   });
+
+  it("reports invalid 4K square requests as client errors", async () => {
+    await expect(
+      generateImagesForActor({
+        actor: {
+          type: "anonymous",
+          anonymousDeviceId: "anon-1",
+          deviceId: "device-1",
+          ipHash: "ip-1"
+        },
+        rawInput: {
+          prompt: "simple test image",
+          mode: "text-to-image",
+          model: "gpt-image-2",
+          size: "3840x3840",
+          resolution: "4K",
+          quality: "standard",
+          count: 1,
+          referenceAssets: []
+        }
+      })
+    ).rejects.toMatchObject<Partial<ApiError>>({
+      status: 400,
+      code: "bad_request",
+      message: expect.stringContaining("4K 不支持 1:1")
+    });
+
+    expect(getQuotaState).not.toHaveBeenCalled();
+  });
 });

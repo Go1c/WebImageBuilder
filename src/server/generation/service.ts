@@ -32,7 +32,7 @@ export async function generateImagesForActor(input: {
   rawInput: unknown;
   sub2ApiAccessToken?: string;
 }): Promise<GenerateResult> {
-  const generation = normalizeGenerationInput(input.rawInput);
+  const generation = normalizeGenerationInputOrThrowBadRequest(input.rawInput);
   const quotaState = await getQuotaState(input.actor);
 
   if (input.actor.type === "anonymous") {
@@ -154,6 +154,18 @@ async function generateWithSub2ApiAccount(input: {
 
 export function summarizeGeneration(input: NormalizedGenerationInput): string {
   return `${input.model} ${input.mode} ${input.size} x${input.count}`;
+}
+
+function normalizeGenerationInputOrThrowBadRequest(input: unknown): NormalizedGenerationInput {
+  try {
+    return normalizeGenerationInput(input);
+  } catch (error) {
+    throw new ApiError(400, "bad_request", readGenerationInputErrorMessage(error));
+  }
+}
+
+function readGenerationInputErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : "Invalid generation request";
 }
 
 function buildResultPrefix(actor: Actor, taskId: string): string {

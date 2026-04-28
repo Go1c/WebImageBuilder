@@ -65,6 +65,37 @@ describe("OpenAI image provider", () => {
     expect(requestBody.prompt).not.toBe("blue circle icon");
   });
 
+  it("keeps drawing instructions separate from the user prompt", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider().generate({
+      ...buildInput(),
+      prompt: "画一张发光的蓝色圆形图标"
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      prompt: string;
+    };
+    expect(requestBody.prompt).toContain("System prompt:");
+    expect(requestBody.prompt).toContain("User prompt:");
+    expect(requestBody.prompt).toContain("You are in image generation mode");
+    expect(requestBody.prompt).toMatch(/User prompt:\n画一张发光的蓝色圆形图标$/);
+  });
+
   it("can route a request through a supplied Sub2API gateway key", async () => {
     process.env = {
       ...originalEnv,

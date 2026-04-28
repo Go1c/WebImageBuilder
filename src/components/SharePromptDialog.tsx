@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   buildPromptShareCardSvg,
   buildPromptShareCopyText,
@@ -26,6 +26,18 @@ type ShareActionStatus = "idle" | "copied" | "downloaded" | "failed";
 export function SharePromptDialog({ share, onClose, onCopyPrompt }: SharePromptDialogProps) {
   const [status, setStatus] = useState<ShareActionStatus>("idle");
   const promptSummary = summarizePromptForShare(share.prompt, 110);
+
+  useEffect(() => {
+    if (status === "idle") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus("idle");
+    }, 2000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [status]);
 
   async function copyShareText() {
     try {
@@ -120,7 +132,7 @@ export function SharePromptDialog({ share, onClose, onCopyPrompt }: SharePromptD
 
         <p className="share-dialog-compliance">{share.complianceNotice}</p>
         {status !== "idle" ? (
-          <p className={`share-dialog-status is-${status}`} aria-live="polite">
+          <p className={`share-copy-toast share-dialog-status is-${status}`} role="status" aria-live="polite">
             {status === "copied"
               ? "已复制"
               : status === "downloaded"
