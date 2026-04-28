@@ -1747,9 +1747,11 @@ textarea:focus-visible {
   z-index: 60;
   min-width: 128px;
   max-width: min(320px, calc(100vw - 32px));
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   padding: 11px 18px;
-  background: rgba(23, 23, 23, 0.92);
+  background:
+    linear-gradient(135deg, rgba(23, 23, 23, 0.96), rgba(64, 64, 64, 0.94));
   color: white;
   font-size: 14px;
   font-weight: 700;
@@ -1761,11 +1763,15 @@ textarea:focus-visible {
 
 .share-copy-toast.is-copied,
 .share-copy-toast.is-downloaded {
-  background: rgba(4, 120, 87, 0.95);
+  background:
+    linear-gradient(135deg, rgba(23, 23, 23, 0.96), rgba(64, 64, 64, 0.94));
+  color: white;
 }
 
 .share-copy-toast.is-failed {
-  background: rgba(185, 28, 28, 0.95);
+  background:
+    linear-gradient(135deg, rgba(23, 23, 23, 0.96), rgba(64, 64, 64, 0.94));
+  color: white;
 }
 
 .share-actions {
