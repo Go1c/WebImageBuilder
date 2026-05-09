@@ -6,6 +6,12 @@ import {
   type GeneratedImage,
   type ImageProvider
 } from "./types";
+import {
+  formatNonJsonUpstreamResponse,
+  formatUpstreamErrorMessage,
+  readUpstreamResponseBody,
+  type UpstreamResponseBody
+} from "./upstream";
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -81,7 +87,7 @@ export class GeminiImageProvider implements ImageProvider {
       getGenerationTimeoutMs(input.resolution)
     );
 
-    return parseGeminiResponse((await response.json()) as GeminiResponse, response.status);
+    return parseGeminiResponse(await readUpstreamResponseBody<GeminiResponse>(response), response.status);
   }
 }
 
@@ -117,13 +123,24 @@ function buildPrompt(input: NormalizedGenerationInput): string {
   return input.prompt;
 }
 
-function parseGeminiResponse(body: GeminiResponse, status: number): GeneratedImage[] {
+function parseGeminiResponse(body: UpstreamResponseBody<GeminiResponse>, status: number): GeneratedImage[] {
   if (status >= 400) {
-    throw new Error(body.error?.message || `Gemini image request failed: ${status}`);
+    throw new Error(
+      formatUpstreamErrorMessage({
+        body,
+        fallbackMessage: `Gemini image request failed: ${status}`,
+        primaryMessage: body.json?.error?.message,
+        status
+      })
+    );
+  }
+
+  if (!body.json) {
+    throw new Error(formatNonJsonUpstreamResponse({ body, label: "Gemini 图像网关", status }));
   }
 
   const images: GeneratedImage[] = [];
-  for (const candidate of body.candidates || []) {
+  for (const candidate of body.json.candidates || []) {
     for (const part of candidate.content?.parts || []) {
       const inline = part.inlineData
         ? {

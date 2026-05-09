@@ -57,7 +57,7 @@ function parseStructuredError(text: string): Pick<ApiErrorDetail, "code" | "mess
       message?: unknown;
     };
     const code = pickString(body.error?.code) || pickString(body.code);
-    const message = summarizeResponseText(pickString(body.error?.message) || pickString(body.message) || "");
+    const message = pickString(body.error?.message) || pickString(body.message) || "";
 
     return code || message ? { ...(code ? { code } : {}), message: message || "" } : null;
   } catch {

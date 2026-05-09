@@ -171,6 +171,26 @@ describe("studio tips", () => {
     expect(tip.message).toContain("database unavailable");
   });
 
+  it("does not truncate provider error details before showing them in the tip", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: `OpenAI image request failed: 502
+Upstream response:
+{
+  "error": {
+    "message": "${"gateway detail ".repeat(40)}complete-tail"
+  },
+  "request_id": "req_full_error"
+}`
+      })
+    );
+
+    expect(tip.message).toContain('"request_id": "req_full_error"');
+    expect(tip.message).toContain("complete-tail");
+    expect(tip.message.endsWith("...")).toBe(false);
+  });
+
   it("falls back safely for prototype-name API error codes", () => {
     const tip = tipFromApiError(apiErrorDetail({ code: "__proto__", message: "prototype lookup detail" }));
 

@@ -53,6 +53,34 @@ describe("API error parsing", () => {
     );
   });
 
+  it("preserves complete structured provider error messages", async () => {
+    const providerMessage = `OpenAI image request failed: 502
+Upstream response:
+{
+  "error": {
+    "message": "model overloaded",
+    "code": "overloaded"
+  },
+  "request_id": "req_full_error",
+  "debug": "${"upstream detail ".repeat(80)}complete-tail"
+}`;
+    const response = Response.json(
+      {
+        error: {
+          code: "provider_error",
+          message: providerMessage
+        }
+      },
+      { status: 502 }
+    );
+
+    const detail = await readApiErrorDetail(response);
+
+    expect(detail.message).toContain('"request_id": "req_full_error"');
+    expect(detail.message).toContain("complete-tail");
+    expect(detail.message.endsWith("...")).toBe(false);
+  });
+
   it("includes plain text gateway error bodies", async () => {
     const response = new Response("Bad Gateway: upstream closed before response", {
       status: 502,

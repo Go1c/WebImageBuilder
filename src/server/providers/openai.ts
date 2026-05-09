@@ -6,6 +6,12 @@ import {
   type GeneratedImage,
   type ImageProvider
 } from "./types";
+import {
+  formatNonJsonUpstreamResponse,
+  formatUpstreamErrorMessage,
+  readUpstreamResponseBody,
+  type UpstreamResponseBody
+} from "./upstream";
 
 type OpenAIImageResponse = {
   data?: Array<{
@@ -198,19 +204,19 @@ async function parseOpenAIResponse(
   response: Response,
   diagnostics: OpenAIRequestDiagnostics
 ): Promise<GeneratedImage[]> {
-  const body = await readOpenAIJson(response);
+  const body = await readUpstreamResponseBody<OpenAIImageResponse>(response);
 
   if (response.status >= 400) {
     logOpenAIResponseFailure(response, diagnostics);
 
-    if (response.status === 524 || response.status === 504 || response.status === 408) {
-      throw new Error("图像网关超时，请稍后重试或先使用单页生成");
-    }
-
     throw new Error(getOpenAIErrorMessage(body, response.status));
   }
 
-  const images = body.data
+  if (!body.json) {
+    throw new Error(formatNonJsonUpstreamResponse({ body, label: "图像网关", status: response.status }));
+  }
+
+  const images = body.json.data
     ?.map((item) => {
       if (item.b64_json) {
         return base64ToGeneratedImage(item.b64_json);
@@ -226,14 +232,23 @@ async function parseOpenAIResponse(
   return images;
 }
 
-function getOpenAIErrorMessage(body: OpenAIImageResponse, status: number): string {
-  return (
-    readMessage(body.error?.message) ||
-    readMessage(body.message) ||
-    readMessage(body.reason) ||
-    readMessage(body.detail) ||
-    `OpenAI image request failed: ${status}`
-  );
+function getOpenAIErrorMessage(body: UpstreamResponseBody<OpenAIImageResponse>, status: number): string {
+  const timeoutMessage =
+    status === 524 || status === 504 || status === 408
+      ? "图像网关超时，请稍后重试或先使用单页生成"
+      : "";
+
+  return formatUpstreamErrorMessage({
+    body,
+    fallbackMessage: timeoutMessage || `OpenAI image request failed: ${status}`,
+    primaryMessage:
+      readMessage(body.json?.error?.message) ||
+      readMessage(body.json?.message) ||
+      readMessage(body.json?.reason) ||
+      readMessage(body.json?.detail) ||
+      timeoutMessage,
+    status
+  });
 }
 
 function readMessage(value: unknown): string {
@@ -264,17 +279,6 @@ function logOpenAIResponseFailure(
     requestId: response.headers.get("x-request-id") || null,
     cfRay: response.headers.get("cf-ray") || null
   });
-}
-
-async function readOpenAIJson(response: Response): Promise<OpenAIImageResponse> {
-  const text = await response.text();
-
-  try {
-    return JSON.parse(text) as OpenAIImageResponse;
-  } catch {
-    const contentType = response.headers.get("content-type") || "unknown content type";
-    throw new Error(`图像网关返回了非 JSON 响应（${response.status}, ${contentType}），请稍后重试`);
-  }
 }
 
 function isAbortError(error: unknown): boolean {

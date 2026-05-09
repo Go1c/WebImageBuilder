@@ -237,6 +237,73 @@ describe("OpenAI image provider", () => {
     );
   });
 
+  it("includes the complete upstream JSON error body for failed image responses", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          Response.json(
+            {
+              error: {
+                message: "model overloaded",
+                type: "server_error",
+                code: "overloaded",
+                param: null
+              },
+              request_id: "req_full_error",
+              upstream: {
+                provider: "openai",
+                retry_after_seconds: 30
+              }
+            },
+            { status: 502 }
+          )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      "status_code=502, model overloaded"
+    );
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      '"request_id": "req_full_error"'
+    );
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      '"retry_after_seconds": 30'
+    );
+  });
+
+  it("includes the complete upstream text body for non-JSON image errors", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            "status_code=502, 图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试",
+            {
+              status: 502,
+              headers: { "content-type": "text/plain; charset=utf-8" }
+            }
+          )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toThrow(
+      "status_code=502, 图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试"
+    );
+  });
+
   it("logs sanitized upstream failure diagnostics", async () => {
     process.env = {
       ...originalEnv,

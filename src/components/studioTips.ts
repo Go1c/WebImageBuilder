@@ -164,7 +164,8 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
       title: "图片通道不可用",
       message: withDebugDetail(
         "上游图像通道返回 502，可能是通道临时不可用，也可能是提示词触发内容规范拦截。请先调整敏感、成人、暴力、违法或名人肖像等描述后再试；如果刚才只是偶发失败，可以再试一次。",
-        error.message
+        error.message,
+        { preserveWhitespace: true }
       ),
       actionLabel: "查看 Key",
       actionHref: "https://api.lumio.games/keys"
@@ -176,7 +177,9 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
   if (mappedTip) {
     return {
       ...mappedTip,
-      message: withDebugDetail(mappedTip.message, error.message)
+      message: withDebugDetail(mappedTip.message, error.message, {
+        preserveWhitespace: error.code === "provider_error"
+      })
     };
   }
 
@@ -273,8 +276,12 @@ function withOptionalDetail(message: string, detail?: string): string {
   return cleanedDetail ? `${message}${cleanedDetail}` : message;
 }
 
-function withDebugDetail(message: string, detail?: string): string {
-  const cleanedDetail = sanitizeTipText(detail);
+function withDebugDetail(
+  message: string,
+  detail?: string,
+  options: { preserveWhitespace?: boolean } = {}
+): string {
+  const cleanedDetail = sanitizeTipText(detail, options);
 
   if (!cleanedDetail || message.includes(cleanedDetail)) {
     return message;
@@ -291,17 +298,23 @@ function errorMessage(error: unknown): string | undefined {
   return typeof error === "string" ? error : undefined;
 }
 
-function sanitizeTipText(text: string | undefined): string {
+function sanitizeTipText(
+  text: string | undefined,
+  options: { preserveWhitespace?: boolean } = {}
+): string {
   if (!text) {
     return "";
   }
 
-  const cleaned = text
+  if (options.preserveWhitespace) {
+    return text.trim();
+  }
+
+  const withoutTags = text
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/<[^>]+>/g, " ");
+  const cleaned = withoutTags.replace(/\s+/g, " ").trim();
 
   return cleaned.length > 300 ? `${cleaned.slice(0, 300).trim()}...` : cleaned;
 }

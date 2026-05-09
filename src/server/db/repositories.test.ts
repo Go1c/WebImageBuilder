@@ -104,6 +104,25 @@ describe("local repository fallback", () => {
     });
   });
 
+  it("stores complete local failure messages for history", async () => {
+    const actor = await resolveActor({
+      authUser: null,
+      deviceId: `device-${randomUUID()}`,
+      ipHash: `ip-${randomUUID()}`
+    });
+    const taskId = await createTask({ actor, generation: buildGeneration() });
+    const upstreamError = `status_code=502, 图片生成失败(auth_required):${"上游返回 403 风控/盾页面 ".repeat(80)}complete-tail`;
+
+    await markTaskFailed(taskId, upstreamError);
+
+    const history = await listHistory(actor);
+    expect(history[0]).toMatchObject({
+      id: taskId,
+      status: "failed",
+      errorMessage: upstreamError
+    });
+  });
+
   it("returns a stable local invite code for authenticated users without DATABASE_URL", async () => {
     const actor = await resolveActor({
       authUser: {
@@ -399,6 +418,17 @@ describe("postgres repository queries", () => {
     expect(sql).toContain("t.ip_hash = $2");
     expect(sql).toContain("t.spend_source = 'login'");
     expect(values).toEqual(["device-1", "ip-1"]);
+  });
+
+  it("stores complete postgres failure messages", async () => {
+    mockedQuery.mockResolvedValueOnce({ rows: [] } as never);
+    const upstreamError = `status_code=400, 参考图解析失败:第 1 张参考图:${"context deadline exceeded ".repeat(80)}complete-tail`;
+
+    await markTaskFailed("task-1", upstreamError);
+
+    const [sql, values] = mockedQuery.mock.calls[0];
+    expect(sql).toContain("error_message = $2");
+    expect(values).toEqual(["task-1", upstreamError]);
   });
 
   it("creates a public share from an owned postgres task result", async () => {

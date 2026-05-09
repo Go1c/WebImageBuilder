@@ -462,7 +462,7 @@ export async function markTaskFailed(taskId: string, message: string): Promise<v
     const task = getLocalRepository().tasks.find((item) => item.id === taskId);
     if (task) {
       task.status = "failed";
-      task.errorMessage = message.slice(0, 1000);
+      task.errorMessage = message;
       task.updatedAt = new Date().toISOString();
     }
     return;
@@ -474,7 +474,7 @@ export async function markTaskFailed(taskId: string, message: string): Promise<v
       set status = 'failed', error_message = $2, updated_at = now()
       where id = $1
     `,
-    [taskId, message.slice(0, 1000)]
+    [taskId, message]
   );
 }
 
