@@ -87,7 +87,7 @@ describe("model and generation request rules", () => {
   });
 
   it("uses longer image request timeouts for high resolution generation", () => {
-    expect(getGenerationTimeoutMs("1K")).toBe(120_000);
+    expect(getGenerationTimeoutMs("1K")).toBe(150_000);
     expect(getGenerationTimeoutMs("2K")).toBe(240_000);
     expect(getGenerationTimeoutMs("4K")).toBe(240_000);
   });

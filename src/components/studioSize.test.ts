@@ -23,8 +23,8 @@ describe("studio generation size", () => {
     expect(buildGenerationSize({ ratio: "3:4", resolution: "4K" }).size).toBe("2480x3312");
   });
 
-  it("uses 120 seconds for 1K and 240 seconds for 2K/4K front-end requests", () => {
-    expect(getGenerationRequestTimeoutMs("1K")).toBe(120_000);
+  it("uses 150 seconds for 1K and 240 seconds for 2K/4K front-end requests", () => {
+    expect(getGenerationRequestTimeoutMs("1K")).toBe(150_000);
     expect(getGenerationRequestTimeoutMs("2K")).toBe(240_000);
     expect(getGenerationRequestTimeoutMs("4K")).toBe(240_000);
   });

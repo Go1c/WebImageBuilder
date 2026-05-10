@@ -85,6 +85,19 @@ describe("studio canvas actions markup", () => {
     expect(handler).toContain("setRequestPreview(null)");
   });
 
+  it("refreshes the Sub2API session before submitting generation after idle time", () => {
+    const handler = readFunctionSource("handleGenerate");
+    const refreshIndex = handler.indexOf("await refreshSub2ApiSession({ silent: true })");
+    const uploadIndex = handler.indexOf("uploadStudioAsset");
+    const generateIndex = handler.indexOf('fetch("/api/generate"');
+
+    expect(refreshIndex).toBeGreaterThan(-1);
+    expect(uploadIndex).toBeGreaterThan(-1);
+    expect(generateIndex).toBeGreaterThan(-1);
+    expect(refreshIndex).toBeLessThan(uploadIndex);
+    expect(refreshIndex).toBeLessThan(generateIndex);
+  });
+
   it("documents pricing and invite rewards in the tutorial panels", () => {
     const panel = readHeaderContextPanelSource();
 
@@ -96,7 +109,7 @@ describe("studio canvas actions markup", () => {
     expect(panel).toContain("api.lumio.games");
     expect(panel).toContain("本站只记录普通用户免费体验 3 次");
     expect(panel).toContain("免费体验仅支持 1K");
-    expect(panel).toContain("1K 请求超时时间为 120 秒");
+    expect(panel).toContain("1K 请求超时时间为 150 秒");
     expect(panel).toContain("2K/4K 请求超时时间为 240 秒");
     expect(panel).toContain("context-highlight-grid");
     expect(panel).toContain("context-status-line");

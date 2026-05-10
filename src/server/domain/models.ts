@@ -141,7 +141,7 @@ export function listGenerationModeCapabilities(): GenerationModeCapability[] {
 }
 
 export function getGenerationTimeoutMs(resolution: ImageResolutionTier): number {
-  return resolution === "1K" ? 120_000 : 240_000;
+  return resolution === "1K" ? 150_000 : 240_000;
 }
 
 export function normalizeGenerationInput(input: unknown): NormalizedGenerationInput {

@@ -26,7 +26,9 @@ export const runtime = "nodejs";
 
 const attachTokenSchema = z.object({
   action: z.literal("attachToken"),
-  accessToken: z.string().min(1)
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
+  expiresIn: z.number().int().positive().optional()
 });
 
 export async function GET(request: NextRequest) {
@@ -44,10 +46,12 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, "bad_request", "Invalid Sub2API session request");
     }
 
-    return createAccessOnlyResponse(
-      parsed.data.accessToken,
-      buildSub2ApiSession(await getSub2ApiCurrentUser(parsed.data.accessToken))
-    );
+    return createAttachedTokenResponse({
+      accessToken: parsed.data.accessToken,
+      refreshToken: parsed.data.refreshToken,
+      expiresIn: parsed.data.expiresIn,
+      body: buildSub2ApiSession(await getSub2ApiCurrentUser(parsed.data.accessToken))
+    });
   } catch (error) {
     return jsonError(error);
   }
@@ -74,6 +78,10 @@ async function readSessionResponse(request: NextRequest): Promise<NextResponse> 
   const refreshToken = request.cookies.get(SUB2API_REFRESH_COOKIE)?.value;
 
   if (!accessToken) {
+    if (refreshToken) {
+      return refreshSessionResponse(refreshToken);
+    }
+
     return NextResponse.json(buildAnonymousSub2ApiSession());
   }
 
@@ -86,25 +94,43 @@ async function readSessionResponse(request: NextRequest): Promise<NextResponse> 
       return response;
     }
 
-    const refreshed = await refreshSub2ApiToken(refreshToken);
-    const nextAccessToken = refreshed.access_token;
-    const user = await getSub2ApiCurrentUser(nextAccessToken);
-    const response = NextResponse.json(buildSub2ApiSession(user));
-    setSessionCookies(response, refreshed, refreshToken);
-    return response;
+    return refreshSessionResponse(refreshToken);
   }
 }
 
-function createAccessOnlyResponse(accessToken: string, body: ReturnType<typeof buildSub2ApiSession>): NextResponse {
+function createAttachedTokenResponse(input: {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  body: ReturnType<typeof buildSub2ApiSession>;
+}): NextResponse {
+  const { accessToken, refreshToken, expiresIn, body } = input;
   const response = NextResponse.json(body);
-  const maxAge = getAccessTokenMaxAge(undefined);
+  const maxAge = getAccessTokenMaxAge(expiresIn);
   response.cookies.set(SUB2API_ACCESS_COOKIE, accessToken, getSub2ApiCookieOptions(maxAge));
   response.cookies.set(LUMIO_TOKEN_COOKIE, accessToken, getSub2ApiCookieOptions(maxAge));
   response.cookies.set(
     SUB2API_EXPIRES_COOKIE,
-    String(getTokenExpiresAt(undefined)),
+    String(getTokenExpiresAt(expiresIn)),
     getSub2ApiCookieOptions(maxAge)
   );
+  if (refreshToken) {
+    response.cookies.set(
+      SUB2API_REFRESH_COOKIE,
+      refreshToken,
+      getSub2ApiCookieOptions(getRefreshTokenMaxAge())
+    );
+  }
+
+  return response;
+}
+
+async function refreshSessionResponse(refreshToken: string): Promise<NextResponse> {
+  const refreshed = await refreshSub2ApiToken(refreshToken);
+  const nextAccessToken = refreshed.access_token;
+  const user = await getSub2ApiCurrentUser(nextAccessToken);
+  const response = NextResponse.json(buildSub2ApiSession(user));
+  setSessionCookies(response, refreshed, refreshToken);
   return response;
 }
 

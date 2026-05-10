@@ -21,8 +21,9 @@ import {
 } from "./sub2ApiAccount";
 import {
   buildSub2ApiLoginUrl,
-  readSub2ApiTokenFromUrl,
-  stripSub2ApiAuthParamsFromUrl
+  readSub2ApiAuthFromUrl,
+  stripSub2ApiAuthParamsFromUrl,
+  type Sub2ApiAuthHandoff
 } from "./sub2ApiLogin";
 import {
   buildPromptEnhancementMetadata,
@@ -411,11 +412,11 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }
 
   async function initializeSub2ApiSession() {
-    const embeddedToken = readEmbeddedSub2ApiToken();
+    const embeddedAuth = readEmbeddedSub2ApiAuth();
 
-    if (embeddedToken) {
+    if (embeddedAuth) {
       try {
-        const session = await attachSub2ApiToken(embeddedToken);
+        const session = await attachSub2ApiToken(embeddedAuth);
         setSub2ApiSession(session);
         removeEmbeddedAuthQueryParams();
         showTip({
@@ -458,13 +459,15 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     }
   }
 
-  async function attachSub2ApiToken(accessToken: string): Promise<Sub2ApiSessionResponse> {
+  async function attachSub2ApiToken(auth: Sub2ApiAuthHandoff): Promise<Sub2ApiSessionResponse> {
     const response = await fetch("/api/sub2api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "attachToken",
-        accessToken
+        accessToken: auth.accessToken,
+        ...(auth.refreshToken ? { refreshToken: auth.refreshToken } : {}),
+        ...(auth.expiresIn ? { expiresIn: auth.expiresIn } : {})
       })
     });
 
@@ -511,6 +514,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      await refreshSub2ApiSession({ silent: true });
       const uploadedReferences = referenceFiles.length
         ? await Promise.all(Array.from(referenceFiles || []).map((file) => uploadStudioAsset(file, "reference")))
         : [];
@@ -1554,8 +1558,8 @@ function getLumioAffiliateUrl(urlValue: string): string {
   }
 }
 
-function readEmbeddedSub2ApiToken(): string | null {
-  return readSub2ApiTokenFromUrl(window.location.href);
+function readEmbeddedSub2ApiAuth(): Sub2ApiAuthHandoff | null {
+  return readSub2ApiAuthFromUrl(window.location.href);
 }
 
 function removeEmbeddedAuthQueryParams() {
@@ -1593,7 +1597,7 @@ function HeaderContextPanel({
             <div className="context-section-list">
               <p>生成价格：1K 每张 0.05 元，2K 和 4K 每张 0.2 元。</p>
               <p>本站只记录普通用户免费体验 3 次，免费体验仅支持 1K。</p>
-              <p>1K 请求超时时间为 120 秒；2K/4K 请求超时时间为 240 秒。</p>
+              <p>1K 请求超时时间为 150 秒；2K/4K 请求超时时间为 240 秒。</p>
               <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，可在邀请返利页面查看。</p>
             </div>
             <h3>快速生成流程</h3>
