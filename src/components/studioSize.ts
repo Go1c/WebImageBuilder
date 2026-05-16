@@ -6,20 +6,20 @@ const generationSizes: Record<ImageResolutionTier, Record<AspectRatioLabel, `${n
     "1:1": "1024x1024",
     "3:4": "768x1024",
     "4:3": "1024x768",
-    "16:9": "1024x576",
-    "9:16": "576x1024"
+    "16:9": "1280x720",
+    "9:16": "720x1280"
   },
   "2K": {
-    "1:1": "2560x2560",
-    "3:4": "1920x2560",
-    "4:3": "2560x1920",
-    "16:9": "2560x1440",
-    "9:16": "1440x2560"
+    "1:1": "2048x2048",
+    "3:4": "1536x2048",
+    "4:3": "2048x1536",
+    "16:9": "2048x1152",
+    "9:16": "1152x2048"
   },
   "4K": {
-    "1:1": "3840x3840",
-    "3:4": "2480x3312",
-    "4:3": "3312x2480",
+    "1:1": "2880x2880",
+    "3:4": "2448x3264",
+    "4:3": "3264x2448",
     "16:9": "3840x2160",
     "9:16": "2160x3840"
   }
@@ -34,17 +34,13 @@ export function getGenerationRequestTimeoutMs(resolution: ImageResolutionTier): 
 export function getRecommendedRatioForResolution(
   resolution: ImageResolutionTier
 ): AspectRatioLabel | null {
-  return resolution === "4K" ? "16:9" : null;
+  return null;
 }
 
 export function getUnsupportedGenerationSizeReason(input: {
   ratio: AspectRatioLabel;
   resolution: ImageResolutionTier;
 }): string | null {
-  if (input.resolution === "4K" && input.ratio === "1:1") {
-    return "4K 不支持 1:1 尺寸，请改用 16:9（推荐 3840x2160）。";
-  }
-
   return null;
 }
 

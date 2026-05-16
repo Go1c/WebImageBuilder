@@ -114,12 +114,10 @@ const generationInputSchema = z.object({
   sessionId: z.string().uuid().optional()
 });
 
-const supported4KGenerationSizes = new Set<NormalizedGenerationInput["size"]>([
-  "3840x2160",
-  "2160x3840",
-  "3312x2480",
-  "2480x3312"
-]);
+const gptImage2MinPixels = 655_360;
+const gptImage2MaxPixels = 8_294_400;
+const gptImage2MaxEdge = 3840;
+const gptImage2MaxAspectRatio = 3;
 
 export const modelKeys = Object.keys(modelOptions) as ModelKey[];
 export const generationModes = Object.keys(modeCapabilities) as GenerationMode[];
@@ -158,7 +156,9 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
 
   const model = getModelOption(parsed.model);
   const size = parsed.size as NormalizedGenerationInput["size"];
-  assertResolutionSupportsSize(parsed.resolution, size);
+  if (model.key === "gpt-image-2") {
+    assertGptImage2SupportsSize(size);
+  }
 
   return {
     ...parsed,
@@ -189,31 +189,37 @@ function getOpenAIProviderModel(resolution: ImageResolutionTier): string {
   return process.env.OPENAI_IMAGE_PRO_MODEL || "gpt-image-2pro";
 }
 
-function assertResolutionSupportsSize(
-  resolution: ImageResolutionTier,
-  size: NormalizedGenerationInput["size"]
-): void {
-  if (resolution !== "4K") {
-    return;
-  }
-
+function assertGptImage2SupportsSize(size: NormalizedGenerationInput["size"]): void {
   const [width, height] = size.split("x").map(Number);
+  const longEdge = Math.max(width, height);
+  const shortEdge = Math.min(width, height);
+  const totalPixels = width * height;
 
-  if (supported4KGenerationSizes.has(size)) {
-    return;
+  if (width % 16 !== 0 || height % 16 !== 0) {
+    throw new Error("GPT Image 2 尺寸不支持，请确保宽高都为 16px 的倍数。");
   }
 
-  if (width === height) {
-    throw new Error("4K 不支持 1:1 尺寸，请改用 16:9（推荐 3840x2160）。");
+  if (longEdge > gptImage2MaxEdge) {
+    throw new Error(`GPT Image 2 尺寸不支持，最大边不能超过 ${gptImage2MaxEdge}px。`);
   }
 
   if (size === "3840x2880") {
-    throw new Error("4K 4:3 尺寸不支持 3840x2880，请改用 3312x2480。");
+    throw new Error("GPT Image 2 尺寸不支持，3840x2880 超过官方总像素上限，请改用 3264x2448。");
   }
 
   if (size === "2880x3840") {
-    throw new Error("4K 3:4 尺寸不支持 2880x3840，请改用 2480x3312。");
+    throw new Error("GPT Image 2 尺寸不支持，2880x3840 超过官方总像素上限，请改用 2448x3264。");
   }
 
-  throw new Error("4K 尺寸不支持，请改用 3840x2160、2160x3840、3312x2480 或 2480x3312。");
+  if (longEdge / shortEdge > gptImage2MaxAspectRatio) {
+    throw new Error(`GPT Image 2 尺寸不支持，长边与短边比例不能超过 ${gptImage2MaxAspectRatio}:1。`);
+  }
+
+  if (totalPixels < gptImage2MinPixels) {
+    throw new Error(`GPT Image 2 尺寸不支持，总像素不能低于 ${gptImage2MinPixels.toLocaleString("en-US")}。`);
+  }
+
+  if (totalPixels > gptImage2MaxPixels) {
+    throw new Error(`GPT Image 2 尺寸不支持，总像素不能超过 ${gptImage2MaxPixels.toLocaleString("en-US")}。`);
+  }
 }

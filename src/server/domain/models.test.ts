@@ -72,7 +72,7 @@ describe("model and generation request rules", () => {
     expect(
       normalizeGenerationInput({
         ...baseInput,
-        size: "2560x1440",
+        size: "2048x1152",
         resolution: "2K"
       }).providerModel
     ).toBe("gpt-image-2pro");
@@ -103,7 +103,7 @@ describe("model and generation request rules", () => {
     ).toThrow();
   });
 
-  it("rejects square 4K generation sizes before provider submission", () => {
+  it("rejects GPT Image 2 sizes outside official constraints before provider submission", () => {
     expect(() =>
       normalizeGenerationInput({
         prompt: "A red robot",
@@ -112,22 +112,51 @@ describe("model and generation request rules", () => {
         size: "3840x3840",
         resolution: "4K"
       })
-    ).toThrow("4K 不支持 1:1");
+    ).toThrow("8,294,400");
+
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "gpt-image-2",
+        size: "576x1024",
+        resolution: "1K"
+      })
+    ).toThrow("655,360");
+
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "gpt-image-2",
+        size: "721x1280",
+        resolution: "1K"
+      })
+    ).toThrow("16px");
   });
 
-  it("accepts provider-supported 4K 4:3 and 3:4 generation sizes", () => {
+  it("accepts official-compliant GPT Image 2 sizes used by the studio matrix", () => {
     const baseInput = {
       prompt: "A red robot",
       mode: "text-to-image" as const,
       model: "gpt-image-2" as const,
-      resolution: "4K" as const
+      quality: "standard" as const
     };
 
-    expect(normalizeGenerationInput({ ...baseInput, size: "3312x2480" }).size).toBe(
-      "3312x2480"
+    expect(normalizeGenerationInput({ ...baseInput, resolution: "1K", size: "720x1280" }).size).toBe(
+      "720x1280"
     );
-    expect(normalizeGenerationInput({ ...baseInput, size: "2480x3312" }).size).toBe(
-      "2480x3312"
+    expect(normalizeGenerationInput({ ...baseInput, resolution: "2K", size: "2048x1152" }).size).toBe(
+      "2048x1152"
+    );
+    expect(normalizeGenerationInput({ ...baseInput, resolution: "4K", size: "2880x2880" }).size).toBe(
+      "2880x2880"
+    );
+    expect(normalizeGenerationInput({ ...baseInput, resolution: "4K", size: "3264x2448" }).size).toBe(
+      "3264x2448"
+    );
+    expect(normalizeGenerationInput({ ...baseInput, resolution: "4K", size: "2448x3264" }).size).toBe(
+      "2448x3264"
     );
   });
 
@@ -140,10 +169,10 @@ describe("model and generation request rules", () => {
     };
 
     expect(() => normalizeGenerationInput({ ...baseInput, size: "3840x2880" })).toThrow(
-      "3312x2480"
+      "3264x2448"
     );
     expect(() => normalizeGenerationInput({ ...baseInput, size: "2880x3840" })).toThrow(
-      "2480x3312"
+      "2448x3264"
     );
   });
 

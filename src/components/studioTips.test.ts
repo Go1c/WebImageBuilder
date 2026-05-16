@@ -80,26 +80,27 @@ describe("studio tips", () => {
     expect(tip.message).not.toContain("Sub2API");
   });
 
-  it("turns invalid 4K square requests into a direct size tip", () => {
+  it("turns official GPT Image 2 size constraint errors into a direct size tip", () => {
     const tip = tipFromApiError(
       apiErrorDetail({
         code: "bad_request",
-        message: "4K 不支持 1:1 尺寸，请改用 16:9。"
+        message: "GPT Image 2 尺寸不支持，总像素不能超过 8,294,400。"
       })
     );
 
     expect(tip).toMatchObject({
       type: "warning",
-      title: "4K 不支持 1:1"
+      title: "尺寸不符合官方规格"
     });
-    expect(tip.message).toContain("16:9");
+    expect(tip.message).toContain("16px");
+    expect(tip.message).toContain("8,294,400");
   });
 
   it("turns invalid 4K ratio sizes into a direct size recommendation", () => {
     const tip = tipFromApiError(
       apiErrorDetail({
         code: "bad_request",
-        message: "status_code=400, size分辨率不合法，推荐使用 3312x2480。"
+        message: "status_code=400, size分辨率不合法，推荐使用 3264x2448。"
       })
     );
 
@@ -107,7 +108,7 @@ describe("studio tips", () => {
       type: "warning",
       title: "4K 尺寸不支持"
     });
-    expect(tip.message).toContain("3312x2480");
+    expect(tip.message).toContain("3264x2448");
   });
 
   it("explains why gift balance requires prior recharge history", () => {

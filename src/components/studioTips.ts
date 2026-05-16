@@ -126,23 +126,23 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
     };
   }
 
-  if (error.code === "bad_request" && isUnsupported4KSquareSize(error.message)) {
-    return {
-      type: "warning",
-      title: "4K 不支持 1:1",
-      message: withDebugDetail(
-        "4K 分辨率不支持 1:1 方图。请改用 16:9（推荐 3840x2160），或先降到 1K/2K 再生成方图。",
-        error.message
-      )
-    };
-  }
-
   if (error.code === "bad_request" && isUnsupported4KRatioSize(error.message)) {
     return {
       type: "warning",
       title: "4K 尺寸不支持",
       message: withDebugDetail(
-        "4K 的 4:3 请使用 3312x2480，3:4 请使用 2480x3312；16:9 推荐 3840x2160。",
+        "4K 的 4:3 请使用 3264x2448，3:4 请使用 2448x3264；1:1 使用 2880x2880，16:9 使用 3840x2160。",
+        error.message
+      )
+    };
+  }
+
+  if (error.code === "bad_request" && isGptImage2OfficialSizeError(error.message)) {
+    return {
+      type: "warning",
+      title: "尺寸不符合官方规格",
+      message: withDebugDetail(
+        "GPT Image 2 要求宽高为 16px 的倍数，最大边不超过 3840px，长短边比例不超过 3:1，总像素在 655,360 到 8,294,400 之间。请使用当前页面的分辨率和比例选项。",
         error.message
       )
     };
@@ -204,21 +204,21 @@ function isIpDailyLimitExhausted(message: string | undefined): boolean {
   return (message || "").includes("ip_daily_limit_exhausted");
 }
 
-function isUnsupported4KSquareSize(message: string | undefined): boolean {
-  const normalized = message || "";
-  return normalized.includes("4K") && normalized.includes("1:1");
-}
-
 function isUnsupported4KRatioSize(message: string | undefined): boolean {
   const normalized = message || "";
   const includesRecommendedSize =
-    normalized.includes("3312x2480") || normalized.includes("2480x3312");
+    normalized.includes("3264x2448") || normalized.includes("2448x3264");
 
   return (
     (normalized.includes("4K") &&
       (includesRecommendedSize || normalized.includes("size分辨率不合法"))) ||
     (normalized.includes("size分辨率不合法") && includesRecommendedSize)
   );
+}
+
+function isGptImage2OfficialSizeError(message: string | undefined): boolean {
+  const normalized = message || "";
+  return normalized.includes("GPT Image 2") && normalized.includes("尺寸不支持");
 }
 
 function isImageGatewayUnavailable(message: string | undefined): boolean {

@@ -690,7 +690,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     if (unsupportedReason) {
       showTip({
         type: "warning",
-        title: "4K 不支持 1:1",
+        title: "尺寸不支持",
         message: unsupportedReason
       });
       return;

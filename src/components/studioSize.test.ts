@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  type AspectRatioLabel,
+  type ImageResolutionTier,
   buildGenerationSize,
   getGenerationRequestTimeoutMs,
   getRecommendedRatioForResolution,
@@ -14,13 +16,38 @@ describe("studio generation size", () => {
     });
   });
 
-  it("calculates 2K and 4K sizes from the selected aspect ratio", () => {
-    expect(buildGenerationSize({ ratio: "16:9", resolution: "2K" }).size).toBe("2560x1440");
+  it("calculates official-compliant sizes from the selected tier and aspect ratio", () => {
+    expect(buildGenerationSize({ ratio: "16:9", resolution: "1K" }).size).toBe("1280x720");
+    expect(buildGenerationSize({ ratio: "9:16", resolution: "1K" }).size).toBe("720x1280");
+    expect(buildGenerationSize({ ratio: "16:9", resolution: "2K" }).size).toBe("2048x1152");
     expect(buildGenerationSize({ ratio: "16:9", resolution: "4K" }).size).toBe("3840x2160");
-    expect(buildGenerationSize({ ratio: "9:16", resolution: "2K" }).size).toBe("1440x2560");
-    expect(buildGenerationSize({ ratio: "3:4", resolution: "2K" }).size).toBe("1920x2560");
-    expect(buildGenerationSize({ ratio: "4:3", resolution: "4K" }).size).toBe("3312x2480");
-    expect(buildGenerationSize({ ratio: "3:4", resolution: "4K" }).size).toBe("2480x3312");
+    expect(buildGenerationSize({ ratio: "9:16", resolution: "2K" }).size).toBe("1152x2048");
+    expect(buildGenerationSize({ ratio: "3:4", resolution: "2K" }).size).toBe("1536x2048");
+    expect(buildGenerationSize({ ratio: "4:3", resolution: "4K" }).size).toBe("3264x2448");
+    expect(buildGenerationSize({ ratio: "3:4", resolution: "4K" }).size).toBe("2448x3264");
+    expect(buildGenerationSize({ ratio: "1:1", resolution: "4K" }).size).toBe("2880x2880");
+  });
+
+  it("keeps every selectable GPT Image 2 size within official constraints", () => {
+    const ratios: AspectRatioLabel[] = ["1:1", "3:4", "4:3", "16:9", "9:16"];
+    const resolutions: ImageResolutionTier[] = ["1K", "2K", "4K"];
+
+    for (const resolution of resolutions) {
+      for (const ratio of ratios) {
+        const { size } = buildGenerationSize({ ratio, resolution });
+        const [width, height] = size.split("x").map(Number);
+        const longEdge = Math.max(width, height);
+        const shortEdge = Math.min(width, height);
+        const totalPixels = width * height;
+
+        expect(width % 16, size).toBe(0);
+        expect(height % 16, size).toBe(0);
+        expect(longEdge, size).toBeLessThanOrEqual(3840);
+        expect(longEdge / shortEdge, size).toBeLessThanOrEqual(3);
+        expect(totalPixels, size).toBeGreaterThanOrEqual(655_360);
+        expect(totalPixels, size).toBeLessThanOrEqual(8_294_400);
+      }
+    }
   });
 
   it("uses 150 seconds for 1K and 240 seconds for 2K/4K front-end requests", () => {
@@ -29,16 +56,14 @@ describe("studio generation size", () => {
     expect(getGenerationRequestTimeoutMs("4K")).toBe(240_000);
   });
 
-  it("recommends 16:9 when switching to 4K", () => {
-    expect(getRecommendedRatioForResolution("4K")).toBe("16:9");
+  it("does not force a ratio change because every selectable 4K ratio is compliant", () => {
+    expect(getRecommendedRatioForResolution("4K")).toBeNull();
     expect(getRecommendedRatioForResolution("1K")).toBeNull();
     expect(getRecommendedRatioForResolution("2K")).toBeNull();
   });
 
-  it("blocks square 4K sizes before they reach the provider", () => {
-    expect(getUnsupportedGenerationSizeReason({ ratio: "1:1", resolution: "4K" })).toContain(
-      "4K 不支持 1:1"
-    );
+  it("does not block any selectable tier and ratio combination", () => {
+    expect(getUnsupportedGenerationSizeReason({ ratio: "1:1", resolution: "4K" })).toBeNull();
     expect(getUnsupportedGenerationSizeReason({ ratio: "16:9", resolution: "4K" })).toBeNull();
   });
 });

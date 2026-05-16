@@ -51,7 +51,7 @@ describe("generation service", () => {
     });
   });
 
-  it("reports invalid 4K square requests as client errors", async () => {
+  it("reports GPT Image 2 sizes outside official constraints as client errors", async () => {
     await expect(
       generateImagesForActor({
         actor: {
@@ -74,7 +74,7 @@ describe("generation service", () => {
     ).rejects.toMatchObject<Partial<ApiError>>({
       status: 400,
       code: "bad_request",
-      message: expect.stringContaining("4K 不支持 1:1")
+      message: expect.stringContaining("8,294,400")
     });
 
     expect(getQuotaState).not.toHaveBeenCalled();
