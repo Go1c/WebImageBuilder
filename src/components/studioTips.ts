@@ -248,13 +248,13 @@ export function tipFromApiError(
     };
   }
 
-  if (error.code === "provider_error" && isImageGatewayUnavailable(error.message)) {
+  if (error.code === "provider_error" && isUpstreamServiceUnavailable(error)) {
     return {
       type: "error",
-      title: "图片通道不可用",
+      title: "上游服务临时不可用",
       message: withDebugDetail(
-        "上游图像通道返回 502，可能是通道临时不可用，也可能是提示词触发内容规范拦截。请先调整敏感、成人、暴力、违法或名人肖像等描述后再试；如果刚才只是偶发失败，可以再试一次。",
-        error.message,
+        "上游图像服务返回 502 或临时不可用。请稍后重试；如果连续出现，请检查上游通道、Base URL、模型或 Key 配置。",
+        buildProviderDebugDetail(error),
         { preserveWhitespace: true }
       ),
       actionLabel: "查看 Key",
@@ -311,11 +311,15 @@ function isGptImage2OfficialSizeError(message: string | undefined): boolean {
   return normalized.includes("GPT Image 2") && normalized.includes("尺寸不支持");
 }
 
-function isImageGatewayUnavailable(message: string | undefined): boolean {
-  const normalized = (message || "").toLowerCase();
+function isUpstreamServiceUnavailable(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const normalized = getProviderErrorText(error).toLowerCase();
+
   return (
+    hasUpstreamCode(error, ["upstream_unavailable"]) ||
     normalized.includes("openai image request failed: 502") ||
     normalized.includes("upstream service temporarily unavailable") ||
+    normalized.includes("temporarily unavailable") ||
+    normalized.includes("upstream_error") ||
     normalized.includes("origin web server returned an invalid or incomplete response") ||
     normalized.includes("origin is overloaded or misconfigured")
   );

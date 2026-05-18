@@ -309,6 +309,16 @@ function inferOpenAIUpstreamCode(message: string, statusCode: number): string | 
   }
 
   if (
+    normalized.includes("upstream service temporarily unavailable") ||
+    normalized.includes("temporarily unavailable") ||
+    normalized.includes("origin web server returned an invalid or incomplete response") ||
+    normalized.includes("origin is overloaded or misconfigured") ||
+    normalized.includes("upstream_error")
+  ) {
+    return "upstream_unavailable";
+  }
+
+  if (
     normalized.includes("auth_required") ||
     message.includes("上游返回 403") ||
     message.includes("风控") ||

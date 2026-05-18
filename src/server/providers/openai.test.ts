@@ -321,6 +321,7 @@ describe("OpenAI image provider", () => {
   });
 
   it.each([
+    ["status_code=502, Upstream service temporarily unavailable", 502, "upstream_unavailable", "Upstream service temporarily unavailable"],
     ["status_code=502, 提示词违规", 502, "prompt_violation", "提示词违规"],
     [
       "status_code=502, 图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试",

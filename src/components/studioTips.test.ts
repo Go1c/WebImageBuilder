@@ -40,7 +40,7 @@ describe("studio tips", () => {
     );
   });
 
-  it("explains image gateway 502 errors as channel configuration issues", () => {
+  it("explains generic image gateway 502 errors as upstream service failures", () => {
     const tip = tipFromApiError(
       apiErrorDetail({
         code: "provider_error",
@@ -50,17 +50,17 @@ describe("studio tips", () => {
 
     expect(tip).toMatchObject({
       type: "error",
-      title: "图片通道不可用",
+      title: "上游服务临时不可用",
       actionLabel: "查看 Key",
       actionHref: "https://api.lumio.games/keys"
     });
-    expect(tip.message).toContain("提示词");
-    expect(tip.message).toContain("内容规范");
-    expect(tip.message).toContain("可以再试一次");
+    expect(tip.message).toContain("上游图像服务返回 502");
+    expect(tip.message).toContain("稍后重试");
+    expect(tip.message).not.toContain("内容规范");
     expect(tip.message).not.toContain("Sub2API");
   });
 
-  it("recognizes Cloudflare invalid origin responses as image gateway 502 errors", () => {
+  it("recognizes Cloudflare invalid origin responses as upstream service failures", () => {
     const tip = tipFromApiError(
       apiErrorDetail({
         code: "provider_error",
@@ -71,13 +71,54 @@ describe("studio tips", () => {
 
     expect(tip).toMatchObject({
       type: "error",
-      title: "图片通道不可用",
+      title: "上游服务临时不可用",
       actionLabel: "查看 Key",
       actionHref: "https://api.lumio.games/keys"
     });
-    expect(tip.message).toContain("提示词");
-    expect(tip.message).toContain("内容规范");
+    expect(tip.message).toContain("上游图像服务返回 502");
+    expect(tip.message).not.toContain("内容规范");
     expect(tip.message).not.toContain("Sub2API");
+  });
+
+  it("does not tell users to edit prompts when upstream only says the service is unavailable", () => {
+    const rawMessage = `status_code=502, Upstream service temporarily unavailable
+upstream_response:
+{
+  "error": {
+    "message": "Upstream service temporarily unavailable",
+    "type": "upstream_error"
+  }
+}`;
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: rawMessage,
+        upstream: {
+          statusCode: 502,
+          gatewayStatus: 502,
+          code: "upstream_unavailable",
+          type: "upstream_error",
+          message: "Upstream service temporarily unavailable",
+          rawResponse: {
+            error: {
+              message: "Upstream service temporarily unavailable",
+              type: "upstream_error"
+            }
+          }
+        }
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "error",
+      title: "上游服务临时不可用"
+    });
+    expect(tip.message).toContain("Upstream service temporarily unavailable");
+    expect(tip.message).toContain("upstream_code=upstream_unavailable");
+    expect(tip.message).not.toContain("敏感");
+    expect(tip.message).not.toContain("成人");
+    expect(tip.message).not.toContain("内容规范");
+    expect(tip.message).not.toContain("图片通道不可用");
   });
 
   it("turns upstream prompt violation errors into a direct prompt guidance tip", () => {
