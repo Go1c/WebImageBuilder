@@ -155,4 +155,70 @@ describe("generation service", () => {
     });
     expect(markTaskFailed).toHaveBeenCalledWith("task-1", "status_code=400, 提示词违规 请检查提示词");
   });
+
+  it.each([
+    ["prompt_violation", 502, 400],
+    ["reference_required", 502, 400],
+    ["drawing_mode_not_triggered", 502, 400],
+    ["upstream_bad_request", 502, 400],
+    ["upstream_timeout", 502, 504],
+    ["auth_required", 502, 502],
+    ["upstream_not_found", 404, 502]
+  ])(
+    "maps wrapped upstream %s errors to the public HTTP status %s",
+    async (code, upstreamStatusCode, publicStatus) => {
+      vi.mocked(getQuotaState).mockResolvedValueOnce({
+        actorType: "anonymous",
+        anonymousUsed: 0,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        ipDailyUsed: 0
+      });
+      vi.mocked(createTask).mockResolvedValueOnce("task-1");
+      vi.mocked(getImageProvider).mockReturnValueOnce({
+        generate: vi.fn(async () => {
+          throw new UpstreamProviderError(`status_code=${upstreamStatusCode}, ${code}`, {
+            statusCode: upstreamStatusCode,
+            gatewayStatus: 502,
+            code,
+            message: code,
+            rawResponse: {
+              error: {
+                message: `status_code=${upstreamStatusCode}, ${code}`
+              }
+            }
+          });
+        })
+      });
+
+      await expect(
+        generateImagesForActor({
+          actor: {
+            type: "anonymous",
+            anonymousDeviceId: "anon-1",
+            deviceId: "device-1",
+            ipHash: "ip-1"
+          },
+          rawInput: {
+            prompt: "simple test image",
+            mode: "text-to-image",
+            model: "gpt-image-2",
+            size: "1024x1024",
+            resolution: "1K",
+            quality: "standard",
+            count: 1,
+            referenceAssets: []
+          }
+        })
+      ).rejects.toMatchObject<Partial<ApiError>>({
+        status: publicStatus,
+        code: "provider_error",
+        upstream: {
+          statusCode: upstreamStatusCode,
+          code
+        }
+      });
+    }
+  );
 });

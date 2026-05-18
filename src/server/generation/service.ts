@@ -15,7 +15,7 @@ import {
 } from "../db/repositories";
 import { getImageProvider } from "../providers";
 import { OpenAIImageProvider } from "../providers/openai";
-import { UpstreamProviderError } from "../providers/upstream";
+import { UpstreamProviderError, type ProviderUpstreamErrorDetail } from "../providers/upstream";
 import { uploadBuffer, type StoredAsset } from "../storage/s3";
 import { getSub2ApiImageApiKey } from "../sub2api/client";
 import { getAppConfig } from "../config";
@@ -132,7 +132,7 @@ export async function generateImagesForActor(input: {
 
     if (error instanceof UpstreamProviderError) {
       throw new ApiError(
-        getProviderErrorHttpStatus(error.upstream.statusCode),
+        getProviderErrorHttpStatus(error.upstream),
         "provider_error",
         error.message,
         { upstream: error.upstream }
@@ -178,9 +178,24 @@ function readGenerationInputErrorMessage(error: unknown): string {
   return error instanceof Error && error.message ? error.message : "Invalid generation request";
 }
 
-function getProviderErrorHttpStatus(upstreamStatusCode: number | undefined): number {
-  if (upstreamStatusCode && upstreamStatusCode >= 400 && upstreamStatusCode < 500) {
-    return upstreamStatusCode;
+function getProviderErrorHttpStatus(upstream: ProviderUpstreamErrorDetail): number {
+  switch (upstream.code) {
+    case "content_policy_violation":
+    case "prompt_violation":
+    case "reference_required":
+    case "drawing_mode_not_triggered":
+    case "upstream_bad_request":
+      return 400;
+    case "upstream_timeout":
+      return 504;
+    case "upstream_not_found":
+      return 502;
+    default:
+      break;
+  }
+
+  if (upstream.statusCode && upstream.statusCode >= 400 && upstream.statusCode < 500) {
+    return upstream.statusCode;
   }
 
   return 502;
