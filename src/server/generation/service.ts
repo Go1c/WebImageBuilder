@@ -15,6 +15,7 @@ import {
 } from "../db/repositories";
 import { getImageProvider } from "../providers";
 import { OpenAIImageProvider } from "../providers/openai";
+import { UpstreamProviderError } from "../providers/upstream";
 import { uploadBuffer, type StoredAsset } from "../storage/s3";
 import { getSub2ApiImageApiKey } from "../sub2api/client";
 import { getAppConfig } from "../config";
@@ -129,6 +130,15 @@ export async function generateImagesForActor(input: {
       throw error;
     }
 
+    if (error instanceof UpstreamProviderError) {
+      throw new ApiError(
+        getProviderErrorHttpStatus(error.upstream.statusCode),
+        "provider_error",
+        error.message,
+        { upstream: error.upstream }
+      );
+    }
+
     throw new ApiError(
       502,
       "provider_error",
@@ -166,6 +176,14 @@ function normalizeGenerationInputOrThrowBadRequest(input: unknown): NormalizedGe
 
 function readGenerationInputErrorMessage(error: unknown): string {
   return error instanceof Error && error.message ? error.message : "Invalid generation request";
+}
+
+function getProviderErrorHttpStatus(upstreamStatusCode: number | undefined): number {
+  if (upstreamStatusCode && upstreamStatusCode >= 400 && upstreamStatusCode < 500) {
+    return upstreamStatusCode;
+  }
+
+  return 502;
 }
 
 function buildResultPrefix(actor: Actor, taskId: string): string {

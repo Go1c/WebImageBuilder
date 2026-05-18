@@ -80,6 +80,100 @@ describe("studio tips", () => {
     expect(tip.message).not.toContain("Sub2API");
   });
 
+  it("turns upstream prompt violation errors into a direct prompt guidance tip", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: "status_code=400, 提示词违规 请检查提示词",
+        upstream: {
+          statusCode: 400,
+          gatewayStatus: 502,
+          code: "content_policy_violation",
+          type: "content_policy",
+          message: "提示词违规 请检查提示词",
+          rawResponse: {
+            error: {
+              message: "提示词违规 请检查提示词",
+              code: "content_policy_violation",
+              type: "content_policy"
+            }
+          }
+        }
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "提示词违规"
+    });
+    expect(tip.message).toContain("修改提示词");
+    expect(tip.message).toContain("敏感");
+    expect(tip.message).toContain("status_code=400, 提示词违规 请检查提示词");
+    expect(tip.message).not.toContain("图片通道不可用");
+  });
+
+  it.each([
+    [
+      "status_code=502, 提示词违规",
+      { statusCode: 502, code: "prompt_violation", message: "提示词违规" },
+      "提示词违规",
+      "修改提示词"
+    ],
+    [
+      "status_code=502, 图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试",
+      { statusCode: 502, code: "auth_required", message: "图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试" },
+      "上游账号或风控拦截",
+      "账号状态"
+    ],
+    [
+      "status_code=502, 需要提供参考图",
+      { statusCode: 502, code: "reference_required", message: "需要提供参考图" },
+      "需要参考图",
+      "上传参考图"
+    ],
+    [
+      "status_code=404, bad response status code 404",
+      { statusCode: 404, code: "upstream_not_found", message: "bad response status code 404" },
+      "上游接口不可用",
+      "接口路径"
+    ],
+    [
+      "status_code=400, err",
+      { statusCode: 400, code: "upstream_bad_request", message: "err" },
+      "上游拒绝请求",
+      "请求参数"
+    ],
+    [
+      "status_code=502, 提示词没有触发画图模式",
+      { statusCode: 502, code: "drawing_mode_not_triggered", message: "提示词没有触发画图模式" },
+      "未触发画图模式",
+      "明确要求生成图片"
+    ],
+    [
+      "status_code=502, 上游生图等待超时,已尝试切换账号/代理:context deadline exceeded",
+      { statusCode: 502, code: "upstream_timeout", message: "上游生图等待超时,已尝试切换账号/代理:context deadline exceeded" },
+      "上游生成超时",
+      "降低分辨率"
+    ]
+  ])("maps upstream provider error %s to a specific tip", (rawMessage, upstream, title, messagePart) => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "provider_error",
+        message: rawMessage,
+        upstream: {
+          gatewayStatus: 502,
+          rawResponse: { error: { message: rawMessage } },
+          ...upstream
+        }
+      })
+    );
+
+    expect(tip.title).toBe(title);
+    expect(tip.message).toContain(messagePart);
+    expect(tip.message).toContain(rawMessage);
+    expect(tip.message).not.toContain("图片通道不可用");
+  });
+
   it("turns official GPT Image 2 size constraint errors into a direct size tip", () => {
     const tip = tipFromApiError(
       apiErrorDetail({

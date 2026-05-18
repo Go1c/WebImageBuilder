@@ -86,8 +86,8 @@ describe("model and generation request rules", () => {
     ).toBe("gpt-image-2pro");
   });
 
-  it("uses longer image request timeouts for high resolution generation", () => {
-    expect(getGenerationTimeoutMs("1K")).toBe(150_000);
+  it("uses the configured image request timeouts for each resolution", () => {
+    expect(getGenerationTimeoutMs("1K")).toBe(250_000);
     expect(getGenerationTimeoutMs("2K")).toBe(240_000);
     expect(getGenerationTimeoutMs("4K")).toBe(240_000);
   });

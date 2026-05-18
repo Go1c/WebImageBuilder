@@ -50,8 +50,8 @@ describe("studio generation size", () => {
     }
   });
 
-  it("uses 150 seconds for 1K and 240 seconds for 2K/4K front-end requests", () => {
-    expect(getGenerationRequestTimeoutMs("1K")).toBe(150_000);
+  it("uses 250 seconds for 1K and 240 seconds for 2K/4K front-end requests", () => {
+    expect(getGenerationRequestTimeoutMs("1K")).toBe(250_000);
     expect(getGenerationRequestTimeoutMs("2K")).toBe(240_000);
     expect(getGenerationRequestTimeoutMs("4K")).toBe(240_000);
   });

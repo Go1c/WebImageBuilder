@@ -10,6 +10,8 @@ import {
   formatNonJsonUpstreamResponse,
   formatUpstreamErrorMessage,
   readUpstreamResponseBody,
+  UpstreamProviderError,
+  type ProviderUpstreamErrorDetail,
   type UpstreamResponseBody
 } from "./upstream";
 
@@ -20,10 +22,14 @@ type OpenAIImageResponse = {
   }>;
   error?: {
     message?: string;
+    code?: unknown;
+    type?: unknown;
   };
   message?: string;
   detail?: string;
   reason?: string;
+  code?: unknown;
+  type?: unknown;
 };
 
 type OpenAIImageProviderOptions = {
@@ -209,7 +215,8 @@ async function parseOpenAIResponse(
   if (response.status >= 400) {
     logOpenAIResponseFailure(response, diagnostics);
 
-    throw new Error(getOpenAIErrorMessage(body, response.status));
+    const error = getOpenAIError(body, response.status);
+    throw new UpstreamProviderError(error.message, error.upstream);
   }
 
   if (!body.json) {
@@ -232,27 +239,131 @@ async function parseOpenAIResponse(
   return images;
 }
 
-function getOpenAIErrorMessage(body: UpstreamResponseBody<OpenAIImageResponse>, status: number): string {
+function getOpenAIError(
+  body: UpstreamResponseBody<OpenAIImageResponse>,
+  status: number
+): {
+  message: string;
+  upstream: ProviderUpstreamErrorDetail;
+} {
   const timeoutMessage =
     status === 524 || status === 504 || status === 408
       ? "图像网关超时，请稍后重试或先使用单页生成"
       : "";
+  const primaryMessage =
+    readMessage(body.json?.error?.message) ||
+    readMessage(body.json?.message) ||
+    readMessage(body.json?.reason) ||
+    readMessage(body.json?.detail) ||
+    timeoutMessage;
 
-  return formatUpstreamErrorMessage({
+  const message = formatUpstreamErrorMessage({
     body,
     fallbackMessage: timeoutMessage || `OpenAI image request failed: ${status}`,
-    primaryMessage:
-      readMessage(body.json?.error?.message) ||
-      readMessage(body.json?.message) ||
-      readMessage(body.json?.reason) ||
-      readMessage(body.json?.detail) ||
-      timeoutMessage,
+    primaryMessage,
     status
   });
+
+  return {
+    message,
+    upstream: buildOpenAIUpstreamDetail({ body, message: primaryMessage || message, status })
+  };
 }
 
 function readMessage(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function buildOpenAIUpstreamDetail(input: {
+  body: UpstreamResponseBody<OpenAIImageResponse>;
+  message: string;
+  status: number;
+}): ProviderUpstreamErrorDetail {
+  const rawResponse = input.body.json ?? input.body.text.trim();
+  const oneLineBody = input.body.text.replace(/\s+/g, " ").trim();
+  const primaryMessage = input.message || oneLineBody;
+  const effectiveStatusCode =
+    readEmbeddedStatusCode(primaryMessage) ?? readEmbeddedStatusCode(oneLineBody) ?? input.status;
+  const cleanMessage = stripStatusCodePrefix(primaryMessage || oneLineBody);
+  const explicitCode = readMessage(input.body.json?.error?.code) || readMessage(input.body.json?.code);
+  const inferredCode = explicitCode || inferOpenAIUpstreamCode(cleanMessage, effectiveStatusCode);
+  const explicitType = readMessage(input.body.json?.error?.type) || readMessage(input.body.json?.type);
+
+  return {
+    statusCode: effectiveStatusCode,
+    gatewayStatus: input.status,
+    ...(inferredCode ? { code: inferredCode } : {}),
+    ...(explicitType ? { type: explicitType } : {}),
+    ...(cleanMessage ? { message: cleanMessage } : {}),
+    ...(rawResponse ? { rawResponse } : {}),
+    contentType: input.body.contentType
+  };
+}
+
+function inferOpenAIUpstreamCode(message: string, statusCode: number): string | undefined {
+  const normalized = message.toLowerCase();
+  const embeddedCode = message.match(/图片生成失败\(([a-z0-9_-]+)\)/i)?.[1];
+
+  if (embeddedCode) {
+    return embeddedCode;
+  }
+
+  if (
+    normalized.includes("auth_required") ||
+    message.includes("上游返回 403") ||
+    message.includes("风控") ||
+    message.includes("盾页面")
+  ) {
+    return "auth_required";
+  }
+
+  if (
+    message.includes("提示词违规") ||
+    normalized.includes("content_policy") ||
+    normalized.includes("policy violation")
+  ) {
+    return "prompt_violation";
+  }
+
+  if (message.includes("需要提供参考图") || (message.includes("参考图") && message.includes("需要"))) {
+    return "reference_required";
+  }
+
+  if (message.includes("提示词没有触发画图模式") || normalized.includes("drawing mode")) {
+    return "drawing_mode_not_triggered";
+  }
+
+  if (
+    message.includes("等待超时") ||
+    normalized.includes("context deadline") ||
+    normalized.includes("deadline exceeded") ||
+    normalized.includes("timeout")
+  ) {
+    return "upstream_timeout";
+  }
+
+  if (statusCode === 404 || normalized.includes("bad response status code 404")) {
+    return "upstream_not_found";
+  }
+
+  if (statusCode === 400) {
+    return "upstream_bad_request";
+  }
+
+  return undefined;
+}
+
+function readEmbeddedStatusCode(value: string): number | undefined {
+  const match = value.match(/\bstatus_code\s*=\s*(\d{3})\b/i);
+  if (!match) {
+    return undefined;
+  }
+
+  return Number(match[1]);
+}
+
+function stripStatusCodePrefix(value: string): string {
+  return value.replace(/^status_code\s*=\s*\d{3}\s*,?\s*/i, "").trim();
 }
 
 function buildOpenAIRequestDiagnostics(

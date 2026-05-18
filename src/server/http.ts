@@ -12,15 +12,32 @@ export type ApiErrorCode =
   | "configuration_error"
   | "internal_error";
 
+export type ApiErrorUpstreamDetail = {
+  statusCode?: number;
+  gatewayStatus?: number;
+  code?: string;
+  type?: string;
+  message?: string;
+  rawResponse?: unknown;
+  contentType?: string;
+};
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: ApiErrorCode;
+  readonly upstream?: ApiErrorUpstreamDetail;
 
-  constructor(status: number, code: ApiErrorCode, message: string) {
+  constructor(
+    status: number,
+    code: ApiErrorCode,
+    message: string,
+    options: { upstream?: ApiErrorUpstreamDetail } = {}
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.upstream = options.upstream;
   }
 }
 
@@ -34,7 +51,8 @@ export function jsonError(error: unknown): NextResponse {
       {
         error: {
           code: error.code,
-          message: error.message
+          message: error.message,
+          ...(error.upstream ? { upstream: error.upstream } : {})
         }
       },
       { status: error.status }

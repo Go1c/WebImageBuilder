@@ -278,6 +278,102 @@ describe("OpenAI image provider", () => {
     );
   });
 
+  it("throws structured upstream diagnostics for failed image responses", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          Response.json(
+            {
+              error: {
+                message: "status_code=400, 提示词违规 请检查提示词",
+                code: "content_policy_violation",
+                type: "content_policy"
+              }
+            },
+            { status: 502 }
+          )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toMatchObject({
+      upstream: {
+        statusCode: 400,
+        gatewayStatus: 502,
+        code: "content_policy_violation",
+        type: "content_policy",
+        message: "提示词违规 请检查提示词",
+        rawResponse: {
+          error: {
+            message: "status_code=400, 提示词违规 请检查提示词",
+            code: "content_policy_violation",
+            type: "content_policy"
+          }
+        }
+      }
+    });
+  });
+
+  it.each([
+    ["status_code=502, 提示词违规", 502, "prompt_violation", "提示词违规"],
+    [
+      "status_code=502, 图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试",
+      502,
+      "auth_required",
+      "图片生成失败(auth_required):上游返回 403 风控/盾页面,已切换账号重试"
+    ],
+    ["status_code=502, 需要提供参考图", 502, "reference_required", "需要提供参考图"],
+    ["status_code=404, bad response status code 404", 404, "upstream_not_found", "bad response status code 404"],
+    ["status_code=400, err", 400, "upstream_bad_request", "err"],
+    ["status_code=502, 提示词没有触发画图模式", 502, "drawing_mode_not_triggered", "提示词没有触发画图模式"],
+    [
+      "status_code=502, 上游生图等待超时,已尝试切换账号/代理:context deadline exceeded",
+      502,
+      "upstream_timeout",
+      "上游生图等待超时,已尝试切换账号/代理:context deadline exceeded"
+    ]
+  ])("infers upstream error code from gateway message %s", async (rawMessage, statusCode, code, message) => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message: rawMessage
+            }
+          },
+          { status: 502 }
+        )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toMatchObject({
+      upstream: {
+        statusCode,
+        gatewayStatus: 502,
+        code,
+        message,
+        rawResponse: {
+          error: {
+            message: rawMessage
+          }
+        }
+      }
+    });
+  });
+
   it("includes the complete upstream text body for non-JSON image errors", async () => {
     process.env = {
       ...originalEnv,

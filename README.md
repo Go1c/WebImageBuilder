@@ -52,7 +52,7 @@ OPENAI_IMAGE_PRO_MODEL=gpt-image-2pro
 
 `OPENAI_BASE_URL` 默认是 `https://api.openai.com`，使用官方 OpenAI 时可以不填。使用中转服务时填写中转根地址，不要带 `/v1`，代码会自动请求 `/v1/images/generations` 和 `/v1/images/edits`。
 
-图片生成超时时间按分辨率固定：1K 为 120 秒，2K/4K 为 240 秒。本站免费 3 次体验仅支持 1K；2K/4K 会使用已登录 Lumio 账户的 Key/余额。
+图片生成超时时间按分辨率固定：1K 为 250 秒，2K/4K 为 240 秒。本站免费 3 次体验仅支持 1K；2K/4K 会使用已登录 Lumio 账户的 Key/余额。
 
 Gemini：
 

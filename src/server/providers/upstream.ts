@@ -4,6 +4,26 @@ export type UpstreamResponseBody<T> = {
   text: string;
 };
 
+export type ProviderUpstreamErrorDetail = {
+  statusCode?: number;
+  gatewayStatus?: number;
+  code?: string;
+  type?: string;
+  message?: string;
+  rawResponse?: unknown;
+  contentType?: string;
+};
+
+export class UpstreamProviderError extends Error {
+  readonly upstream: ProviderUpstreamErrorDetail;
+
+  constructor(message: string, upstream: ProviderUpstreamErrorDetail) {
+    super(message);
+    this.name = "UpstreamProviderError";
+    this.upstream = upstream;
+  }
+}
+
 export async function readUpstreamResponseBody<T>(response: Response): Promise<UpstreamResponseBody<T>> {
   const text = await response.text();
 

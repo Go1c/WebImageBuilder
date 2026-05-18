@@ -81,6 +81,53 @@ Upstream response:
     expect(detail.message.endsWith("...")).toBe(false);
   });
 
+  it("preserves structured upstream provider diagnostics", async () => {
+    const response = Response.json(
+      {
+        error: {
+          code: "provider_error",
+          message: "status_code=400, 提示词违规 请检查提示词",
+          upstream: {
+            statusCode: 400,
+            gatewayStatus: 502,
+            code: "content_policy_violation",
+            type: "content_policy",
+            message: "提示词违规 请检查提示词",
+            rawResponse: {
+              error: {
+                message: "提示词违规 请检查提示词",
+                code: "content_policy_violation",
+                type: "content_policy"
+              }
+            }
+          }
+        }
+      },
+      { status: 400 }
+    );
+
+    await expect(readApiErrorDetail(response)).resolves.toMatchObject({
+      code: "provider_error",
+      isStructured: true,
+      message: "status_code=400, 提示词违规 请检查提示词",
+      status: 400,
+      upstream: {
+        statusCode: 400,
+        gatewayStatus: 502,
+        code: "content_policy_violation",
+        type: "content_policy",
+        message: "提示词违规 请检查提示词",
+        rawResponse: {
+          error: {
+            message: "提示词违规 请检查提示词",
+            code: "content_policy_violation",
+            type: "content_policy"
+          }
+        }
+      }
+    });
+  });
+
   it("includes plain text gateway error bodies", async () => {
     const response = new Response("Bad Gateway: upstream closed before response", {
       status: 502,

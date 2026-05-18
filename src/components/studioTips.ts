@@ -104,7 +104,9 @@ const apiErrorTipMap = new Map<string, ApiErrorTipTemplate>([
   ]
 ]);
 
-export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText">): StudioTip {
+export function tipFromApiError(
+  error: Pick<ApiErrorDetail, "code" | "message" | "status" | "statusText" | "upstream">
+): StudioTip {
   if (
     (error.code === "rate_limited" || error.code === "quota_exhausted") &&
     isDeviceQuotaExhausted(error.message)
@@ -155,6 +157,94 @@ export function tipFromApiError(error: Pick<ApiErrorDetail, "code" | "message" |
       message: "为防止恶意注册，使用赠送余额生成图片前，需要账户历史充值金额大于 10 元。请先完成充值，满足条件后即可继续使用赠送余额。",
       actionLabel: "去充值",
       actionHref: "https://api.lumio.games/purchase"
+    };
+  }
+
+  if (error.code === "provider_error" && isPromptViolationError(error)) {
+    return {
+      type: "warning",
+      title: "提示词违规",
+      message: withDebugDetail(
+        "上游图像服务判定提示词违规。请修改提示词，删减敏感、成人、暴力、违法、名人肖像、侵权或规避审核等描述后再试。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      )
+    };
+  }
+
+  if (error.code === "provider_error" && isUpstreamAuthOrRiskError(error)) {
+    return {
+      type: "warning",
+      title: "上游账号或风控拦截",
+      message: withDebugDetail(
+        "上游账号认证失败，或触发了 403 风控/盾页面；系统已尝试切换账号但仍失败。请检查账号状态、Key 权限，或稍后再试。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      ),
+      actionLabel: "查看 Key",
+      actionHref: "https://api.lumio.games/keys"
+    };
+  }
+
+  if (error.code === "provider_error" && isReferenceRequiredError(error)) {
+    return {
+      type: "warning",
+      title: "需要参考图",
+      message: withDebugDetail(
+        "这个请求需要提供参考图。请上传参考图，或先把画布/作品图设置为参考图后再生成。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      )
+    };
+  }
+
+  if (error.code === "provider_error" && isDrawingModeNotTriggeredError(error)) {
+    return {
+      type: "warning",
+      title: "未触发画图模式",
+      message: withDebugDetail(
+        "上游没有进入画图模式。请在提示词中明确要求生成图片，避免只提问、聊天或让模型输出文字说明。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      )
+    };
+  }
+
+  if (error.code === "provider_error" && isUpstreamTimeoutError(error)) {
+    return {
+      type: "error",
+      title: "上游生成超时",
+      message: withDebugDetail(
+        "上游生图等待超时。请稍后重试，或降低分辨率、减少参考图/单次生成数量后再试。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      )
+    };
+  }
+
+  if (error.code === "provider_error" && isUpstreamNotFoundError(error)) {
+    return {
+      type: "error",
+      title: "上游接口不可用",
+      message: withDebugDetail(
+        "上游返回 404，可能是接口路径、模型名或通道配置不匹配。请检查上游 Base URL、模型和通道配置。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      ),
+      actionLabel: "查看 Key",
+      actionHref: "https://api.lumio.games/keys"
+    };
+  }
+
+  if (error.code === "provider_error" && isUpstreamBadRequestError(error)) {
+    return {
+      type: "warning",
+      title: "上游拒绝请求",
+      message: withDebugDetail(
+        "上游以 400 拒绝了请求。请检查请求参数、提示词、尺寸、参考图和模型配置。",
+        buildProviderDebugDetail(error),
+        { preserveWhitespace: true }
+      )
     };
   }
 
@@ -231,6 +321,111 @@ function isImageGatewayUnavailable(message: string | undefined): boolean {
   );
 }
 
+function isPromptViolationError(
+  error: Pick<ApiErrorDetail, "message" | "upstream">
+): boolean {
+  const text = getProviderErrorText(error);
+  const normalized = text.toLowerCase();
+
+  return (
+    hasUpstreamCode(error, ["prompt_violation", "content_policy_violation"]) ||
+    (text.includes("提示词违规") ||
+      normalized.includes("content_policy") ||
+      normalized.includes("policy violation") ||
+      normalized.includes("safety"))
+  );
+}
+
+function isUpstreamAuthOrRiskError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const text = getProviderErrorText(error);
+
+  return (
+    hasUpstreamCode(error, ["auth_required"]) ||
+    text.includes("auth_required") ||
+    text.includes("上游返回 403") ||
+    text.includes("风控") ||
+    text.includes("盾页面")
+  );
+}
+
+function isReferenceRequiredError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const text = getProviderErrorText(error);
+
+  return (
+    hasUpstreamCode(error, ["reference_required"]) ||
+    text.includes("需要提供参考图") ||
+    (text.includes("参考图") && text.includes("需要"))
+  );
+}
+
+function isDrawingModeNotTriggeredError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const text = getProviderErrorText(error);
+  const normalized = text.toLowerCase();
+
+  return (
+    hasUpstreamCode(error, ["drawing_mode_not_triggered"]) ||
+    text.includes("提示词没有触发画图模式") ||
+    normalized.includes("drawing mode")
+  );
+}
+
+function isUpstreamTimeoutError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const text = getProviderErrorText(error);
+  const normalized = text.toLowerCase();
+
+  return (
+    hasUpstreamCode(error, ["upstream_timeout"]) ||
+    text.includes("等待超时") ||
+    normalized.includes("context deadline") ||
+    normalized.includes("deadline exceeded") ||
+    normalized.includes("timeout")
+  );
+}
+
+function isUpstreamNotFoundError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  const text = getProviderErrorText(error).toLowerCase();
+
+  return (
+    hasUpstreamCode(error, ["upstream_not_found"]) ||
+    error.upstream?.statusCode === 404 ||
+    readStatusCodeFromMessage(error.message) === 404 ||
+    text.includes("bad response status code 404")
+  );
+}
+
+function isUpstreamBadRequestError(error: Pick<ApiErrorDetail, "message" | "upstream">): boolean {
+  return (
+    hasUpstreamCode(error, ["upstream_bad_request"]) ||
+    error.upstream?.statusCode === 400 ||
+    readStatusCodeFromMessage(error.message) === 400
+  );
+}
+
+function hasUpstreamCode(
+  error: Pick<ApiErrorDetail, "upstream">,
+  codes: string[]
+): boolean {
+  const code = (error.upstream?.code || "").toLowerCase();
+  return codes.includes(code);
+}
+
+function getProviderErrorText(error: Pick<ApiErrorDetail, "message" | "upstream">): string {
+  const rawResponse =
+    error.upstream?.rawResponse !== undefined
+      ? formatRawUpstreamResponse(error.upstream.rawResponse)
+      : "";
+
+  return [
+    error.message,
+    error.upstream?.message,
+    error.upstream?.code,
+    error.upstream?.type,
+    rawResponse
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function isGiftBalanceRechargeRequired(message: string | undefined): boolean {
   const normalized = message || "";
   return (
@@ -238,6 +433,44 @@ function isGiftBalanceRechargeRequired(message: string | undefined): boolean {
     normalized.includes("余额服务") &&
     normalized.includes("充值")
   );
+}
+
+function readStatusCodeFromMessage(message: string | undefined): number | undefined {
+  const match = (message || "").match(/\bstatus_code\s*=\s*(\d{3})\b/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function buildProviderDebugDetail(
+  error: Pick<ApiErrorDetail, "message" | "upstream">
+): string | undefined {
+  if (!error.upstream) {
+    return error.message;
+  }
+
+  const upstreamLines = [
+    error.upstream.statusCode ? `upstream_status_code=${error.upstream.statusCode}` : "",
+    error.upstream.gatewayStatus ? `gateway_status=${error.upstream.gatewayStatus}` : "",
+    error.upstream.code ? `upstream_code=${error.upstream.code}` : "",
+    error.upstream.type ? `upstream_type=${error.upstream.type}` : "",
+    error.upstream.message ? `upstream_message=${error.upstream.message}` : "",
+    error.upstream.rawResponse !== undefined
+      ? `upstream_response:\n${formatRawUpstreamResponse(error.upstream.rawResponse)}`
+      : ""
+  ].filter(Boolean);
+
+  return [error.message, ...upstreamLines].filter(Boolean).join("\n");
+}
+
+function formatRawUpstreamResponse(rawResponse: unknown): string {
+  if (typeof rawResponse === "string") {
+    return rawResponse;
+  }
+
+  try {
+    return JSON.stringify(rawResponse, null, 2);
+  } catch {
+    return String(rawResponse);
+  }
 }
 
 export function tipFromActionFailure(failure: StudioActionFailure): StudioTip {

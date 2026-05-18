@@ -1597,7 +1597,7 @@ function HeaderContextPanel({
             <div className="context-section-list">
               <p>生成价格：1K 每张 0.05 元，2K 和 4K 每张 0.2 元。</p>
               <p>本站只记录普通用户免费体验 3 次，免费体验仅支持 1K。</p>
-              <p>1K 请求超时时间为 150 秒；2K/4K 请求超时时间为 240 秒。</p>
+              <p>1K 请求超时时间为 250 秒；2K/4K 请求超时时间为 240 秒。</p>
               <p>注册送 20 次、邀请 1 人送 20 次由 api.lumio.games 管理，可在邀请返利页面查看。</p>
             </div>
             <h3>快速生成流程</h3>
