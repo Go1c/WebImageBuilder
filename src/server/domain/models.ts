@@ -48,8 +48,8 @@ const modelOptions: Record<ModelKey, ModelOption> = {
     key: "gpt-image-2",
     label: "GPT Image 2",
     provider: "openai",
-    providerModel: getOpenAIProviderModel("1K"),
-    description: "适合高质量文生图、参考图和编辑。1K 请求使用 gpt-image-2，2K/4K 请求使用 gpt-image-2pro。"
+    providerModel: getOpenAIProviderModel(),
+    description: "适合高质量文生图、参考图和编辑。所有分辨率请求使用 gpt-image-2，尺寸由 size 参数决定。"
   },
   "gemini-image": {
     key: "gemini-image",
@@ -172,21 +172,17 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
 
 function getProviderModelForResolution(
   model: ModelOption,
-  resolution: ImageResolutionTier
+  _resolution: ImageResolutionTier
 ): string {
   if (model.key === "gpt-image-2") {
-    return getOpenAIProviderModel(resolution);
+    return getOpenAIProviderModel();
   }
 
   return model.providerModel;
 }
 
-function getOpenAIProviderModel(resolution: ImageResolutionTier): string {
-  if (resolution === "1K") {
-    return process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
-  }
-
-  return process.env.OPENAI_IMAGE_PRO_MODEL || "gpt-image-2pro";
+function getOpenAIProviderModel(): string {
+  return process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 }
 
 function assertGptImage2SupportsSize(size: NormalizedGenerationInput["size"]): void {

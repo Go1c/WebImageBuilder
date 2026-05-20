@@ -66,7 +66,6 @@ export class OpenAIImageProvider implements ImageProvider {
       prompt: buildImagePrompt(input),
       n: input.count,
       size: input.size,
-      quality: input.quality,
       response_format: "b64_json"
     };
 

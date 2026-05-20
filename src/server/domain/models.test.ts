@@ -54,7 +54,7 @@ describe("model and generation request rules", () => {
     expect(input.providerModel).toBeDefined();
   });
 
-  it("selects the OpenAI image request model from the requested resolution", () => {
+  it("uses GPT Image 2 for every OpenAI image resolution", () => {
     const baseInput = {
       prompt: "A red robot",
       mode: "text-to-image" as const,
@@ -75,7 +75,7 @@ describe("model and generation request rules", () => {
         size: "2048x1152",
         resolution: "2K"
       }).providerModel
-    ).toBe("gpt-image-2pro");
+    ).toBe("gpt-image-2");
 
     expect(
       normalizeGenerationInput({
@@ -83,7 +83,7 @@ describe("model and generation request rules", () => {
         size: "3840x2160",
         resolution: "4K"
       }).providerModel
-    ).toBe("gpt-image-2pro");
+    ).toBe("gpt-image-2");
   });
 
   it("uses the configured image request timeouts for each resolution", () => {
