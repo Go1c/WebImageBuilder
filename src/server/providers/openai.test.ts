@@ -157,7 +157,64 @@ describe("OpenAI image provider", () => {
     );
   });
 
-  it("sends reference asset URLs through the generations endpoint", async () => {
+  it("fetches reference asset URLs before sending them through the edits endpoint", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url) === "https://cdn.example.com/reference.png") {
+        return new Response(Buffer.from("reference image"), {
+          status: 200,
+          headers: { "content-type": "image/png" }
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider().generate({
+      ...buildInput(),
+      mode: "image-to-image",
+      prompt: "keep this pose and render cinematic lighting",
+      referenceAssets: [
+        {
+          key: "uploads/reference.png",
+          url: "https://cdn.example.com/reference.png",
+          mimeType: "image/png"
+        }
+      ]
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://cdn.example.com/reference.png");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lumio.games/v1/images/edits",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "https://api.lumio.games/v1/images/generations",
+      expect.anything()
+    );
+
+    const editRequest = fetchMock.mock.calls.find(
+      ([url]) => String(url) === "https://api.lumio.games/v1/images/edits"
+    );
+    const form = editRequest?.[1]?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.get("model")).toBe("gpt-image-2");
+    expect(form.get("prompt")).toContain("keep this pose");
+    expect(form.getAll("image[]")).toHaveLength(1);
+  });
+
+  it("keeps already inlined reference data URLs without refetching them", async () => {
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-key",
@@ -174,14 +231,15 @@ describe("OpenAI image provider", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
+    const referenceDataUrl = "data:image/png;base64,cmVmZXJlbmNl";
     await new OpenAIImageProvider().generate({
       ...buildInput(),
       mode: "image-to-image",
       prompt: "keep this pose and render cinematic lighting",
       referenceAssets: [
         {
-          key: "uploads/reference.png",
-          url: "https://cdn.example.com/reference.png",
+          key: "local/reference.png",
+          url: referenceDataUrl,
           mimeType: "image/png"
         }
       ]
@@ -189,16 +247,12 @@ describe("OpenAI image provider", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.lumio.games/v1/images/generations",
+      "https://api.lumio.games/v1/images/edits",
       expect.objectContaining({ method: "POST" })
     );
-
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
-      prompt: string;
-      reference_images?: string[];
-    };
-    expect(requestBody.prompt).toContain("keep this pose");
-    expect(requestBody.reference_images).toEqual(["https://cdn.example.com/reference.png"]);
+    const form = fetchMock.mock.calls[0][1]?.body as FormData;
+    expect(form).toBeInstanceOf(FormData);
+    expect(form.getAll("image[]")).toHaveLength(1);
   });
 
   it("reports non-JSON image gateway responses clearly", async () => {

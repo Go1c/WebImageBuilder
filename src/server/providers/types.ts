@@ -18,6 +18,10 @@ export async function fetchAsset(url: string): Promise<{
   buffer: Buffer;
   mimeType: string;
 }> {
+  if (url.startsWith("data:")) {
+    return parseDataUrlAsset(url);
+  }
+
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch asset: ${response.status}`);
@@ -27,6 +31,25 @@ export async function fetchAsset(url: string): Promise<{
   return {
     buffer: Buffer.from(arrayBuffer),
     mimeType: response.headers.get("content-type") || "image/png"
+  };
+}
+
+function parseDataUrlAsset(url: string): {
+  buffer: Buffer;
+  mimeType: string;
+} {
+  const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(url);
+  if (!match) {
+    throw new Error("Failed to parse asset data URL");
+  }
+
+  const mimeType = match[1] || "image/png";
+  const isBase64 = Boolean(match[2]);
+  const data = match[3] || "";
+
+  return {
+    buffer: isBase64 ? Buffer.from(data, "base64") : Buffer.from(decodeURIComponent(data)),
+    mimeType
   };
 }
 

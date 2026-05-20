@@ -49,7 +49,7 @@ export class OpenAIImageProvider implements ImageProvider {
   constructor(private readonly options: OpenAIImageProviderOptions = {}) {}
 
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
-    if (input.maskAsset) {
+    if (input.referenceAssets.length > 0 || input.maskAsset) {
       return this.generateEdit(input);
     }
 
@@ -68,10 +68,6 @@ export class OpenAIImageProvider implements ImageProvider {
       size: input.size,
       response_format: "b64_json"
     };
-
-    if (input.referenceAssets.length > 0) {
-      body.reference_images = input.referenceAssets.map((asset) => asset.url);
-    }
 
     const response = await fetchOpenAI(
       openAIUrl(endpoint, baseUrl),
