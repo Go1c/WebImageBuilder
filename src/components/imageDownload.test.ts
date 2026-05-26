@@ -22,6 +22,55 @@ describe("image download helper", () => {
     expect(link.click).toHaveBeenCalledOnce();
   });
 
+  it("opens the browser save dialog when the file picker API is available", async () => {
+    const link = createFakeLink();
+    const fetchMock = vi.fn(async () =>
+      new Response(Buffer.from("fake image"), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/png"
+        }
+      })
+    );
+    const writable = {
+      write: vi.fn(async () => {}),
+      close: vi.fn(async () => {})
+    };
+    const showSaveFilePicker = vi.fn(async () => ({
+      createWritable: vi.fn(async () => writable)
+    }));
+
+    await downloadGeneratedImage(
+      {
+        key: "generated/user-1/task-1/image.png",
+        url: "https://cdn.lumio.games/generated/image.png",
+        mimeType: "image/png"
+      },
+      0,
+      {
+        document: createFakeDocument(link),
+        fetch: fetchMock,
+        showSaveFilePicker,
+        now: new Date(2026, 3, 26, 19, 51, 30)
+      }
+    );
+
+    expect(showSaveFilePicker).toHaveBeenCalledWith({
+      suggestedName: "lumio-result-20260426-195130-01.png",
+      types: [
+        {
+          description: "Image",
+          accept: {
+            "image/png": [".png"]
+          }
+        }
+      ]
+    });
+    expect(writable.write).toHaveBeenCalledOnce();
+    expect(writable.close).toHaveBeenCalledOnce();
+    expect(link.click).not.toHaveBeenCalled();
+  });
+
   it("downloads owned remote images through the app download endpoint", async () => {
     vi.useFakeTimers();
     const link = createFakeLink();
@@ -114,6 +163,28 @@ describe("image download helper", () => {
     expect(link.href).toBe("blob:download-1");
     expect(link.download).toBe("lumio-result-20260426-195130-02.png");
     expect(link.click).toHaveBeenCalledOnce();
+  });
+
+  it("throws instead of opening the remote image directly when every download path fails", async () => {
+    const link = createFakeLink();
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network failed"));
+
+    await expect(
+      downloadGeneratedImage(
+        {
+          url: "https://cdn.lumio.games/generated/image.png",
+          mimeType: "image/png"
+        },
+        1,
+        {
+          document: createFakeDocument(link),
+          fetch: fetchMock,
+          now: new Date(2026, 3, 26, 19, 51, 30)
+        }
+      )
+    ).rejects.toThrow("Failed to download image.");
+
+    expect(link.click).not.toHaveBeenCalled();
   });
 
   it("builds stable download file names", () => {

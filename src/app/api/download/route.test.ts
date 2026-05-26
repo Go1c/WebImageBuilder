@@ -70,7 +70,26 @@ describe("/api/download", () => {
     );
   });
 
-  it("returns not found when the image does not belong to the current actor", async () => {
+  it("downloads trusted public generated images through the app download route", async () => {
+    vi.mocked(getOwnedResultAsset).mockResolvedValueOnce(null);
+    vi.mocked(fetchAsset).mockResolvedValueOnce({
+      buffer: Buffer.from("png-bytes"),
+      mimeType: "image/png"
+    });
+
+    const response = await GET(
+      new NextRequest(
+        "http://localhost/api/download?url=https%3A%2F%2Fcdn.lumio.games%2Fgenerated%2Ftask%2Fimage.png&filename=result.png"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("content-disposition")).toBe('attachment; filename="result.png"');
+    expect(fetchAsset).toHaveBeenCalledWith("https://cdn.lumio.games/generated/task/image.png");
+  });
+
+  it("returns not found for untrusted URLs when the image does not belong to the current actor", async () => {
     vi.mocked(getOwnedResultAsset).mockResolvedValueOnce(null);
 
     const response = await GET(

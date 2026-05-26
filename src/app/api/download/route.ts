@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getAppConfig } from "@/server/config";
 import { getOwnedResultAsset } from "@/server/db/repositories";
 import { ApiError, jsonError } from "@/server/http";
 import { fetchAsset } from "@/server/providers/types";
@@ -31,10 +32,11 @@ export async function GET(request: NextRequest) {
       throw new ApiError(400, "bad_request", "Missing or invalid download target");
     }
 
-    const asset = await getOwnedResultAsset(context.actor, {
+    const ownedAsset = await getOwnedResultAsset(context.actor, {
       storageKey: parsedQuery.data.key,
       url: parsedQuery.data.url
     });
+    const asset = ownedAsset || resolveTrustedPublicAsset(parsedQuery.data.url);
     if (!asset) {
       throw new ApiError(404, "not_found", "Image not found");
     }
@@ -84,4 +86,37 @@ function buildFallbackDownloadFileName(mimeType: string | undefined): string {
   }
 
   return "lumio-image.bin";
+}
+
+function resolveTrustedPublicAsset(url: string | undefined): { url: string; mimeType: null } | null {
+  if (!url || !isTrustedPublicGeneratedAssetUrl(url)) {
+    return null;
+  }
+
+  return {
+    url,
+    mimeType: null
+  };
+}
+
+function isTrustedPublicGeneratedAssetUrl(url: string): boolean {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  const allowedPrefixes = new Set<string>(["https://cdn.lumio.games/generated/"]);
+  const configuredPublicBaseUrl = getAppConfig().s3.publicBaseUrl;
+
+  if (configuredPublicBaseUrl) {
+    allowedPrefixes.add(`${configuredPublicBaseUrl.replace(/\/+$/, "")}/generated/`);
+  }
+
+  for (const prefix of allowedPrefixes) {
+    if (normalizedUrl.startsWith(prefix)) {
+      return true;
+    }
+  }
+
+  return false;
 }

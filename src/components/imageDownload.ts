@@ -20,10 +20,28 @@ type DownloadUrlApi = {
   revokeObjectURL: (url: string) => void;
 };
 
+type FilePickerWritable = {
+  write: (data: Blob) => Promise<void>;
+  close: () => Promise<void>;
+};
+
+type FilePickerHandle = {
+  createWritable: () => Promise<FilePickerWritable>;
+};
+
+type ShowSaveFilePicker = (options: {
+  suggestedName: string;
+  types: Array<{
+    description: string;
+    accept: Record<string, string[]>;
+  }>;
+}) => Promise<FilePickerHandle>;
+
 export type DownloadDependencies = {
   document?: DownloadDocument;
   fetch?: typeof fetch;
   url?: DownloadUrlApi;
+  showSaveFilePicker?: ShowSaveFilePicker;
   now?: Date;
 };
 
@@ -36,38 +54,29 @@ export async function downloadGeneratedImage(
   const documentRef = dependencies.document ?? document;
   const fetchRef = dependencies.fetch ?? fetch;
   const urlRef = dependencies.url ?? URL;
+  const showSaveFilePickerRef = dependencies.showSaveFilePicker ?? readShowSaveFilePicker();
+  const downloadUrls = buildDownloadAttemptUrls(image, fileName);
 
-  if (isDirectDownloadUrl(image.url)) {
+  if (isDirectDownloadUrl(image.url) && !showSaveFilePickerRef) {
     clickDownloadLink(documentRef, image.url, fileName);
     return;
   }
 
-  const ownedDownloadUrl = buildOwnedAssetDownloadUrl(image, fileName);
-  if (
-    ownedDownloadUrl &&
-    (await tryBlobDownload(ownedDownloadUrl, fileName, {
-      document: documentRef,
-      fetch: fetchRef,
-      url: urlRef
-    }))
-  ) {
+  for (const downloadUrl of downloadUrls) {
+    const blob = await tryFetchDownloadBlob(downloadUrl, fetchRef);
+    if (!blob) {
+      continue;
+    }
+
+    if (showSaveFilePickerRef && (await trySaveWithFilePicker(blob, fileName, image.mimeType, showSaveFilePickerRef))) {
+      return;
+    }
+
+    saveBlobWithAnchor(documentRef, urlRef, blob, fileName);
     return;
   }
 
-  if (
-    (image.url.startsWith("http://") ||
-      image.url.startsWith("https://") ||
-      image.url.startsWith("/")) &&
-    (await tryBlobDownload(image.url, fileName, {
-      document: documentRef,
-      fetch: fetchRef,
-      url: urlRef
-    }))
-  ) {
-    return;
-  }
-
-  clickDownloadLink(documentRef, image.url, fileName);
+  throw new Error("Failed to download image.");
 }
 
 export function buildDownloadFileName(image: DownloadableImage, index: number, now = new Date()): string {
@@ -109,26 +118,19 @@ function inferImageExtension(image: DownloadableImage): string {
   return pathExtension || "png";
 }
 
-async function tryBlobDownload(
+async function tryFetchDownloadBlob(
   requestUrl: string,
-  fileName: string,
-  dependencies: Required<Pick<DownloadDependencies, "document" | "fetch" | "url">>
-): Promise<boolean> {
+  fetchRef: typeof fetch
+): Promise<Blob | null> {
   try {
-    const response = await dependencies.fetch(requestUrl, { cache: "no-store" });
+    const response = await fetchRef(requestUrl, { cache: "no-store" });
     if (!response.ok) {
-      return false;
+      return null;
     }
 
-    const blob = await response.blob();
-    const objectUrl = dependencies.url.createObjectURL(blob);
-    clickDownloadLink(dependencies.document, objectUrl, fileName);
-    globalThis.setTimeout(() => {
-      dependencies.url.revokeObjectURL(objectUrl);
-    }, 0);
-    return true;
+    return response.blob();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -144,6 +146,26 @@ function isDirectDownloadUrl(url: string): boolean {
   return url.startsWith("data:") || url.startsWith("blob:");
 }
 
+function buildDownloadAttemptUrls(image: DownloadableImage, fileName: string): string[] {
+  const urls = new Set<string>();
+  const ownedAssetDownloadUrl = buildOwnedAssetDownloadUrl(image, fileName);
+
+  if (ownedAssetDownloadUrl) {
+    urls.add(ownedAssetDownloadUrl);
+  }
+
+  if (
+    isDirectDownloadUrl(image.url) ||
+    image.url.startsWith("http://") ||
+    image.url.startsWith("https://") ||
+    image.url.startsWith("/")
+  ) {
+    urls.add(image.url);
+  }
+
+  return Array.from(urls);
+}
+
 function buildOwnedAssetDownloadUrl(image: DownloadableImage, fileName: string): string | null {
   const searchParams = new URLSearchParams();
 
@@ -157,4 +179,57 @@ function buildOwnedAssetDownloadUrl(image: DownloadableImage, fileName: string):
 
   searchParams.set("filename", fileName);
   return `/api/download?${searchParams.toString()}`;
+}
+
+function saveBlobWithAnchor(
+  documentRef: DownloadDocument,
+  urlRef: DownloadUrlApi,
+  blob: Blob,
+  fileName: string
+): void {
+  const objectUrl = urlRef.createObjectURL(blob);
+  clickDownloadLink(documentRef, objectUrl, fileName);
+  globalThis.setTimeout(() => {
+    urlRef.revokeObjectURL(objectUrl);
+  }, 0);
+}
+
+async function trySaveWithFilePicker(
+  blob: Blob,
+  fileName: string,
+  mimeType: string | undefined,
+  showSaveFilePicker: ShowSaveFilePicker
+): Promise<boolean> {
+  try {
+    const handle = await showSaveFilePicker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: "Image",
+          accept: {
+            [mimeType || blob.type || "application/octet-stream"]: [buildAcceptedExtension(fileName)]
+          }
+        }
+      ]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function buildAcceptedExtension(fileName: string): string {
+  const extension = fileName.match(/(\.[a-z0-9]+)$/i)?.[1];
+  return extension || ".png";
+}
+
+function readShowSaveFilePicker(): ShowSaveFilePicker | undefined {
+  const candidate = globalThis as typeof globalThis & {
+    showSaveFilePicker?: ShowSaveFilePicker;
+  };
+
+  return candidate.showSaveFilePicker;
 }
