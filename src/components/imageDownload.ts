@@ -56,8 +56,11 @@ export async function downloadGeneratedImage(
   const urlRef = dependencies.url ?? URL;
   const showSaveFilePickerRef = dependencies.showSaveFilePicker ?? readShowSaveFilePicker();
   const downloadUrls = buildDownloadAttemptUrls(image, fileName);
+  const filePickerHandle = showSaveFilePickerRef
+    ? await tryOpenSaveFileHandle(fileName, image.mimeType, showSaveFilePickerRef)
+    : null;
 
-  if (isDirectDownloadUrl(image.url) && !showSaveFilePickerRef) {
+  if (isDirectDownloadUrl(image.url) && !filePickerHandle) {
     clickDownloadLink(documentRef, image.url, fileName);
     return;
   }
@@ -68,7 +71,7 @@ export async function downloadGeneratedImage(
       continue;
     }
 
-    if (showSaveFilePickerRef && (await trySaveWithFilePicker(blob, fileName, image.mimeType, showSaveFilePickerRef))) {
+    if (filePickerHandle && (await tryWriteFilePickerHandle(filePickerHandle, blob))) {
       return;
     }
 
@@ -194,24 +197,33 @@ function saveBlobWithAnchor(
   }, 0);
 }
 
-async function trySaveWithFilePicker(
-  blob: Blob,
+async function tryOpenSaveFileHandle(
   fileName: string,
   mimeType: string | undefined,
   showSaveFilePicker: ShowSaveFilePicker
-): Promise<boolean> {
+): Promise<FilePickerHandle | null> {
   try {
-    const handle = await showSaveFilePicker({
+    return await showSaveFilePicker({
       suggestedName: fileName,
       types: [
         {
           description: "Image",
           accept: {
-            [mimeType || blob.type || "application/octet-stream"]: [buildAcceptedExtension(fileName)]
+            [mimeType || "application/octet-stream"]: [buildAcceptedExtension(fileName)]
           }
         }
       ]
     });
+  } catch {
+    return null;
+  }
+}
+
+async function tryWriteFilePickerHandle(
+  handle: FilePickerHandle,
+  blob: Blob
+): Promise<boolean> {
+  try {
     const writable = await handle.createWritable();
     await writable.write(blob);
     await writable.close();

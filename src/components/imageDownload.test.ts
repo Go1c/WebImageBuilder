@@ -24,21 +24,26 @@ describe("image download helper", () => {
 
   it("opens the browser save dialog when the file picker API is available", async () => {
     const link = createFakeLink();
-    const fetchMock = vi.fn(async () =>
-      new Response(Buffer.from("fake image"), {
+    const callOrder: string[] = [];
+    const fetchMock = vi.fn(async () => {
+      callOrder.push("fetch");
+      return new Response(Buffer.from("fake image"), {
         status: 200,
         headers: {
           "Content-Type": "image/png"
         }
-      })
-    );
+      });
+    });
     const writable = {
       write: vi.fn(async () => {}),
       close: vi.fn(async () => {})
     };
-    const showSaveFilePicker = vi.fn(async () => ({
-      createWritable: vi.fn(async () => writable)
-    }));
+    const showSaveFilePicker = vi.fn(async () => {
+      callOrder.push("picker");
+      return {
+        createWritable: vi.fn(async () => writable)
+      };
+    });
 
     await downloadGeneratedImage(
       {
@@ -69,6 +74,7 @@ describe("image download helper", () => {
     expect(writable.write).toHaveBeenCalledOnce();
     expect(writable.close).toHaveBeenCalledOnce();
     expect(link.click).not.toHaveBeenCalled();
+    expect(callOrder).toEqual(["picker", "fetch"]);
   });
 
   it("downloads owned remote images through the app download endpoint", async () => {
