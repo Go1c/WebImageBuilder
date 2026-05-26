@@ -969,6 +969,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     try {
       await downloadGeneratedImage(
         {
+          key: canvasImage.key,
           url: canvasImage.url,
           mimeType: canvasImage.mimeType
         },

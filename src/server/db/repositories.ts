@@ -42,6 +42,12 @@ export type GlobalGenerationStats = {
   totalGenerations: number;
 };
 
+export type OwnedAsset = {
+  storageKey: string;
+  url: string;
+  mimeType: string | null;
+};
+
 type LocalRepository = {
   tasks: LocalTask[];
   shares: PromptShareRecord[];
@@ -564,6 +570,58 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
       group by t.id
     `,
     [taskId, ownerId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
+export async function getOwnedResultAsset(
+  actor: Actor,
+  input: { storageKey?: string; url?: string }
+): Promise<OwnedAsset | null> {
+  if (!input.storageKey && !input.url) {
+    return null;
+  }
+
+  if (shouldUseLocalRepository()) {
+    const asset = getLocalRepository().tasks
+      .filter((task) => ownsLocalTask(actor, task))
+      .flatMap((task) => task.assets)
+      .find(
+        (taskAsset) =>
+          taskAsset.assetType === "result" &&
+          ((input.storageKey && taskAsset.storageKey === input.storageKey) ||
+            (input.url && taskAsset.url === input.url))
+      );
+
+    return asset
+      ? {
+          storageKey: asset.storageKey,
+          url: asset.url,
+          mimeType: asset.mimeType ?? null
+        }
+      : null;
+  }
+
+  const ownerClause = actor.type === "user" ? "a.user_id = $3" : "a.anonymous_device_id = $3";
+  const ownerId = actor.type === "user" ? actor.userId : actor.anonymousDeviceId;
+  const result = await query<OwnedAsset>(
+    `
+      select
+        a.storage_key as "storageKey",
+        a.url,
+        a.mime_type as "mimeType"
+      from assets a
+      where a.asset_type = 'result'
+        and ${ownerClause}
+        and (
+          ($1::text is not null and a.storage_key = $1)
+          or ($2::text is not null and a.url = $2)
+        )
+      order by a.created_at desc
+      limit 1
+    `,
+    [input.storageKey ?? null, input.url ?? null, ownerId]
   );
 
   return result.rows[0] ?? null;
