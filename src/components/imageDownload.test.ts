@@ -26,63 +26,60 @@ describe("image download helper", () => {
     });
   });
 
-  it("opens the browser save dialog when the file picker API is available", async () => {
+  it("does not open the file picker permission UI when Chrome download is available", async () => {
+    vi.useFakeTimers();
     const link = createFakeLink();
-    const callOrder: string[] = [];
-    const fetchMock = vi.fn(async () => {
-      callOrder.push("fetch");
-      return new Response(Buffer.from("fake image"), {
+    const fetchMock = vi.fn(async () =>
+      new Response(Buffer.from("fake image"), {
         status: 200,
         headers: {
           "Content-Type": "image/png"
         }
-      });
-    });
-    const writable = {
-      write: vi.fn(async () => {}),
-      close: vi.fn(async () => {})
-    };
-    const showSaveFilePicker = vi.fn(async () => {
-      callOrder.push("picker");
-      return {
-        createWritable: vi.fn(async () => writable)
-      };
-    });
-
-    const result = await downloadGeneratedImage(
-      {
-        key: "generated/user-1/task-1/image.png",
-        url: "https://cdn.lumio.games/generated/image.png",
-        mimeType: "image/png"
-      },
-      0,
-      {
-        document: createFakeDocument(link),
-        fetch: fetchMock,
-        showSaveFilePicker,
-        now: new Date(2026, 3, 26, 19, 51, 30)
-      }
+      })
     );
+    const urlApi = createFakeUrlApi();
+    const showSaveFilePicker = vi.fn();
+    const writableGlobal = globalThis as typeof globalThis & {
+      showSaveFilePicker?: typeof showSaveFilePicker;
+    };
+    const originalShowSaveFilePicker = writableGlobal.showSaveFilePicker;
+    writableGlobal.showSaveFilePicker = showSaveFilePicker;
 
-    expect(showSaveFilePicker).toHaveBeenCalledWith({
-      suggestedName: "lumio-result-20260426-195130-01.png",
-      types: [
+    try {
+      const result = await downloadGeneratedImage(
         {
-          description: "Image",
-          accept: {
-            "image/png": [".png"]
-          }
+          key: "generated/user-1/task-1/image.png",
+          url: "https://cdn.lumio.games/generated/image.png",
+          mimeType: "image/png"
+        },
+        0,
+        {
+          document: createFakeDocument(link),
+          fetch: fetchMock,
+          url: urlApi,
+          now: new Date(2026, 3, 26, 19, 51, 30)
         }
-      ]
-    });
-    expect(writable.write).toHaveBeenCalledOnce();
-    expect(writable.close).toHaveBeenCalledOnce();
-    expect(link.click).not.toHaveBeenCalled();
-    expect(callOrder).toEqual(["picker", "fetch"]);
-    expect(result).toEqual({
-      mode: "picker",
-      fileName: "lumio-result-20260426-195130-01.png"
-    });
+      );
+
+      expect(showSaveFilePicker).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/download?key=generated%2Fuser-1%2Ftask-1%2Fimage.png&filename=lumio-result-20260426-195130-01.png",
+        { cache: "no-store" }
+      );
+      expect(link.href).toBe("blob:download-1");
+      expect(link.download).toBe("lumio-result-20260426-195130-01.png");
+      expect(link.click).toHaveBeenCalledOnce();
+      expect(result).toEqual({
+        mode: "blob",
+        fileName: "lumio-result-20260426-195130-01.png"
+      });
+
+      await vi.runAllTimersAsync();
+      expect(urlApi.revokeObjectURL).toHaveBeenCalledWith("blob:download-1");
+    } finally {
+      writableGlobal.showSaveFilePicker = originalShowSaveFilePicker;
+      vi.useRealTimers();
+    }
   });
 
   it("downloads owned remote images through the app download endpoint", async () => {

@@ -77,7 +77,8 @@ describe("studio canvas actions markup", () => {
     const handler = readFunctionSource("handleDownloadCurrentImage");
 
     expect(handler).toContain('downloadResult.mode === "opened"');
-    expect(handler).toContain("下载已开始");
+    expect(handler).toContain("正在下载");
+    expect(handler).toContain("下载完成");
     expect(handler).toContain("已打开原图");
     expect(handler).toContain("Chrome");
   });

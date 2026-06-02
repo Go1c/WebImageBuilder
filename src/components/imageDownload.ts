@@ -20,26 +20,9 @@ type DownloadUrlApi = {
   revokeObjectURL: (url: string) => void;
 };
 
-type FilePickerWritable = {
-  write: (data: Blob) => Promise<void>;
-  close: () => Promise<void>;
-};
-
-type FilePickerHandle = {
-  createWritable: () => Promise<FilePickerWritable>;
-};
-
-type ShowSaveFilePicker = (options: {
-  suggestedName: string;
-  types: Array<{
-    description: string;
-    accept: Record<string, string[]>;
-  }>;
-}) => Promise<FilePickerHandle>;
-
 export type DownloadGeneratedImageResult =
   | {
-      mode: "picker" | "blob" | "direct";
+      mode: "blob" | "direct";
       fileName: string;
     }
   | {
@@ -52,7 +35,6 @@ export type DownloadDependencies = {
   fetch?: typeof fetch;
   openWindow?: (url: string, target: string, features: string) => unknown;
   url?: DownloadUrlApi;
-  showSaveFilePicker?: ShowSaveFilePicker;
   now?: Date;
 };
 
@@ -65,13 +47,9 @@ export async function downloadGeneratedImage(
   const documentRef = dependencies.document ?? document;
   const fetchRef = dependencies.fetch ?? (typeof fetch === "function" ? fetch : undefined);
   const urlRef = dependencies.url ?? (typeof URL !== "undefined" ? URL : undefined);
-  const showSaveFilePickerRef = dependencies.showSaveFilePicker ?? readShowSaveFilePicker();
   const downloadUrls = buildDownloadAttemptUrls(image, fileName);
-  const filePickerHandle = showSaveFilePickerRef
-    ? await tryOpenSaveFileHandle(fileName, image.mimeType, showSaveFilePickerRef)
-    : null;
 
-  if (isDirectDownloadUrl(image.url) && !filePickerHandle) {
+  if (isDirectDownloadUrl(image.url)) {
     clickDownloadLink(documentRef, image.url, fileName);
     return { mode: "direct", fileName };
   }
@@ -81,10 +59,6 @@ export async function downloadGeneratedImage(
       const blob = await tryFetchDownloadBlob(downloadUrl, fetchRef);
       if (!blob) {
         continue;
-      }
-
-      if (filePickerHandle && (await tryWriteFilePickerHandle(filePickerHandle, blob))) {
-        return { mode: "picker", fileName };
       }
 
       saveBlobWithAnchor(documentRef, urlRef, blob, fileName);
@@ -229,53 +203,4 @@ function saveBlobWithAnchor(
   globalThis.setTimeout(() => {
     urlRef.revokeObjectURL(objectUrl);
   }, 0);
-}
-
-async function tryOpenSaveFileHandle(
-  fileName: string,
-  mimeType: string | undefined,
-  showSaveFilePicker: ShowSaveFilePicker
-): Promise<FilePickerHandle | null> {
-  try {
-    return await showSaveFilePicker({
-      suggestedName: fileName,
-      types: [
-        {
-          description: "Image",
-          accept: {
-            [mimeType || "application/octet-stream"]: [buildAcceptedExtension(fileName)]
-          }
-        }
-      ]
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function tryWriteFilePickerHandle(
-  handle: FilePickerHandle,
-  blob: Blob
-): Promise<boolean> {
-  try {
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function buildAcceptedExtension(fileName: string): string {
-  const extension = fileName.match(/(\.[a-z0-9]+)$/i)?.[1];
-  return extension || ".png";
-}
-
-function readShowSaveFilePicker(): ShowSaveFilePicker | undefined {
-  const candidate = globalThis as typeof globalThis & {
-    showSaveFilePicker?: ShowSaveFilePicker;
-  };
-
-  return candidate.showSaveFilePicker;
 }

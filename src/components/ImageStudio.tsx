@@ -967,6 +967,12 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     }
 
     try {
+      showTip({
+        type: "info",
+        title: "正在下载",
+        message: "正在通过 Chrome 下载通道准备当前图片，请稍候。"
+      });
+
       const downloadResult = await downloadGeneratedImage(
         {
           key: canvasImage.key,
@@ -987,8 +993,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
       showTip({
         type: "success",
-        title: "下载已开始",
-        message: `Chrome 正在保存当前图片：${downloadResult.fileName}。`
+        title: "下载完成",
+        message: `已交给 Chrome 下载：${downloadResult.fileName}。`
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "下载图片", error }));

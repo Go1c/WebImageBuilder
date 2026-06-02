@@ -4,7 +4,7 @@
 
 **Goal:** Make generated-image downloads use Chrome's native download flow first and open the original image URL in a new tab as the fallback.
 
-**Architecture:** Keep the behavior in the existing `imageDownload` helper. The helper fetches the image into a blob, triggers an anchor download with the existing Lumio file name, and returns a result that lets the UI show the right tip. If blob download fails, the helper opens the image URL in a new tab.
+**Architecture:** Keep the behavior in the existing `imageDownload` helper. The helper fetches the app download endpoint or image URL into a blob, triggers an anchor download with the existing Lumio file name, and returns a result that lets the UI show the right tip. If blob download fails, the helper opens the image URL in a new tab. It must not use the File System Access save picker because that creates a Chrome permission indicator instead of a normal download.
 
 **Tech Stack:** Next.js App Router, React client components, TypeScript, Vitest.
 
@@ -80,7 +80,8 @@ Expected: PASS.
 **Step 1: Update the download handler**
 
 Read the helper result. Show:
-- `下载已开始` when `mode === "blob"`.
+- `正在下载` before the helper starts work.
+- `下载完成` when the helper returns a browser download mode.
 - `已打开原图` when `mode === "opened"`.
 
 **Step 2: Run focused tests**
