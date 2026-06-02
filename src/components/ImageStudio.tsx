@@ -967,7 +967,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     }
 
     try {
-      await downloadGeneratedImage(
+      const downloadResult = await downloadGeneratedImage(
         {
           key: canvasImage.key,
           url: canvasImage.url,
@@ -975,10 +975,20 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         },
         0
       );
+
+      if (downloadResult.mode === "opened") {
+        showTip({
+          type: "info",
+          title: "已打开原图",
+          message: "Chrome 已在新标签页打开原图 URL。若未自动下载，请在新标签页中使用浏览器保存图片。"
+        });
+        return;
+      }
+
       showTip({
         type: "success",
         title: "下载已开始",
-        message: "浏览器正在保存当前图片。"
+        message: `Chrome 正在保存当前图片：${downloadResult.fileName}。`
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "下载图片", error }));

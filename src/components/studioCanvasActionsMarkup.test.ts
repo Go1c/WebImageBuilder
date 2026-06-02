@@ -73,6 +73,15 @@ describe("studio canvas actions markup", () => {
     expect(handler).toContain("分享提示词卡片");
   });
 
+  it("explains whether image download used Chrome download or opened the original URL", () => {
+    const handler = readFunctionSource("handleDownloadCurrentImage");
+
+    expect(handler).toContain('downloadResult.mode === "opened"');
+    expect(handler).toContain("下载已开始");
+    expect(handler).toContain("已打开原图");
+    expect(handler).toContain("Chrome");
+  });
+
   it("auto closes tips after the default timeout", () => {
     expect(source).toContain("window.setTimeout(() => {");
     expect(source).toContain("setTip(null)");

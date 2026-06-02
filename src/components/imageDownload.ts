@@ -37,9 +37,20 @@ type ShowSaveFilePicker = (options: {
   }>;
 }) => Promise<FilePickerHandle>;
 
+export type DownloadGeneratedImageResult =
+  | {
+      mode: "picker" | "blob" | "direct";
+      fileName: string;
+    }
+  | {
+      mode: "opened";
+      fileName: string;
+    };
+
 export type DownloadDependencies = {
   document?: DownloadDocument;
   fetch?: typeof fetch;
+  openWindow?: (url: string, target: string, features: string) => unknown;
   url?: DownloadUrlApi;
   showSaveFilePicker?: ShowSaveFilePicker;
   now?: Date;
@@ -49,11 +60,11 @@ export async function downloadGeneratedImage(
   image: DownloadableImage,
   index: number,
   dependencies: DownloadDependencies = {}
-): Promise<void> {
+): Promise<DownloadGeneratedImageResult> {
   const fileName = buildDownloadFileName(image, index, dependencies.now);
   const documentRef = dependencies.document ?? document;
-  const fetchRef = dependencies.fetch ?? fetch;
-  const urlRef = dependencies.url ?? URL;
+  const fetchRef = dependencies.fetch ?? (typeof fetch === "function" ? fetch : undefined);
+  const urlRef = dependencies.url ?? (typeof URL !== "undefined" ? URL : undefined);
   const showSaveFilePickerRef = dependencies.showSaveFilePicker ?? readShowSaveFilePicker();
   const downloadUrls = buildDownloadAttemptUrls(image, fileName);
   const filePickerHandle = showSaveFilePickerRef
@@ -62,24 +73,26 @@ export async function downloadGeneratedImage(
 
   if (isDirectDownloadUrl(image.url) && !filePickerHandle) {
     clickDownloadLink(documentRef, image.url, fileName);
-    return;
+    return { mode: "direct", fileName };
   }
 
-  for (const downloadUrl of downloadUrls) {
-    const blob = await tryFetchDownloadBlob(downloadUrl, fetchRef);
-    if (!blob) {
-      continue;
-    }
+  if (fetchRef && urlRef) {
+    for (const downloadUrl of downloadUrls) {
+      const blob = await tryFetchDownloadBlob(downloadUrl, fetchRef);
+      if (!blob) {
+        continue;
+      }
 
-    if (filePickerHandle && (await tryWriteFilePickerHandle(filePickerHandle, blob))) {
-      return;
-    }
+      if (filePickerHandle && (await tryWriteFilePickerHandle(filePickerHandle, blob))) {
+        return { mode: "picker", fileName };
+      }
 
-    saveBlobWithAnchor(documentRef, urlRef, blob, fileName);
-    return;
+      saveBlobWithAnchor(documentRef, urlRef, blob, fileName);
+      return { mode: "blob", fileName };
+    }
   }
 
-  throw new Error("Failed to download image.");
+  return openOriginalImageUrl(image.url, fileName, dependencies);
 }
 
 export function buildDownloadFileName(image: DownloadableImage, index: number, now = new Date()): string {
@@ -143,6 +156,27 @@ function clickDownloadLink(documentRef: DownloadDocument, href: string, fileName
   link.download = fileName;
   link.rel = "noreferrer";
   link.click();
+}
+
+function openOriginalImageUrl(
+  imageUrl: string,
+  fileName: string,
+  dependencies: DownloadDependencies
+): DownloadGeneratedImageResult {
+  const openWindow =
+    dependencies.openWindow ??
+    (typeof window !== "undefined" && typeof window.open === "function"
+      ? window.open.bind(window)
+      : undefined);
+
+  if (!openWindow) {
+    throw new Error("浏览器无法打开原图链接，请手动复制图片地址后保存。");
+  }
+
+  // With noopener, Chrome may return null even when it opens the tab.
+  openWindow(imageUrl, "_blank", "noopener,noreferrer");
+
+  return { mode: "opened", fileName };
 }
 
 function isDirectDownloadUrl(url: string): boolean {

@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { buildDownloadFileName, downloadGeneratedImage } from "./imageDownload";
 
 describe("image download helper", () => {
-  it("downloads data URL images without opening a new tab", async () => {
+  it("downloads data URL images directly without opening a new tab", async () => {
     const link = createFakeLink();
 
-    await downloadGeneratedImage(
+    const result = await downloadGeneratedImage(
       {
         url: "data:image/png;base64,ZmFrZQ==",
         mimeType: "image/png"
@@ -20,6 +20,10 @@ describe("image download helper", () => {
     expect(link.href).toBe("data:image/png;base64,ZmFrZQ==");
     expect(link.download).toBe("lumio-result-20260426-195130-01.png");
     expect(link.click).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      mode: "direct",
+      fileName: "lumio-result-20260426-195130-01.png"
+    });
   });
 
   it("opens the browser save dialog when the file picker API is available", async () => {
@@ -45,7 +49,7 @@ describe("image download helper", () => {
       };
     });
 
-    await downloadGeneratedImage(
+    const result = await downloadGeneratedImage(
       {
         key: "generated/user-1/task-1/image.png",
         url: "https://cdn.lumio.games/generated/image.png",
@@ -75,6 +79,10 @@ describe("image download helper", () => {
     expect(writable.close).toHaveBeenCalledOnce();
     expect(link.click).not.toHaveBeenCalled();
     expect(callOrder).toEqual(["picker", "fetch"]);
+    expect(result).toEqual({
+      mode: "picker",
+      fileName: "lumio-result-20260426-195130-01.png"
+    });
   });
 
   it("downloads owned remote images through the app download endpoint", async () => {
@@ -91,7 +99,7 @@ describe("image download helper", () => {
     const urlApi = createFakeUrlApi();
 
     try {
-      await downloadGeneratedImage(
+      const result = await downloadGeneratedImage(
         {
           key: "generated/user-1/task-1/image.png",
           url: "https://cdn.lumio.games/generated/image.png",
@@ -114,6 +122,10 @@ describe("image download helper", () => {
       expect(link.href).toBe("blob:download-1");
       expect(link.download).toBe("lumio-result-20260426-195130-02.png");
       expect(link.click).toHaveBeenCalledOnce();
+      expect(result).toEqual({
+        mode: "blob",
+        fileName: "lumio-result-20260426-195130-02.png"
+      });
 
       await vi.runAllTimersAsync();
       expect(urlApi.revokeObjectURL).toHaveBeenCalledWith("blob:download-1");
@@ -144,7 +156,7 @@ describe("image download helper", () => {
       );
     const urlApi = createFakeUrlApi();
 
-    await downloadGeneratedImage(
+    const result = await downloadGeneratedImage(
       {
         url: "https://cdn.lumio.games/generated/image.png",
         mimeType: "image/png"
@@ -169,28 +181,73 @@ describe("image download helper", () => {
     expect(link.href).toBe("blob:download-1");
     expect(link.download).toBe("lumio-result-20260426-195130-02.png");
     expect(link.click).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      mode: "blob",
+      fileName: "lumio-result-20260426-195130-02.png"
+    });
   });
 
-  it("throws instead of opening the remote image directly when every download path fails", async () => {
+  it("opens the original image URL in a new tab when every download path fails", async () => {
     const link = createFakeLink();
     const fetchMock = vi.fn().mockRejectedValue(new Error("network failed"));
+    const openWindow = vi.fn(() => ({}));
 
-    await expect(
-      downloadGeneratedImage(
-        {
-          url: "https://cdn.lumio.games/generated/image.png",
-          mimeType: "image/png"
-        },
-        1,
-        {
-          document: createFakeDocument(link),
-          fetch: fetchMock,
-          now: new Date(2026, 3, 26, 19, 51, 30)
-        }
-      )
-    ).rejects.toThrow("Failed to download image.");
+    const result = await downloadGeneratedImage(
+      {
+        url: "https://cdn.lumio.games/generated/image.png",
+        mimeType: "image/png"
+      },
+      2,
+      {
+        document: createFakeDocument(link),
+        fetch: fetchMock,
+        openWindow,
+        url: createFakeUrlApi(),
+        now: new Date(2026, 3, 26, 19, 51, 30)
+      }
+    );
 
     expect(link.click).not.toHaveBeenCalled();
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://cdn.lumio.games/generated/image.png",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    expect(result).toEqual({
+      mode: "opened",
+      fileName: "lumio-result-20260426-195130-03.png"
+    });
+  });
+
+  it("treats noopener new-tab fallback as opened even when the browser returns null", async () => {
+    const link = createFakeLink();
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network failed"));
+    const openWindow = vi.fn(() => null);
+
+    const result = await downloadGeneratedImage(
+      {
+        url: "https://cdn.lumio.games/generated/image.png",
+        mimeType: "image/png"
+      },
+      3,
+      {
+        document: createFakeDocument(link),
+        fetch: fetchMock,
+        openWindow,
+        url: createFakeUrlApi(),
+        now: new Date(2026, 3, 26, 19, 51, 30)
+      }
+    );
+
+    expect(openWindow).toHaveBeenCalledWith(
+      "https://cdn.lumio.games/generated/image.png",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    expect(result).toEqual({
+      mode: "opened",
+      fileName: "lumio-result-20260426-195130-04.png"
+    });
   });
 
   it("builds stable download file names", () => {
