@@ -40,11 +40,15 @@ import {
   savePortfolioItems
 } from "./portfolioStorage";
 import {
+  buildCustomGenerationSize,
   buildGenerationSize,
+  getCustomSizeUnsupportedMessage,
+  getEffectiveResolutionTier,
   getGenerationRequestTimeoutMs,
   getRecommendedRatioForResolution,
   getUnsupportedGenerationSizeReason,
   imageResolutionOptions,
+  validateCustomGenerationSize,
   type AspectRatioLabel,
   type ImageResolutionTier
 } from "./studioSize";
@@ -188,6 +192,10 @@ const ratioOptions: Array<{ label: AspectRatioLabel }> = [
   { label: "16:9" },
   { label: "9:16" }
 ];
+const defaultCustomResolution = {
+  width: "1024",
+  height: "1024"
+};
 
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
@@ -201,6 +209,9 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [negativePrompt, setNegativePrompt] = useState("");
   const [ratioLabel, setRatioLabel] = useState<AspectRatioLabel>("1:1");
   const [imageResolution, setImageResolution] = useState<ImageResolutionTier>("1K");
+  const [useCustomResolution, setUseCustomResolution] = useState(false);
+  const [customWidth, setCustomWidth] = useState(defaultCustomResolution.width);
+  const [customHeight, setCustomHeight] = useState(defaultCustomResolution.height);
   const [detailStrength, setDetailStrength] = useState(55);
   const [selectedTypes, setSelectedTypes] = useState<PromptTypeKey[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<PromptStylePresetKey | null>(null);
@@ -228,7 +239,31 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [shareDialog, setShareDialog] = useState<PromptShareDialogData | null>(null);
 
   const quality = detailStrength >= 72 ? "high" : "standard";
-  const activeSize = buildGenerationSize({ ratio: ratioLabel, resolution: imageResolution });
+  const presetSize = buildGenerationSize({ ratio: ratioLabel, resolution: imageResolution });
+  const customSizeValidation = useMemo(
+    () =>
+      useCustomResolution
+        ? validateCustomGenerationSize({
+            width: customWidth,
+            height: customHeight
+          })
+        : null,
+    [customHeight, customWidth, useCustomResolution]
+  );
+  const activeCustomSize = customSizeValidation?.supported
+    ? buildCustomGenerationSize({
+        width: customSizeValidation.width,
+        height: customSizeValidation.height
+      })
+    : null;
+  const activeSize = activeCustomSize || presetSize;
+  const effectiveResolution = activeCustomSize
+    ? getEffectiveResolutionTier(activeCustomSize.size)
+    : imageResolution;
+  const customResolutionHelpText =
+    useCustomResolution && customSizeValidation && !customSizeValidation.supported
+      ? getCustomSizeUnsupportedMessage(customSizeValidation)
+      : "宽高需为 16px 的倍数；总像素 655,360 - 8,294,400。";
   const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
   const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
   const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
@@ -495,6 +530,22 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
+    const customGenerationSize = useCustomResolution
+      ? validateCustomGenerationSize({
+          width: customWidth,
+          height: customHeight
+        })
+      : null;
+
+    if (customGenerationSize && !customGenerationSize.supported) {
+      showTip({
+        type: "warning",
+        title: "分辨率不支持",
+        message: getCustomSizeUnsupportedMessage(customGenerationSize)
+      });
+      return;
+    }
+
     const metadata = buildPromptMetadata(options.promptOverride ?? prompt);
     const positivePrompt = metadata.finalPrompt.trim();
     const submissionPrompt = buildSubmissionPrompt(metadata);
@@ -510,7 +561,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedHistoryThumb(null);
     setRequestPreview(buildRequestPreview(metadata));
     const controller = new AbortController();
-    const timeoutMs = getGenerationRequestTimeoutMs(imageResolution);
+    const timeoutMs = getGenerationRequestTimeoutMs(effectiveResolution);
     const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
@@ -529,7 +580,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           mode: submitMode,
           model,
           size: activeSize.size,
-          resolution: imageResolution,
+          resolution: effectiveResolution,
           quality,
           count: 1,
           referenceAssets: references
@@ -607,7 +658,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       model,
       mode: submitMode,
       size: activeSize.size,
-      resolution: imageResolution,
+      resolution: effectiveResolution,
       quality,
       count: 1,
       referenceCount,
@@ -669,6 +720,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       resolution: nextResolution
     });
 
+    setUseCustomResolution(false);
     setImageResolution(nextResolution);
 
     if (recommendedRatio && unsupportedReason) {
@@ -696,7 +748,31 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
+    setUseCustomResolution(false);
     setRatioLabel(option.label);
+  }
+
+  function handleCustomResolutionClick() {
+    if (!useCustomResolution) {
+      const [width, height] = activeSize.size.split("x");
+      setCustomWidth(width);
+      setCustomHeight(height);
+      setUseCustomResolution(true);
+      return;
+    }
+
+    const customGenerationSize = validateCustomGenerationSize({
+      width: customWidth,
+      height: customHeight
+    });
+
+    if (!customGenerationSize.supported) {
+      showTip({
+        type: "warning",
+        title: "分辨率不支持",
+        message: getCustomSizeUnsupportedMessage(customGenerationSize)
+      });
+    }
   }
 
   function handleToggleType(typeKey: PromptTypeKey) {
@@ -1266,18 +1342,65 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
             <section className="studio-section ratio-section">
               <SectionLabel>画幅比例</SectionLabel>
-              <div className="ratio-grid" role="group" aria-label="选择画幅比例">
-                {ratioOptions.map((option) => (
-                  <button
-                    key={option.label}
-                    className={ratioLabel === option.label ? "ratio-button is-selected" : "ratio-button"}
-                    type="button"
-                    onClick={() => handleRatioChange(option)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              <div className="ratio-control-row">
+                <div className="ratio-grid" role="group" aria-label="选择画幅比例">
+                  {ratioOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      className={!useCustomResolution && ratioLabel === option.label ? "ratio-button is-selected" : "ratio-button"}
+                      type="button"
+                      aria-pressed={!useCustomResolution && ratioLabel === option.label}
+                      onClick={() => handleRatioChange(option)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className={useCustomResolution ? "custom-resolution-button is-selected" : "custom-resolution-button"}
+                  type="button"
+                  aria-pressed={useCustomResolution}
+                  onClick={handleCustomResolutionClick}
+                >
+                  自定义分辨率
+                </button>
               </div>
+              {useCustomResolution ? (
+                <div
+                  className={
+                    customSizeValidation && !customSizeValidation.supported
+                      ? "custom-size-fields is-invalid"
+                      : "custom-size-fields"
+                  }
+                >
+                  <label>
+                    <span>宽</span>
+                    <input
+                      className="custom-size-input"
+                      value={customWidth}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="1024"
+                      aria-label="自定义宽度"
+                      onChange={(event) => setCustomWidth(event.currentTarget.value.replace(/\D/g, ""))}
+                    />
+                  </label>
+                  <span className="custom-size-multiply">×</span>
+                  <label>
+                    <span>高</span>
+                    <input
+                      className="custom-size-input"
+                      value={customHeight}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="1024"
+                      aria-label="自定义高度"
+                      onChange={(event) => setCustomHeight(event.currentTarget.value.replace(/\D/g, ""))}
+                    />
+                  </label>
+                  <p className="custom-size-help">{customResolutionHelpText}</p>
+                </div>
+              ) : null}
             </section>
 
             <section className="studio-section detail-section">

@@ -3,9 +3,13 @@ import {
   type AspectRatioLabel,
   type ImageResolutionTier,
   buildGenerationSize,
+  buildCustomGenerationSize,
+  getCustomSizeUnsupportedMessage,
+  getEffectiveResolutionTier,
   getGenerationRequestTimeoutMs,
   getRecommendedRatioForResolution,
-  getUnsupportedGenerationSizeReason
+  getUnsupportedGenerationSizeReason,
+  validateCustomGenerationSize
 } from "./studioSize";
 
 describe("studio generation size", () => {
@@ -65,5 +69,52 @@ describe("studio generation size", () => {
   it("does not block any selectable tier and ratio combination", () => {
     expect(getUnsupportedGenerationSizeReason({ ratio: "1:1", resolution: "4K" })).toBeNull();
     expect(getUnsupportedGenerationSizeReason({ ratio: "16:9", resolution: "4K" })).toBeNull();
+  });
+
+  it("builds supported custom GPT Image 2 generation sizes", () => {
+    expect(validateCustomGenerationSize({ width: "1024", height: "1024" })).toEqual({
+      supported: true,
+      width: 1024,
+      height: 1024,
+      size: "1024x1024"
+    });
+    expect(buildCustomGenerationSize({ width: 3840, height: 2160 })).toEqual({
+      size: "3840x2160",
+      meta: "3840 × 2160"
+    });
+  });
+
+  it("guides unsupported custom sizes with official min and max limits", () => {
+    const validation = validateCustomGenerationSize({ width: "512", height: "512" });
+
+    expect(validation.supported).toBe(false);
+    expect(getCustomSizeUnsupportedMessage(validation)).toContain("Image2 不支持 512 × 512 分辨率");
+    expect(getCustomSizeUnsupportedMessage(validation)).toContain("最小支持 655,360");
+    expect(getCustomSizeUnsupportedMessage(validation)).toContain("最大支持 8,294,400");
+  });
+
+  it("rejects custom sizes that violate GPT Image 2 edge, aspect, and multiple constraints", () => {
+    expect(validateCustomGenerationSize({ width: "721", height: "1280" })).toMatchObject({
+      supported: false,
+      code: "dimension_step"
+    });
+    expect(validateCustomGenerationSize({ width: "4000", height: "2048" })).toMatchObject({
+      supported: false,
+      code: "max_edge"
+    });
+    expect(validateCustomGenerationSize({ width: "3072", height: "768" })).toMatchObject({
+      supported: false,
+      code: "max_aspect_ratio"
+    });
+    expect(validateCustomGenerationSize({ width: "3840", height: "3840" })).toMatchObject({
+      supported: false,
+      code: "max_pixels"
+    });
+  });
+
+  it("infers the effective resolution tier for custom sizes", () => {
+    expect(getEffectiveResolutionTier("1024x1024")).toBe("1K");
+    expect(getEffectiveResolutionTier("1920x1080")).toBe("2K");
+    expect(getEffectiveResolutionTier("3840x2160")).toBe("4K");
   });
 });
