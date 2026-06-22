@@ -61,12 +61,13 @@ export class OpenAIImageProvider implements ImageProvider {
     const apiKey = this.options.apiKey || requireEnv(config.openaiApiKey, "OPENAI_API_KEY");
     const baseUrl = this.options.baseUrl || config.openaiBaseUrl;
     const endpoint = "/v1/images/generations";
+    // Intentionally omit response_format: this gateway honors it inconsistently
+    // (sometimes b64_json, sometimes a hosted url). parseOpenAIResponse accepts both.
     const body: Record<string, unknown> = {
       model: input.providerModel,
       prompt: buildImagePrompt(input),
       n: input.count,
-      size: input.size,
-      response_format: "b64_json"
+      size: input.size
     };
 
     const response = await fetchOpenAI(
@@ -92,7 +93,6 @@ export class OpenAIImageProvider implements ImageProvider {
     form.set("prompt", buildImageEditPrompt(input));
     form.set("n", String(input.count));
     form.set("size", input.size);
-    form.set("response_format", "b64_json");
 
     for (const [index, asset] of input.referenceAssets.entries()) {
       const fetched = await fetchAsset(asset.url);
@@ -218,16 +218,31 @@ async function parseOpenAIResponse(
     throw new Error(formatNonJsonUpstreamResponse({ body, label: "图像网关", status: response.status }));
   }
 
-  const images = body.json.data
-    ?.map((item) => {
-      if (item.b64_json) {
-        return base64ToGeneratedImage(item.b64_json);
-      }
-      return null;
-    })
-    .filter(Boolean) as GeneratedImage[] | undefined;
+  // Some gateways answer with HTTP 200 but carry the failure in the body.
+  if (body.json.error || body.json.message || body.json.reason || body.json.detail) {
+    if (!body.json.data?.length) {
+      const error = getOpenAIError(body, response.status);
+      throw new UpstreamProviderError(error.message, error.upstream);
+    }
+  }
 
-  if (!images?.length) {
+  const images = (
+    await Promise.all(
+      (body.json.data ?? []).map(async (item) => {
+        if (item.b64_json) {
+          return base64ToGeneratedImage(item.b64_json);
+        }
+        // The same gateway may return a hosted URL instead of base64 even when
+        // b64_json was requested; fetch it so the image is not silently dropped.
+        if (item.url) {
+          return fetchAsset(item.url);
+        }
+        return null;
+      })
+    )
+  ).filter(Boolean) as GeneratedImage[];
+
+  if (!images.length) {
     throw new Error("OpenAI response did not contain generated images");
   }
 

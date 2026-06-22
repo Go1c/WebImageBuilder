@@ -10,6 +10,94 @@ describe("OpenAI image provider", () => {
     vi.restoreAllMocks();
   });
 
+  it("omits response_format so the gateway can answer with b64_json or a url", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fake image").toString("base64") }]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new OpenAIImageProvider().generate(buildInput());
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<
+      string,
+      unknown
+    >;
+    expect(requestBody).not.toHaveProperty("response_format");
+  });
+
+  it("fetches the hosted image url when the gateway returns a url instead of b64_json", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url) === "https://image.codesonline.dev/generated.png") {
+        return new Response(Buffer.from("hosted image bytes"), {
+          status: 200,
+          headers: { "content-type": "image/png" }
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [{ url: "https://image.codesonline.dev/generated.png" }]
+        }),
+        { status: 200 }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const images = await new OpenAIImageProvider().generate(buildInput());
+
+    expect(fetchMock).toHaveBeenCalledWith("https://image.codesonline.dev/generated.png");
+    expect(images).toHaveLength(1);
+    expect(images[0].buffer.toString()).toBe("hosted image bytes");
+    expect(images[0].mimeType).toBe("image/png");
+  });
+
+  it("surfaces gateway errors carried inside an HTTP 200 body", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message: "openai_error",
+              type: "bad_response_status_code",
+              code: "bad_response_status_code"
+            }
+          },
+          { status: 200 }
+        )
+      )
+    );
+
+    await expect(new OpenAIImageProvider().generate(buildInput())).rejects.toMatchObject({
+      upstream: {
+        code: "bad_response_status_code"
+      }
+    });
+  });
+
   it("uses the configured OpenAI-compatible base URL for generations", async () => {
     process.env = {
       ...originalEnv,
