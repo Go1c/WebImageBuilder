@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { generateImagesForActor } from "@/server/generation/service";
+import { startGeneration } from "@/server/generation/service";
 import { jsonError, jsonOk } from "@/server/http";
 import { applyContextCookies, getRequestContext } from "@/server/request-context";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const context = await getRequestContext(request);
-    const result = await generateImagesForActor({
+    const result = await startGeneration({
       actor: context.actor,
       rawInput: await request.json(),
       sub2ApiAccessToken: context.sub2ApiAccessToken

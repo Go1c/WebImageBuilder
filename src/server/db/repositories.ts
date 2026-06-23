@@ -531,10 +531,59 @@ export async function listHistory(actor: Actor): Promise<unknown[]> {
   return result.rows;
 }
 
+// A running task whose generation outlived this window is treated as failed.
+// It is a safety net for tasks orphaned by a process restart while the slow
+// provider call ran in the background; it is set well above the worst observed
+// provider latency so it never races a task that is still alive.
+const STALE_RUNNING_MS = 6 * 60 * 1000;
+const STALE_TASK_MESSAGE = "生成超时未完成，请重新生成。";
+
+function isStaleRunning(updatedAt: string): boolean {
+  const updatedMs = new Date(updatedAt).getTime();
+  if (!Number.isFinite(updatedMs)) {
+    return false;
+  }
+
+  return Date.now() - updatedMs > STALE_RUNNING_MS;
+}
+
+// Persists a failed status for a stale running task row read from the DB so the
+// polling client and history both converge instead of showing "running" forever.
+async function failTaskRowIfStale(row: unknown): Promise<unknown | null> {
+  if (!isRunningTaskRow(row) || !isStaleRunning(row.updatedAt)) {
+    return row;
+  }
+
+  await markTaskFailed(row.id, STALE_TASK_MESSAGE);
+  return { ...row, status: "failed", errorMessage: STALE_TASK_MESSAGE };
+}
+
+function isRunningTaskRow(
+  row: unknown
+): row is { id: string; status: string; updatedAt: string } {
+  return (
+    typeof row === "object" &&
+    row !== null &&
+    (row as { status?: unknown }).status === "running" &&
+    typeof (row as { id?: unknown }).id === "string" &&
+    typeof (row as { updatedAt?: unknown }).updatedAt === "string"
+  );
+}
+
 export async function getTask(actor: Actor, taskId: string): Promise<unknown | null> {
   if (shouldUseLocalRepository()) {
     const task = findLocalTask(actor, taskId);
-    return task ? localTaskToRow(task) : null;
+    if (!task) {
+      return null;
+    }
+
+    if (task.status === "running" && isStaleRunning(task.updatedAt)) {
+      task.status = "failed";
+      task.errorMessage = STALE_TASK_MESSAGE;
+      task.updatedAt = new Date().toISOString();
+    }
+
+    return localTaskToRow(task);
   }
 
   const ownerClause =
@@ -552,6 +601,7 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
         t.status,
         t.error_message as "errorMessage",
         t.created_at as "createdAt",
+        t.updated_at as "updatedAt",
         coalesce(
           json_agg(
             json_build_object(
@@ -572,7 +622,7 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
     [taskId, ownerId]
   );
 
-  return result.rows[0] ?? null;
+  return await failTaskRowIfStale(result.rows[0] ?? null);
 }
 
 export async function getOwnedResultAsset(

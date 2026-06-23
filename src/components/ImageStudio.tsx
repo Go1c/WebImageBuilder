@@ -13,6 +13,7 @@ import {
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
 import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
+import { estimateGenerationProgress } from "./generationProgress";
 import { downloadGeneratedImage } from "./imageDownload";
 import {
   formatSub2ApiBalance,
@@ -200,6 +201,91 @@ const defaultCustomResolution = {
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
+// The POST /api/generate request only creates the task and returns quickly, so
+// it gets a short timeout. The long wait is the polling loop below.
+const GENERATION_SUBMIT_TIMEOUT_MS = 30_000;
+const GENERATION_POLL_INTERVAL_MS = 3_000;
+
+type GenerationTaskView = {
+  id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  errorMessage?: string | null;
+  prompt?: string;
+  assets: Array<{ id: string; type: string; url: string; width?: number | null; height?: number | null }>;
+};
+
+class GenerationPollTimeoutError extends Error {
+  constructor() {
+    super("生成轮询超时");
+    this.name = "GenerationPollTimeoutError";
+  }
+}
+
+function wait(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    function onAbort() {
+      window.clearTimeout(timeoutId);
+      reject(new DOMException("Aborted", "AbortError"));
+    }
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+// Polls GET /api/tasks/:id until the task reaches a terminal status. Transient
+// read failures (e.g. a 404 right after creation) are tolerated until the
+// budget runs out, at which point the generation is reported as still running
+// in the background.
+async function pollGenerationTask(
+  taskId: string,
+  options: { budgetMs: number; intervalMs: number; signal?: AbortSignal }
+): Promise<GenerationTaskView> {
+  const deadline = Date.now() + options.budgetMs;
+
+  for (;;) {
+    if (options.signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        cache: "no-store",
+        signal: options.signal
+      });
+      if (response.ok) {
+        const body = await readApiJson<{ task: GenerationTaskView }>(
+          response,
+          "任务状态接口返回了非 JSON 响应，请刷新页面后重试"
+        );
+        if (body.task.status === "succeeded" || body.task.status === "failed") {
+          return body.task;
+        }
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+      // Swallow transient network errors and keep polling until the deadline.
+    }
+
+    if (Date.now() >= deadline) {
+      throw new GenerationPollTimeoutError();
+    }
+
+    await wait(options.intervalMs, options.signal);
+  }
+}
+
 export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } = {}) {
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const libraryPanelRef = useRef<HTMLElement | null>(null);
@@ -268,6 +354,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
   const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
   const canvasLoadingWarningText = getCanvasLoadingWarningText({ loading });
+  const generationProgress = loading ? estimateGenerationProgress(loadingSeconds) : 0;
   const promptEnhancement = useMemo(
     () => buildPromptMetadata(prompt),
     [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
@@ -560,9 +647,12 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setShareDialog(null);
     setSelectedHistoryThumb(null);
     setRequestPreview(buildRequestPreview(metadata));
-    const controller = new AbortController();
-    const timeoutMs = getGenerationRequestTimeoutMs(effectiveResolution);
-    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    const submitController = new AbortController();
+    const submitTimeoutId = window.setTimeout(
+      () => submitController.abort(),
+      GENERATION_SUBMIT_TIMEOUT_MS
+    );
+    const pollBudgetMs = getGenerationRequestTimeoutMs(effectiveResolution);
 
     try {
       await refreshSub2ApiSession({ silent: true });
@@ -574,7 +664,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
+        signal: submitController.signal,
         body: JSON.stringify({
           prompt: submissionPrompt,
           mode: submitMode,
@@ -586,38 +676,79 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           referenceAssets: references
         })
       });
+      window.clearTimeout(submitTimeoutId);
 
       if (!response.ok) {
         throw new StudioApiResponseError(await readApiErrorDetail(response));
       }
 
-      const result = await readApiJson<{
+      // The request now only enqueues the task; the slow generation runs in the
+      // background and we poll for the result so a proxy timeout can't drop it.
+      const submitResult = await readApiJson<{
         taskId: string;
-        images: GeneratedImage[];
+        status: string;
         quota: QuotaResponse["quota"];
-        prompt?: string;
       }>(response, "生成接口返回了非 JSON 响应，请刷新页面后重试");
 
-      setImages(result.images);
-      setCurrentTaskId(result.taskId);
-      setSelectedInspirationImage(null);
-      setSelectedHistoryThumb(null);
-      setCanvasPrompt(result.prompt || submissionPrompt);
-      setQuota((current) => (current ? { ...current, quota: result.quota } : current));
-      setReusedReferences([]);
-      showTip({
-        type: "success",
-        title: "生成完成",
-        message: "把这个提示词分享出去，让别人一键生成同款。"
+      setCurrentTaskId(submitResult.taskId);
+      setQuota((current) => (current ? { ...current, quota: submitResult.quota } : current));
+
+      const task = await pollGenerationTask(submitResult.taskId, {
+        budgetMs: pollBudgetMs,
+        intervalMs: GENERATION_POLL_INTERVAL_MS
       });
+
+      if (task.status === "failed") {
+        showTip(
+          tipFromApiError({
+            code: "provider_error",
+            message: task.errorMessage || "生成失败，请稍后重试。",
+            status: 502,
+            statusText: ""
+          })
+        );
+        return;
+      }
+
+      const generatedImages: GeneratedImage[] = task.assets
+        .filter((asset) => asset.type === "result")
+        .map((asset) => ({ key: asset.id, url: asset.url, mimeType: "image/png" }));
+
+      if (!generatedImages.length) {
+        showTip({
+          type: "warning",
+          title: "生成完成",
+          message: "图片已生成，请在下方历史记录中查看。"
+        });
+      } else {
+        setImages(generatedImages);
+        setSelectedInspirationImage(null);
+        setSelectedHistoryThumb(null);
+        setCanvasPrompt(task.prompt || submissionPrompt);
+        setReusedReferences([]);
+        showTip({
+          type: "success",
+          title: "生成完成",
+          message: "把这个提示词分享出去，让别人一键生成同款。"
+        });
+      }
+
       await refreshData();
       await refreshSub2ApiSession({ silent: true });
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
+      window.clearTimeout(submitTimeoutId);
+      if (error instanceof GenerationPollTimeoutError) {
+        showTip({
+          type: "warning",
+          title: "生成耗时较长",
+          message: `生成已超过 ${Math.round(pollBudgetMs / 1000)} 秒仍在后台进行，请稍后在下方历史记录中查看。`
+        });
+        await refreshData().catch(() => {});
+      } else if (error instanceof DOMException && error.name === "AbortError") {
         showTip({
           type: "error",
-          title: "生成超时",
-          message: `生成请求超过 ${Math.round(timeoutMs / 1000)} 秒未完成，请稍后重试。`
+          title: "请求超时",
+          message: "提交生成请求超时，请稍后重试。"
         });
       } else if (error instanceof StudioApiResponseError) {
         showTip(tipFromApiError(error.detail));
@@ -625,7 +756,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         showTip(tipFromActionFailure({ kind: "failed", action: "生成图片", error }));
       }
     } finally {
-      window.clearTimeout(timeoutId);
+      window.clearTimeout(submitTimeoutId);
       setLoading(false);
     }
   }
@@ -1463,6 +1594,19 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               {loading ? (
                 <div className="image-loading">
                   <span>生成中 {loadingSeconds}s</span>
+                  <div
+                    className="image-loading-progress"
+                    role="progressbar"
+                    aria-valuenow={generationProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div
+                      className="image-loading-progress-bar"
+                      style={{ width: `${generationProgress}%` }}
+                    />
+                  </div>
+                  <p>出图通常需要 1–3 分钟，请保持页面打开；完成后会自动显示。</p>
                   {canvasLoadingWarningText ? <p>{canvasLoadingWarningText}</p> : null}
                 </div>
               ) : null}

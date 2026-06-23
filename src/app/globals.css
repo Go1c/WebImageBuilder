@@ -915,6 +915,21 @@ textarea:focus-visible {
   line-height: 1.55;
 }
 
+.image-loading-progress {
+  width: min(260px, 70%);
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e5e5;
+  overflow: hidden;
+}
+
+.image-loading-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--studio-black, #171717);
+  transition: width 0.6s ease;
+}
+
 .canvas-actions {
   position: relative;
   z-index: 11;

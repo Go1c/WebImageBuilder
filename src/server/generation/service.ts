@@ -19,7 +19,8 @@ import { UpstreamProviderError, type ProviderUpstreamErrorDetail } from "../prov
 import { uploadBuffer, type StoredAsset } from "../storage/s3";
 import { getSub2ApiImageApiKey } from "../sub2api/client";
 import { getAppConfig } from "../config";
-import { chooseGenerationFunding } from "./funding";
+import { chooseGenerationFunding, type GenerationFundingDecision } from "./funding";
+import type { DbQuotaState } from "../db/types";
 
 export type GenerateResult = {
   taskId: string;
@@ -28,11 +29,31 @@ export type GenerateResult = {
   quota: ReturnType<typeof getQuotaSnapshot>;
 };
 
-export async function generateImagesForActor(input: {
+export type StartGenerationResult = {
+  taskId: string;
+  status: "running";
+  quota: ReturnType<typeof getQuotaSnapshot>;
+};
+
+type ActiveFunding = Exclude<GenerationFundingDecision, { kind: "blocked" }>;
+
+type PreparedGeneration = {
+  taskId: string;
+  generation: NormalizedGenerationInput;
+  funding: ActiveFunding;
+  quotaState: DbQuotaState;
+};
+
+type GenerationActorInput = {
   actor: Actor;
   rawInput: unknown;
   sub2ApiAccessToken?: string;
-}): Promise<GenerateResult> {
+};
+
+// Validates quota/funding (throwing synchronous errors the caller surfaces to
+// the client) and creates the task row. Both the synchronous and asynchronous
+// entry points share this so they reject identical bad requests the same way.
+async function prepareGeneration(input: GenerationActorInput): Promise<PreparedGeneration> {
   const generation = normalizeGenerationInputOrThrowBadRequest(input.rawInput);
   const quotaState = await getQuotaState(input.actor);
 
@@ -73,7 +94,24 @@ export async function generateImagesForActor(input: {
     throw new ApiError(402, "quota_exhausted", "No available generation quota");
   }
 
+  // Validate the sub2api session up front so the client gets 401 immediately
+  // instead of waiting for the background task to fail.
+  if (funding.kind === "sub2api" && !input.sub2ApiAccessToken) {
+    throw new ApiError(401, "unauthorized", "Sub2API 账号生成需要重新登录。");
+  }
+
   const taskId = await createTask({ actor: input.actor, generation });
+
+  return { taskId, generation, funding, quotaState };
+}
+
+// Runs the slow part (provider call + upload + persistence). Persists failures
+// via markTaskFailed before rethrowing so a polling client always sees a final
+// task status, even when this runs detached in the background.
+async function executeGenerationTask(
+  input: PreparedGeneration & { actor: Actor; sub2ApiAccessToken?: string }
+): Promise<GenerateResult> {
+  const { actor, taskId, generation, funding, quotaState } = input;
 
   try {
     const generated =
@@ -88,14 +126,14 @@ export async function generateImagesForActor(input: {
         uploadBuffer({
           buffer: image.buffer,
           mimeType: image.mimeType,
-          prefix: buildResultPrefix(input.actor, taskId)
+          prefix: buildResultPrefix(actor, taskId)
         })
       )
     );
 
     await markTaskSucceeded({
       taskId,
-      actor: input.actor,
+      actor,
       spendSource: funding.kind === "site" ? (funding.spendSource as SpendSource) : null,
       assets: stored.map((asset) => ({
         assetType: "result",
@@ -105,8 +143,8 @@ export async function generateImagesForActor(input: {
       }))
     });
 
-    if (input.actor.type === "user") {
-      await settleInviteReward(input.actor.userId);
+    if (actor.type === "user") {
+      await settleInviteReward(actor.userId);
     }
 
     return {
@@ -145,6 +183,44 @@ export async function generateImagesForActor(input: {
       error instanceof Error ? error.message : "Generation failed"
     );
   }
+}
+
+// Synchronous flow: waits for the whole pipeline and returns the images. Kept
+// for tests and any caller that wants the result inline.
+export async function generateImagesForActor(input: GenerationActorInput): Promise<GenerateResult> {
+  const prepared = await prepareGeneration(input);
+  return executeGenerationTask({
+    ...prepared,
+    actor: input.actor,
+    sub2ApiAccessToken: input.sub2ApiAccessToken
+  });
+}
+
+// Asynchronous flow: returns a taskId as soon as the task is created and runs
+// the slow provider call detached in the background. This keeps the HTTP
+// request short so platform/proxy timeouts (e.g. the gateway in front of the
+// app) can't drop a successful generation. The client polls GET /api/tasks/:id.
+export async function startGeneration(input: GenerationActorInput): Promise<StartGenerationResult> {
+  const prepared = await prepareGeneration(input);
+
+  void executeGenerationTask({
+    ...prepared,
+    actor: input.actor,
+    sub2ApiAccessToken: input.sub2ApiAccessToken
+  }).catch((error) => {
+    // Failure is already persisted via markTaskFailed; this only prevents an
+    // unhandled rejection from the detached promise.
+    console.error("[api/generate] background generation failed", {
+      taskId: prepared.taskId,
+      error: error instanceof Error ? error.message : error
+    });
+  });
+
+  return {
+    taskId: prepared.taskId,
+    status: "running",
+    quota: getQuotaSnapshot(prepared.quotaState)
+  };
 }
 
 async function generateWithSub2ApiAccount(input: {
