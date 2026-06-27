@@ -517,7 +517,9 @@ export async function listHistory(actor: Actor): Promise<unknown[]> {
             json_build_object(
               'id', a.id,
               'type', a.asset_type,
+              'storageKey', a.storage_key,
               'url', a.url,
+              'mimeType', a.mime_type,
               'width', a.width,
               'height', a.height
             )
@@ -613,7 +615,9 @@ export async function getTask(actor: Actor, taskId: string): Promise<unknown | n
             json_build_object(
               'id', a.id,
               'type', a.asset_type,
+              'storageKey', a.storage_key,
               'url', a.url,
+              'mimeType', a.mime_type,
               'width', a.width,
               'height', a.height
             )
@@ -985,7 +989,9 @@ function localTaskToRow(task: LocalTask): unknown {
     assets: task.assets.map((asset) => ({
       id: asset.id,
       type: asset.assetType,
+      storageKey: asset.storageKey,
       url: asset.url,
+      mimeType: asset.mimeType ?? null,
       width: asset.width ?? null,
       height: asset.height ?? null
     }))

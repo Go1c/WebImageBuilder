@@ -137,6 +137,52 @@ describe("generation service", () => {
     expect(createTask).not.toHaveBeenCalled();
   });
 
+  it("looks up the user's Gemini group key even when local 1K quota remains", async () => {
+    vi.mocked(getQuotaState).mockResolvedValueOnce({
+      actorType: "user",
+      anonymousUsed: 0,
+      loginUsed: 0,
+      inviteCredits: 0,
+      paidCredits: 0,
+      ipDailyUsed: 0
+    });
+    vi.mocked(getSub2ApiGenerationApiKey).mockRejectedValueOnce(
+      new ApiError(
+        402,
+        "account_unavailable",
+        "未找到可用于图片生成的 active Gemini API Key。"
+      )
+    );
+
+    await expect(
+      generateImagesForActor({
+        actor: {
+          type: "user",
+          userId: "user-1",
+          externalUserId: "sub2api:1",
+          deviceId: "device-1",
+          ipHash: "ip-1"
+        },
+        sub2ApiAccessToken: "access-token",
+        rawInput: {
+          prompt: "simple test image",
+          mode: "text-to-image",
+          model: "gemini-3.1-flash-image-preview",
+          size: "1024x1024",
+          resolution: "1K",
+          quality: "standard",
+          count: 1,
+          referenceAssets: []
+        }
+      })
+    ).rejects.toMatchObject<Partial<ApiError>>({
+      status: 402,
+      code: "account_unavailable"
+    });
+    expect(getSub2ApiGenerationApiKey).toHaveBeenCalledWith("access-token", "gemini");
+    expect(createTask).not.toHaveBeenCalled();
+  });
+
   it("preserves upstream provider diagnostics when generation fails", async () => {
     vi.mocked(getQuotaState).mockResolvedValueOnce({
       actorType: "anonymous",

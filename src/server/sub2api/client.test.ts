@@ -174,6 +174,13 @@ describe("Sub2API client", () => {
           data: {
             items: [
               {
+                id: 0,
+                key: "gemini-general-key",
+                name: "Gemini general key",
+                status: "active",
+                group: { id: 10, name: "General", platform: "gemini" }
+              },
+              {
                 id: 1,
                 key: "sk-openai-image",
                 name: "Image key",

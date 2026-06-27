@@ -83,7 +83,9 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
     quotaState,
     allowSub2ApiFallback:
       input.actor.type === "user" && ["openai", "gemini"].includes(generation.provider),
-    allowSiteFunding: generation.resolution === "1K",
+    allowSiteFunding:
+      generation.resolution === "1K" &&
+      !(input.actor.type === "user" && generation.provider === "gemini"),
     amount: generation.count
   });
 

@@ -141,8 +141,7 @@ function selectGenerationKeyForProvider(
   const providerKeys = keys.filter((item) => isActiveProviderKey(item, provider));
   return (
     providerKeys.find((item) => isImageGroupName(item.group?.name)) ||
-    providerKeys.find((item) => item.group?.name?.trim().toLowerCase().includes("gemini")) ||
-    providerKeys[0]
+    providerKeys.find((item) => item.group?.name?.trim().toLowerCase().includes("gemini"))
   );
 }
 

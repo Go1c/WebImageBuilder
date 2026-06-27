@@ -60,6 +60,13 @@ describe("studio generation size", () => {
     expect(getGenerationRequestTimeoutMs("4K")).toBe(240_000);
   });
 
+  it("extends the front-end polling budget for multi-image requests", () => {
+    expect(getGenerationRequestTimeoutMs("1K", 2)).toBe(250_000);
+    expect(getGenerationRequestTimeoutMs("1K", 3)).toBe(500_000);
+    expect(getGenerationRequestTimeoutMs("1K", 4)).toBe(500_000);
+    expect(getGenerationRequestTimeoutMs("4K", 4)).toBe(480_000);
+  });
+
   it("does not force a ratio change because every selectable 4K ratio is compliant", () => {
     expect(getRecommendedRatioForResolution("4K")).toBeNull();
     expect(getRecommendedRatioForResolution("1K")).toBeNull();

@@ -59,8 +59,13 @@ const generationSizes: Record<ImageResolutionTier, Record<AspectRatioLabel, `${n
 
 export const imageResolutionOptions: ImageResolutionTier[] = ["1K", "2K", "4K"];
 
-export function getGenerationRequestTimeoutMs(resolution: ImageResolutionTier): number {
-  return resolution === "1K" ? 250_000 : 240_000;
+export function getGenerationRequestTimeoutMs(
+  resolution: ImageResolutionTier,
+  count = 1
+): number {
+  const baseTimeoutMs = resolution === "1K" ? 250_000 : 240_000;
+  const requestWaves = Math.ceil(Math.max(1, Math.floor(count)) / 2);
+  return baseTimeoutMs * requestWaves;
 }
 
 export function getRecommendedRatioForResolution(

@@ -1,4 +1,5 @@
 import {
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
   type PutObjectCommandInput
@@ -107,5 +108,27 @@ export async function uploadBuffer(input: {
     key,
     url: getPublicAssetUrl(key),
     mimeType: input.mimeType
+  };
+}
+
+export async function downloadStoredAsset(key: string): Promise<{
+  buffer: Buffer;
+  mimeType: string;
+}> {
+  const response = await getClient().send(
+    new GetObjectCommand({
+      Bucket: getBucket(),
+      Key: key
+    })
+  );
+
+  if (!response.Body) {
+    throw new Error("Stored asset response did not contain a body");
+  }
+
+  const bytes = await response.Body.transformToByteArray();
+  return {
+    buffer: Buffer.from(bytes),
+    mimeType: response.ContentType || "image/png"
   };
 }

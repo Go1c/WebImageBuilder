@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCanvasMeta,
   buildCanvasHistoryThumbs,
+  buildPreviewAssetUrl,
   getCanvasLoadingWarningText,
   getCanvasPlaceholderText,
   selectCanvasImage,
@@ -119,6 +120,7 @@ describe("studio canvas helpers", () => {
         id: "task-older-0",
         taskId: "task-older",
         url: "https://cdn.lumio.games/older.png",
+        originalUrl: "https://cdn.lumio.games/older.png",
         prompt: "older icon"
       }
     ]);
@@ -145,10 +147,57 @@ describe("studio canvas helpers", () => {
         id: "task-older-0",
         taskId: "task-older",
         url: "https://cdn.lumio.games/older.png",
+        originalUrl: "https://cdn.lumio.games/older.png",
         prompt: "older icon",
         size: "2560 × 1920",
         status: "succeeded",
         createdAt: "2026-04-26T10:30:00.000Z"
+      }
+    ]);
+  });
+
+  it("builds inline preview URLs for stored assets that are not directly renderable", () => {
+    expect(
+      buildPreviewAssetUrl({
+        storageKey: "generated/user-1/task-1/result.png",
+        url: "s3://bucket/generated/user-1/task-1/result.png"
+      })
+    ).toBe(
+      "/api/download?key=generated%2Fuser-1%2Ftask-1%2Fresult.png&disposition=inline"
+    );
+  });
+
+  it("uses inline download previews for persisted s3 history thumbs", () => {
+    expect(
+      buildCanvasHistoryThumbs({
+        canvasPrompt: null,
+        images: [],
+        history: [
+          {
+            id: "task-s3",
+            prompt: "stored icon",
+            status: "succeeded",
+            assets: [
+              {
+                type: "result",
+                storageKey: "generated/user-1/task-s3/result.png",
+                url: "s3://bucket/generated/user-1/task-s3/result.png",
+                mimeType: "image/png"
+              }
+            ]
+          }
+        ]
+      })
+    ).toEqual([
+      {
+        id: "task-s3-0",
+        taskId: "task-s3",
+        key: "generated/user-1/task-s3/result.png",
+        url: "/api/download?key=generated%2Fuser-1%2Ftask-s3%2Fresult.png&disposition=inline",
+        originalUrl: "s3://bucket/generated/user-1/task-s3/result.png",
+        mimeType: "image/png",
+        prompt: "stored icon",
+        status: "succeeded"
       }
     ]);
   });

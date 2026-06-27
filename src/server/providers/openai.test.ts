@@ -36,26 +36,23 @@ describe("OpenAI image provider", () => {
     expect(requestBody).not.toHaveProperty("response_format");
   });
 
-  it("passes the requested image count as n for Image-2 generation requests", async () => {
+  it("runs one Image-2 request per requested image with distinct variation prompts", async () => {
     process.env = {
       ...originalEnv,
       OPENAI_API_KEY: "test-key",
       OPENAI_BASE_URL: "https://api.lumio.games/"
     };
 
-    const fetchMock = vi.fn(async () =>
-      new Response(
+    let responseIndex = 0;
+    const fetchMock = vi.fn(async () => {
+      responseIndex += 1;
+      return new Response(
         JSON.stringify({
-          data: [
-            { b64_json: Buffer.from("image 1").toString("base64") },
-            { b64_json: Buffer.from("image 2").toString("base64") },
-            { b64_json: Buffer.from("image 3").toString("base64") },
-            { b64_json: Buffer.from("image 4").toString("base64") }
-          ]
+          data: [{ b64_json: Buffer.from(`image ${responseIndex}`).toString("base64") }]
         }),
         { status: 200 }
-      )
-    );
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const images = await new OpenAIImageProvider().generate({
@@ -63,12 +60,22 @@ describe("OpenAI image provider", () => {
       count: 4
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<
-      string,
-      unknown
-    >;
-    expect(requestBody.n).toBe(4);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    const requestBodies = fetchMock.mock.calls.map(
+      (call) => JSON.parse(String(call[1]?.body)) as Record<string, unknown>
+    );
+    expect(requestBodies.map((body) => body.n)).toEqual([1, 1, 1, 1]);
+    expect(String(requestBodies[0].prompt)).toContain("Variation 1");
+    expect(String(requestBodies[1].prompt)).toContain("Variation 2");
+    expect(String(requestBodies[2].prompt)).toContain("Variation 3");
+    expect(String(requestBodies[3].prompt)).toContain("Variation 4");
     expect(images).toHaveLength(4);
+    expect(images.map((image) => image.buffer.toString())).toEqual([
+      "image 1",
+      "image 2",
+      "image 3",
+      "image 4"
+    ]);
   });
 
   it("fetches the hosted image url when the gateway returns a url instead of b64_json", async () => {

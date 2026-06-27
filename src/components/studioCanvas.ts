@@ -1,12 +1,14 @@
 export type CanvasImageCandidate = {
   key?: string;
   url: string;
+  originalUrl?: string;
   mimeType?: string;
 };
 
 export type CanvasImage = {
   key?: string;
   url: string;
+  originalUrl?: string;
   mimeType: string;
 };
 
@@ -23,13 +25,17 @@ export type CanvasHistoryItem = {
     type: string;
     width?: number | null;
     height?: number | null;
+    storageKey?: string | null;
+    mimeType?: string | null;
   }>;
 };
 
 export type CanvasHistoryThumb = {
   id: string;
   taskId?: string;
+  key?: string;
   url: string;
+  originalUrl?: string;
   mimeType?: string;
   prompt?: string;
   size?: string;
@@ -54,6 +60,7 @@ export function selectCanvasImage(input: {
     return {
       ...(generatedImage.key ? { key: generatedImage.key } : {}),
       url: generatedImage.url,
+      ...(generatedImage.originalUrl ? { originalUrl: generatedImage.originalUrl } : {}),
       mimeType: generatedImage.mimeType || "image/png"
     };
   }
@@ -107,6 +114,7 @@ export function buildCanvasHistoryThumbs(input: {
       id: `generated-${image.key || index}`,
       ...(input.currentTaskId ? { taskId: input.currentTaskId } : {}),
       url: image.url,
+      ...(image.originalUrl ? { originalUrl: image.originalUrl } : {}),
       mimeType: image.mimeType,
       prompt: input.canvasPrompt || undefined
     });
@@ -120,7 +128,13 @@ export function buildCanvasHistoryThumbs(input: {
         appendThumb({
           id: `${item.id}-${index}`,
           taskId: item.id,
-          url: asset.url,
+          ...(asset.storageKey ? { key: asset.storageKey } : {}),
+          url: buildPreviewAssetUrl({
+            storageKey: asset.storageKey,
+            url: asset.url
+          }),
+          originalUrl: asset.url,
+          mimeType: asset.mimeType || undefined,
           prompt: item.prompt,
           ...(size ? { size } : {}),
           ...(item.status ? { status: item.status } : {}),
@@ -130,6 +144,35 @@ export function buildCanvasHistoryThumbs(input: {
   });
 
   return thumbs.slice(0, input.limit ?? 4);
+}
+
+export function buildPreviewAssetUrl(input: {
+  storageKey?: string | null;
+  url: string;
+}): string {
+  if (isDirectPreviewUrl(input.url)) {
+    return input.url;
+  }
+
+  if (input.storageKey) {
+    const params = new URLSearchParams({
+      key: input.storageKey,
+      disposition: "inline"
+    });
+    return `/api/download?${params.toString()}`;
+  }
+
+  return input.url;
+}
+
+function isDirectPreviewUrl(url: string): boolean {
+  return (
+    url.startsWith("data:") ||
+    url.startsWith("blob:") ||
+    url.startsWith("/") ||
+    url.startsWith("http://") ||
+    url.startsWith("https://")
+  );
 }
 
 export function buildCanvasMeta(input: {

@@ -1,6 +1,7 @@
 export type StudioActionImage = {
   key?: string;
   url: string;
+  originalUrl?: string;
   mimeType: string;
 };
 
@@ -96,7 +97,7 @@ export function buildReferenceAssetDescriptor(input: {
     ok: true,
     reference: {
       key: input.image.key || buildStableCanvasAssetKey(input.image.url),
-      url: input.image.url,
+      url: input.image.originalUrl || input.image.url,
       mimeType: input.image.mimeType,
       prompt: input.prompt || "",
       source: "canvas"

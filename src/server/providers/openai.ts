@@ -49,6 +49,19 @@ export class OpenAIImageProvider implements ImageProvider {
   constructor(private readonly options: OpenAIImageProviderOptions = {}) {}
 
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
+    if (input.count > 1) {
+      const requests = Array.from({ length: input.count }, (_, index) => index);
+      const results = await runWithConcurrency(requests, 2, async (index) =>
+        this.generateSingleImage(buildOpenAIVariationInput(input, index))
+      );
+
+      return results.flat().slice(0, input.count);
+    }
+
+    return this.generateSingleImage(input);
+  }
+
+  private async generateSingleImage(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
     if (input.referenceAssets.length > 0 || input.maskAsset) {
       return this.generateEdit(input);
     }
@@ -144,6 +157,17 @@ function buildEditPrompt(input: NormalizedGenerationInput): string {
   }
 
   return input.prompt;
+}
+
+function buildOpenAIVariationInput(
+  input: NormalizedGenerationInput,
+  variationIndex: number
+): NormalizedGenerationInput {
+  return {
+    ...input,
+    count: 1,
+    prompt: `${input.prompt}\n\nVariation ${variationIndex + 1}: choose a distinct composition, lighting, color palette, camera angle, or detail treatment while preserving the user's core intent.`
+  };
 }
 
 function buildImagePrompt(input: NormalizedGenerationInput): string {
@@ -414,4 +438,31 @@ function logOpenAIResponseFailure(
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
+}
+
+async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runNext(): Promise<void> {
+    const index = nextIndex;
+    nextIndex += 1;
+
+    if (index >= items.length) {
+      return;
+    }
+
+    results[index] = await worker(items[index]);
+    await runNext();
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => runNext())
+  );
+
+  return results;
 }

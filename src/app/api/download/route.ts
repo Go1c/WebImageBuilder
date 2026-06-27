@@ -6,6 +6,7 @@ import { getOwnedResultAsset } from "@/server/db/repositories";
 import { ApiError, jsonError } from "@/server/http";
 import { fetchAsset } from "@/server/providers/types";
 import { applyContextCookies, getRequestContext } from "@/server/request-context";
+import { downloadStoredAsset } from "@/server/storage/s3";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,8 @@ const downloadQuerySchema = z
   .object({
     key: z.string().trim().min(1).optional(),
     url: z.string().trim().url().optional(),
-    filename: z.string().trim().min(1).max(160).optional()
+    filename: z.string().trim().min(1).max(160).optional(),
+    disposition: z.enum(["attachment", "inline"]).optional()
   })
   .refine((value) => Boolean(value.key || value.url), {
     message: "Missing download target"
@@ -25,7 +27,8 @@ export async function GET(request: NextRequest) {
     const parsedQuery = downloadQuerySchema.safeParse({
       key: request.nextUrl.searchParams.get("key") ?? undefined,
       url: request.nextUrl.searchParams.get("url") ?? undefined,
-      filename: request.nextUrl.searchParams.get("filename") ?? undefined
+      filename: request.nextUrl.searchParams.get("filename") ?? undefined,
+      disposition: request.nextUrl.searchParams.get("disposition") ?? undefined
     });
 
     if (!parsedQuery.success) {
@@ -41,7 +44,10 @@ export async function GET(request: NextRequest) {
       throw new ApiError(404, "not_found", "Image not found");
     }
 
-    const downloadedAsset = await fetchAsset(asset.url);
+    const downloadedAsset =
+      ownedAsset && shouldReadOwnedAssetFromStorage(ownedAsset)
+        ? await downloadStoredAsset(ownedAsset.storageKey)
+        : await fetchAsset(asset.url);
     const fileName =
       sanitizeDownloadFileName(parsedQuery.data.filename) ||
       buildFallbackDownloadFileName(asset.mimeType || downloadedAsset.mimeType);
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": asset.mimeType || downloadedAsset.mimeType || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Disposition": `${parsedQuery.data.disposition || "attachment"}; filename="${fileName}"`,
         "Cache-Control": "private, no-store"
       }
     });
@@ -59,6 +65,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return jsonError(error);
   }
+}
+
+function shouldReadOwnedAssetFromStorage(asset: { storageKey: string; url: string }): boolean {
+  return asset.url.startsWith("s3://");
 }
 
 function sanitizeDownloadFileName(value: string | undefined): string | null {

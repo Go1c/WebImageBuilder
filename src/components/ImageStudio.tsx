@@ -63,6 +63,7 @@ import {
 import {
   buildCanvasMeta,
   buildCanvasHistoryThumbs,
+  buildPreviewAssetUrl,
   getCanvasLoadingWarningText,
   getCanvasPlaceholderText,
   selectCanvasImage,
@@ -117,19 +118,29 @@ type HistoryItem = {
   } | null;
   status: string;
   createdAt: string;
-  assets: Array<{ url: string; type: string; width?: number | null; height?: number | null }>;
+  assets: Array<{
+    url: string;
+    type: string;
+    storageKey?: string | null;
+    mimeType?: string | null;
+    width?: number | null;
+    height?: number | null;
+  }>;
 };
 
 type GeneratedImage = {
   key: string;
   url: string;
+  originalUrl?: string;
   mimeType: string;
 };
 
 type HistoryThumb = {
   id: string;
   taskId?: string;
+  key?: string;
   url: string;
+  originalUrl?: string;
   mimeType?: string;
   prompt?: string;
   size?: string;
@@ -204,9 +215,6 @@ const defaultCustomResolution = {
 const keywordTags = ["柔光", "高对比", "微距", "广角", "黄金时刻", "蒸汽朋克", "极简", "未来感", "怀旧", "童趣"];
 const libraryTabs = ["热门", "人物", "场景", "风格", "我的"];
 
-// The POST /api/generate request only creates the task and returns quickly, so
-// it gets a short timeout. The long wait is the polling loop below.
-const GENERATION_SUBMIT_TIMEOUT_MS = 30_000;
 const GENERATION_POLL_INTERVAL_MS = 3_000;
 
 type GenerationTaskView = {
@@ -214,7 +222,26 @@ type GenerationTaskView = {
   status: "queued" | "running" | "succeeded" | "failed";
   errorMessage?: string | null;
   prompt?: string;
-  assets: Array<{ id: string; type: string; url: string; width?: number | null; height?: number | null }>;
+  assets: Array<{
+    id: string;
+    type: string;
+    storageKey?: string | null;
+    url: string;
+    mimeType?: string | null;
+    width?: number | null;
+    height?: number | null;
+  }>;
+};
+
+type GenerateSubmitResponse = {
+  taskId: string;
+  status: "queued" | "running" | "succeeded" | "failed" | string;
+  quota: QuotaResponse["quota"];
+  images?: Array<{
+    key: string;
+    url: string;
+    mimeType?: string | null;
+  }>;
 };
 
 class GenerationPollTimeoutError extends Error {
@@ -287,6 +314,23 @@ async function pollGenerationTask(
 
     await wait(options.intervalMs, options.signal);
   }
+}
+
+function buildGeneratedImageFromAsset(asset: {
+  id?: string;
+  key?: string;
+  storageKey?: string | null;
+  url: string;
+  mimeType?: string | null;
+}): GeneratedImage {
+  const storageKey = asset.storageKey || asset.key || undefined;
+
+  return {
+    key: storageKey || asset.id || asset.url,
+    url: buildPreviewAssetUrl({ storageKey, url: asset.url }),
+    originalUrl: asset.url,
+    mimeType: asset.mimeType || "image/png"
+  };
 }
 
 export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } = {}) {
@@ -656,11 +700,11 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedImageIndex(0);
     setRequestPreview(buildRequestPreview(metadata));
     const submitController = new AbortController();
+    const pollBudgetMs = getGenerationRequestTimeoutMs(effectiveResolution, generationCount);
     const submitTimeoutId = window.setTimeout(
       () => submitController.abort(),
-      GENERATION_SUBMIT_TIMEOUT_MS
+      pollBudgetMs + 30_000
     );
-    const pollBudgetMs = getGenerationRequestTimeoutMs(effectiveResolution);
 
     try {
       await refreshSub2ApiSession({ silent: true });
@@ -690,37 +734,42 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         throw new StudioApiResponseError(await readApiErrorDetail(response));
       }
 
-      // The request now only enqueues the task; the slow generation runs in the
-      // background and we poll for the result so a proxy timeout can't drop it.
-      const submitResult = await readApiJson<{
-        taskId: string;
-        status: string;
-        quota: QuotaResponse["quota"];
-      }>(response, "生成接口返回了非 JSON 响应，请刷新页面后重试");
+      const submitResult = await readApiJson<GenerateSubmitResponse>(
+        response,
+        "生成接口返回了非 JSON 响应，请刷新页面后重试"
+      );
 
       setCurrentTaskId(submitResult.taskId);
       setQuota((current) => (current ? { ...current, quota: submitResult.quota } : current));
 
-      const task = await pollGenerationTask(submitResult.taskId, {
-        budgetMs: pollBudgetMs,
-        intervalMs: GENERATION_POLL_INTERVAL_MS
-      });
+      let completedPrompt = submissionPrompt;
+      let generatedImages: GeneratedImage[] = (submitResult.images || []).map(
+        buildGeneratedImageFromAsset
+      );
 
-      if (task.status === "failed") {
-        showTip(
-          tipFromApiError({
-            code: "provider_error",
-            message: task.errorMessage || "生成失败，请稍后重试。",
-            status: 502,
-            statusText: ""
-          })
-        );
-        return;
+      if (!generatedImages.length) {
+        const task = await pollGenerationTask(submitResult.taskId, {
+          budgetMs: pollBudgetMs,
+          intervalMs: GENERATION_POLL_INTERVAL_MS
+        });
+
+        if (task.status === "failed") {
+          showTip(
+            tipFromApiError({
+              code: "provider_error",
+              message: task.errorMessage || "生成失败，请稍后重试。",
+              status: 502,
+              statusText: ""
+            })
+          );
+          return;
+        }
+
+        completedPrompt = task.prompt || submissionPrompt;
+        generatedImages = task.assets
+          .filter((asset) => asset.type === "result")
+          .map(buildGeneratedImageFromAsset);
       }
-
-      const generatedImages: GeneratedImage[] = task.assets
-        .filter((asset) => asset.type === "result")
-        .map((asset) => ({ key: asset.id, url: asset.url, mimeType: "image/png" }));
 
       if (!generatedImages.length) {
         showTip({
@@ -733,7 +782,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         setSelectedImageIndex(0);
         setSelectedInspirationImage(null);
         setSelectedHistoryThumb(null);
-        setCanvasPrompt(task.prompt || submissionPrompt);
+        setCanvasPrompt(completedPrompt);
         setReusedReferences([]);
         showTip({
           type: "success",
@@ -960,10 +1009,17 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }
 
   function handleHistoryThumbClick(thumb: HistoryThumb) {
-    setSelectedInspirationImage(thumb.url);
-    setSelectedHistoryThumb(thumb);
-    setImages([]);
+    setImages([
+      {
+        key: thumb.key || thumb.id,
+        url: thumb.url,
+        originalUrl: thumb.originalUrl,
+        mimeType: thumb.mimeType || "image/png"
+      }
+    ]);
     setSelectedImageIndex(0);
+    setSelectedInspirationImage(null);
+    setSelectedHistoryThumb(thumb);
     setCurrentTaskId(thumb.taskId || null);
     setCanvasPrompt(thumb.prompt || null);
     setRequestPreview(null);
@@ -1122,7 +1178,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId: currentTaskId,
-          imageUrl: canvasImage.url
+          imageUrl: canvasImage.originalUrl || canvasImage.url
         })
       });
 
