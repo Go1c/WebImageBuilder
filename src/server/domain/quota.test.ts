@@ -159,4 +159,64 @@ describe("quota rules", () => {
       nextPaidCredits: 4
     });
   });
+
+  it("spends quota by requested image count", () => {
+    expect(
+      spendQuota({
+        actorType: "anonymous",
+        anonymousUsed: 0,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        amount: 3,
+        config: {
+          anonymousFreeGenerations: 3,
+          loginFreeGenerations: 3,
+          inviteRewardGenerations: 0,
+          ipDailyAnonymousLimit: 30
+        }
+      })
+    ).toEqual({
+      allowed: true,
+      spendSource: "anonymous",
+      nextAnonymousUsed: 3,
+      nextLoginUsed: 0,
+      nextInviteCredits: 0,
+      nextPaidCredits: 0
+    });
+
+    expect(
+      spendQuota({
+        actorType: "anonymous",
+        anonymousUsed: 1,
+        loginUsed: 0,
+        inviteCredits: 0,
+        paidCredits: 0,
+        amount: 3,
+        config: {
+          anonymousFreeGenerations: 3,
+          loginFreeGenerations: 3,
+          inviteRewardGenerations: 0,
+          ipDailyAnonymousLimit: 30
+        }
+      })
+    ).toEqual({ allowed: false, reason: "quota_exhausted" });
+  });
+
+  it("checks anonymous device and IP limits by requested image count", () => {
+    const config = getQuotaConfig({
+      ANON_FREE_GENERATIONS: "3",
+      IP_DAILY_ANON_LIMIT: "4"
+    });
+
+    expect(canUseAnonymousQuota({ anonymousUsed: 1, ipDailyUsed: 0, amount: 3, config })).toEqual({
+      allowed: false,
+      reason: "device_quota_exhausted"
+    });
+
+    expect(canUseAnonymousQuota({ anonymousUsed: 0, ipDailyUsed: 2, amount: 3, config })).toEqual({
+      allowed: false,
+      reason: "ip_daily_limit_exhausted"
+    });
+  });
 });

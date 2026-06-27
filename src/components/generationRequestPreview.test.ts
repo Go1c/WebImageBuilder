@@ -21,7 +21,6 @@ describe("generation request preview", () => {
           prompt: {
             raw: "测试直播封面",
             final: "测试直播封面",
-            selectedTypes: [],
             selectedStyle: null,
             negative: "",
             providerSupportNotes: []
@@ -48,7 +47,6 @@ describe("generation request preview", () => {
         prompt: "测试直播封面，realistic photography",
         rawPrompt: "测试直播封面",
         finalPrompt: "测试直播封面，realistic photography",
-        selectedTypes: ["写实"],
         selectedStyle: {
           key: "watercolor-illustration",
           label: "水彩插画"
@@ -66,7 +64,6 @@ describe("generation request preview", () => {
       prompt: {
         raw: string;
         final: string;
-        selectedTypes: string[];
         selectedStyle: { key: string; label: string } | null;
         negative: string;
         providerSupportNotes: string[];
@@ -75,7 +72,6 @@ describe("generation request preview", () => {
 
     expect(preview.prompt.raw).toBe("测试直播封面");
     expect(preview.prompt.final).toBe("测试直播封面，realistic photography");
-    expect(preview.prompt.selectedTypes).toEqual(["写实"]);
     expect(preview.prompt.selectedStyle).toEqual({
       key: "watercolor-illustration",
       label: "水彩插画"

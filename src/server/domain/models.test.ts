@@ -7,18 +7,30 @@ import {
 } from "./models";
 
 describe("model and generation request rules", () => {
-  it("keeps GPT Image and Gemini behind stable UI model keys", () => {
+  it("exposes the selectable concrete image model keys", () => {
     expect(getModelOption("gpt-image-2")).toMatchObject({
       key: "gpt-image-2",
       provider: "openai",
-      label: "GPT Image 2",
+      label: "gpt-image-2",
       providerModel: "gpt-image-2"
     });
 
-    expect(getModelOption("gemini-image")).toMatchObject({
-      key: "gemini-image",
+    expect(getModelOption("gpt-image-2-2k")).toMatchObject({
+      key: "gpt-image-2-2k",
+      provider: "openai",
+      providerModel: "gpt-image-2-2k"
+    });
+
+    expect(getModelOption("gpt-image-2-4k")).toMatchObject({
+      key: "gpt-image-2-4k",
+      provider: "openai",
+      providerModel: "gpt-image-2-4k"
+    });
+
+    expect(getModelOption("gemini-3.1-flash-image-preview")).toMatchObject({
+      key: "gemini-3.1-flash-image-preview",
       provider: "gemini",
-      label: "Gemini"
+      providerModel: "gemini-3.1-flash-image-preview"
     });
   });
 
@@ -27,7 +39,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "make it cinematic",
         mode: "image-to-image",
-        model: "gemini-image",
+        model: "gemini-3.1-flash-image-preview",
         count: 1,
         size: "1024x1024",
         referenceAssets: []
@@ -35,12 +47,12 @@ describe("model and generation request rules", () => {
     ).toThrow(/reference image/i);
   });
 
-  it("normalizes limits before requests reach provider adapters", () => {
+  it("normalizes generation input before requests reach provider adapters", () => {
     const input = normalizeGenerationInput({
       prompt: "  A red robot holding a skateboard  ",
       mode: "text-to-image",
       model: "gpt-image-2",
-      count: 9,
+      count: 4,
       size: "1920x2560",
       resolution: "2K",
       quality: "high"
@@ -54,17 +66,29 @@ describe("model and generation request rules", () => {
     expect(input.providerModel).toBeDefined();
   });
 
-  it("uses GPT Image 2 for every OpenAI image resolution", () => {
+  it("rejects generation counts above the supported 1-4 range", () => {
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "gpt-image-2",
+        count: 5,
+        size: "1024x1024"
+      })
+    ).toThrow();
+  });
+
+  it("uses the selected concrete OpenAI model as the provider model", () => {
     const baseInput = {
       prompt: "A red robot",
       mode: "text-to-image" as const,
-      model: "gpt-image-2" as const,
       size: "1024x1024" as const
     };
 
     expect(
       normalizeGenerationInput({
         ...baseInput,
+        model: "gpt-image-2",
         resolution: "1K"
       }).providerModel
     ).toBe("gpt-image-2");
@@ -72,18 +96,20 @@ describe("model and generation request rules", () => {
     expect(
       normalizeGenerationInput({
         ...baseInput,
+        model: "gpt-image-2-2k",
         size: "2048x1152",
         resolution: "2K"
       }).providerModel
-    ).toBe("gpt-image-2");
+    ).toBe("gpt-image-2-2k");
 
     expect(
       normalizeGenerationInput({
         ...baseInput,
+        model: "gpt-image-2-4k",
         size: "3840x2160",
         resolution: "4K"
       }).providerModel
-    ).toBe("gpt-image-2");
+    ).toBe("gpt-image-2-4k");
   });
 
   it("uses the configured image request timeouts for each resolution", () => {

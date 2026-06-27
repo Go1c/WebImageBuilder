@@ -36,6 +36,41 @@ describe("OpenAI image provider", () => {
     expect(requestBody).not.toHaveProperty("response_format");
   });
 
+  it("passes the requested image count as n for Image-2 generation requests", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: [
+            { b64_json: Buffer.from("image 1").toString("base64") },
+            { b64_json: Buffer.from("image 2").toString("base64") },
+            { b64_json: Buffer.from("image 3").toString("base64") },
+            { b64_json: Buffer.from("image 4").toString("base64") }
+          ]
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const images = await new OpenAIImageProvider().generate({
+      ...buildInput(),
+      count: 4
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<
+      string,
+      unknown
+    >;
+    expect(requestBody.n).toBe(4);
+    expect(images).toHaveLength(4);
+  });
+
   it("fetches the hosted image url when the gateway returns a url instead of b64_json", async () => {
     process.env = {
       ...originalEnv,

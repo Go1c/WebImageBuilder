@@ -157,12 +157,14 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   if (shouldUseLocalRepository()) {
     const store = getLocalRepository();
     const today = new Date().toISOString().slice(0, 10);
-    const ipDailyUsed = store.tasks.filter(
-      (task) =>
-        task.actor.type === "anonymous" &&
-        task.actor.ipHash === actor.ipHash &&
-        task.createdAt.slice(0, 10) === today
-    ).length;
+    const ipDailyUsed = store.tasks
+      .filter(
+        (task) =>
+          task.actor.type === "anonymous" &&
+          task.actor.ipHash === actor.ipHash &&
+          task.createdAt.slice(0, 10) === today
+      )
+      .reduce((total, task) => total + task.generation.count, 0);
 
     if (actor.type === "anonymous") {
       return {
@@ -189,7 +191,7 @@ export async function getQuotaState(actor: Actor): Promise<DbQuotaState> {
   const today = new Date().toISOString().slice(0, 10);
   const ipResult = await query<{ count: string }>(
     `
-      select count(*)::text as count
+      select coalesce(sum(result_count), 0)::text as count
       from generation_tasks
       where ip_hash = $1
         and actor_type = 'anonymous'
@@ -265,23 +267,27 @@ export async function getGlobalGenerationStats(): Promise<GlobalGenerationStats>
 }
 
 function countLocalDeviceTrialUsage(store: LocalRepository, deviceId: string): number {
-  return store.tasks.filter((task) => {
+  return store.tasks.reduce((total, task) => {
     if (task.status !== "succeeded") {
-      return false;
+      return total;
     }
 
     if (task.actor.type === "anonymous") {
-      return task.actor.anonymousDeviceId === `local-anon-${deviceId}`;
+      return task.actor.anonymousDeviceId === `local-anon-${deviceId}`
+        ? total + task.generation.count
+        : total;
     }
 
-    return task.actor.deviceId === deviceId && task.spendSource === "login";
-  }).length;
+    return task.actor.deviceId === deviceId && task.spendSource === "login"
+      ? total + task.generation.count
+      : total;
+  }, 0);
 }
 
 async function countDeviceTrialUsage(deviceId: string, ipHash: string): Promise<number> {
   const usage = await query<{ used: string }>(
     `
-      select count(*)::text as used
+      select coalesce(sum(t.result_count), 0)::text as used
       from generation_tasks t
       where t.status = 'succeeded'
         and (

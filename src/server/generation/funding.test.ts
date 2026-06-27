@@ -54,6 +54,30 @@ describe("generation funding", () => {
     expect(decision).toEqual({ kind: "sub2api" });
   });
 
+  it("falls back to Sub2API when the requested image count exceeds remaining site quota", () => {
+    const decision = chooseGenerationFunding({
+      quotaState: {
+        actorType: "user",
+        anonymousUsed: 0,
+        loginUsed: 1,
+        inviteCredits: 0,
+        paidCredits: 0,
+        ipDailyUsed: 0
+      },
+      allowSub2ApiFallback: true,
+      allowSiteFunding: true,
+      amount: 2,
+      config: {
+        anonymousFreeGenerations: 3,
+        loginFreeGenerations: 2,
+        inviteRewardGenerations: 0,
+        ipDailyAnonymousLimit: 30
+      }
+    });
+
+    expect(decision).toEqual({ kind: "sub2api" });
+  });
+
   it("falls back to Sub2API after the same device used all local trial generations", () => {
     const decision = chooseGenerationFunding({
       quotaState: {

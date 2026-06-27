@@ -3,6 +3,7 @@ import { createTask, getQuotaState, markTaskFailed } from "../db/repositories";
 import { ApiError } from "../http";
 import { getImageProvider } from "../providers";
 import { UpstreamProviderError } from "../providers/upstream";
+import { getSub2ApiGenerationApiKey } from "../sub2api/client";
 import { generateImagesForActor } from "./service";
 
 vi.mock("../db/repositories", () => ({
@@ -15,6 +16,10 @@ vi.mock("../db/repositories", () => ({
 
 vi.mock("../providers", () => ({
   getImageProvider: vi.fn()
+}));
+
+vi.mock("../sub2api/client", () => ({
+  getSub2ApiGenerationApiKey: vi.fn()
 }));
 
 describe("generation service", () => {
@@ -84,6 +89,52 @@ describe("generation service", () => {
     });
 
     expect(getQuotaState).not.toHaveBeenCalled();
+  });
+
+  it("returns Gemini key setup guidance before creating a Sub2API-funded task", async () => {
+    vi.mocked(getQuotaState).mockResolvedValueOnce({
+      actorType: "user",
+      anonymousUsed: 3,
+      loginUsed: 0,
+      inviteCredits: 0,
+      paidCredits: 0,
+      ipDailyUsed: 0
+    });
+    vi.mocked(getSub2ApiGenerationApiKey).mockRejectedValueOnce(
+      new ApiError(
+        402,
+        "account_unavailable",
+        "未找到可用于图片生成的 active Gemini API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 Gemini、分组名包含 gemini 或 image 的分组，例如 Gemini（生图专用）。"
+      )
+    );
+
+    await expect(
+      generateImagesForActor({
+        actor: {
+          type: "user",
+          userId: "user-1",
+          externalUserId: "sub2api:1",
+          deviceId: "device-1",
+          ipHash: "ip-1"
+        },
+        sub2ApiAccessToken: "access-token",
+        rawInput: {
+          prompt: "simple test image",
+          mode: "text-to-image",
+          model: "gemini-3.1-flash-image-preview",
+          size: "1024x1024",
+          resolution: "1K",
+          quality: "standard",
+          count: 1,
+          referenceAssets: []
+        }
+      })
+    ).rejects.toMatchObject<Partial<ApiError>>({
+      status: 402,
+      code: "account_unavailable",
+      message: expect.stringContaining("Gemini")
+    });
+    expect(createTask).not.toHaveBeenCalled();
   });
 
   it("preserves upstream provider diagnostics when generation fails", async () => {

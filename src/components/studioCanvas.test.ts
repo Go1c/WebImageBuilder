@@ -44,6 +44,23 @@ describe("studio canvas helpers", () => {
     });
   });
 
+  it("selects the requested generated image when multiple results are visible", () => {
+    expect(
+      selectCanvasImage({
+        images: [
+          { key: "result-1", url: "https://cdn.lumio.games/result-1.png" },
+          { key: "result-2", url: "https://cdn.lumio.games/result-2.png" }
+        ],
+        selectedImageIndex: 1,
+        selectedInspirationImage: null
+      })
+    ).toEqual({
+      key: "result-2",
+      url: "https://cdn.lumio.games/result-2.png",
+      mimeType: "image/png"
+    });
+  });
+
   it("hides the previous canvas image while a new generation is loading", () => {
     expect(
       selectVisibleCanvasImage({

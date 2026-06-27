@@ -37,6 +37,7 @@ export type QuotaSnapshot = {
 export type AnonymousQuotaCheck = {
   anonymousUsed: number;
   ipDailyUsed: number;
+  amount?: number;
   config?: QuotaConfig;
 };
 
@@ -47,7 +48,9 @@ export type AnonymousQuotaDecision =
       reason: "device_quota_exhausted" | "ip_daily_limit_exhausted";
     };
 
-export type SpendQuotaInput = QuotaSnapshotInput;
+export type SpendQuotaInput = QuotaSnapshotInput & {
+  amount?: number;
+};
 
 export type SpendQuotaResult =
   | {
@@ -140,12 +143,13 @@ export function getQuotaSnapshot(input: QuotaSnapshotInput): QuotaSnapshot {
 
 export function canUseAnonymousQuota(input: AnonymousQuotaCheck): AnonymousQuotaDecision {
   const config = input.config ?? getQuotaConfig();
+  const amount = getSpendAmount(input.amount);
 
-  if (clamp(input.anonymousUsed) >= config.anonymousFreeGenerations) {
+  if (clamp(input.anonymousUsed) + amount > config.anonymousFreeGenerations) {
     return { allowed: false, reason: "device_quota_exhausted" };
   }
 
-  if (clamp(input.ipDailyUsed) >= config.ipDailyAnonymousLimit) {
+  if (clamp(input.ipDailyUsed) + amount > config.ipDailyAnonymousLimit) {
     return { allowed: false, reason: "ip_daily_limit_exhausted" };
   }
 
@@ -154,7 +158,8 @@ export function canUseAnonymousQuota(input: AnonymousQuotaCheck): AnonymousQuota
 
 export function spendQuota(input: SpendQuotaInput): SpendQuotaResult {
   const snapshot = getQuotaSnapshot(input);
-  if (snapshot.remaining <= 0) {
+  const amount = getSpendAmount(input.amount);
+  if (snapshot.remaining < amount) {
     return { allowed: false, reason: "quota_exhausted" };
   }
 
@@ -162,7 +167,7 @@ export function spendQuota(input: SpendQuotaInput): SpendQuotaResult {
     return {
       allowed: true,
       spendSource: "anonymous",
-      nextAnonymousUsed: clamp(input.anonymousUsed) + 1,
+      nextAnonymousUsed: clamp(input.anonymousUsed) + amount,
       nextLoginUsed: clamp(input.loginUsed),
       nextInviteCredits: clamp(input.inviteCredits),
       nextPaidCredits: clamp(input.paidCredits)
@@ -174,11 +179,15 @@ export function spendQuota(input: SpendQuotaInput): SpendQuotaResult {
       allowed: true,
       spendSource: "login",
       nextAnonymousUsed: clamp(input.anonymousUsed),
-      nextLoginUsed: clamp(input.loginUsed) + 1,
+      nextLoginUsed: clamp(input.loginUsed) + amount,
       nextInviteCredits: clamp(input.inviteCredits),
       nextPaidCredits: clamp(input.paidCredits)
     };
   }
 
   return { allowed: false, reason: "quota_exhausted" };
+}
+
+function getSpendAmount(amount: number | undefined): number {
+  return Math.max(1, clamp(amount ?? 1));
 }

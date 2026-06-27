@@ -28,10 +28,8 @@ import {
 } from "./sub2ApiLogin";
 import {
   buildPromptEnhancementMetadata,
-  promptTypeChoices,
   type PromptEnhancementMetadata,
-  type PromptStylePresetKey,
-  type PromptTypeKey
+  type PromptStylePresetKey
 } from "./promptEnhancers";
 import { getPromptLibraryImageLoading } from "./promptLibraryImages";
 import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
@@ -175,15 +173,20 @@ const emptySub2ApiSession: Sub2ApiSessionResponse = {
 const urlOnlyReferenceSupportNote =
   "Canvas reuse is sent as a URL reference asset; uploaded files remain the most reliable provider reference path.";
 
-const typeChoiceIcons: Record<PromptTypeKey, StudioIconName> = {
-  UI: "grid",
-  UE: "cube",
-  "立绘": "person",
-  "3D": "layers",
-  "二次元": "image",
-  "写实": "aperture",
-  "特效": "wand",
-  "场景原画": "image"
+type GenerationCount = 1 | 2 | 3 | 4;
+
+const studioModelOptions: Array<{ key: ModelKey; label: string }> = [
+  { key: "gpt-image-2", label: "gpt-image-2" },
+  { key: "gpt-image-2-2k", label: "gpt-image-2-2k" },
+  { key: "gpt-image-2-4k", label: "gpt-image-2-4k" },
+  { key: "gemini-3.1-flash-image-preview", label: "gemini-3.1-flash-image-preview" }
+];
+
+const generationCountOptions: GenerationCount[] = [1, 2, 3, 4];
+const image2ModelByResolution: Record<ImageResolutionTier, ModelKey> = {
+  "1K": "gpt-image-2",
+  "2K": "gpt-image-2-2k",
+  "4K": "gpt-image-2-4k"
 };
 
 const ratioOptions: Array<{ label: AspectRatioLabel }> = [
@@ -290,7 +293,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const libraryPanelRef = useRef<HTMLElement | null>(null);
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
-  const [model] = useState<ModelKey>("gpt-image-2");
+  const [model, setModel] = useState<ModelKey>("gpt-image-2");
+  const [generationCount, setGenerationCount] = useState<GenerationCount>(1);
   const [prompt, setPrompt] = useState(initialPrompt);
   const [negativePrompt, setNegativePrompt] = useState("");
   const [ratioLabel, setRatioLabel] = useState<AspectRatioLabel>("1:1");
@@ -299,7 +303,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [customWidth, setCustomWidth] = useState(defaultCustomResolution.width);
   const [customHeight, setCustomHeight] = useState(defaultCustomResolution.height);
   const [detailStrength, setDetailStrength] = useState(55);
-  const [selectedTypes, setSelectedTypes] = useState<PromptTypeKey[]>([]);
   const [selectedStyle, setSelectedStyle] = useState<PromptStylePresetKey | null>(null);
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
   const [referencePreviewUrls, setReferencePreviewUrls] = useState<string[]>([]);
@@ -308,6 +311,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [globalStats, setGlobalStats] = useState<StatsResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [selectedInspirationImage, setSelectedInspirationImage] = useState<string | null>(null);
   const [selectedHistoryThumb, setSelectedHistoryThumb] = useState<HistoryThumb | null>(null);
@@ -350,14 +354,15 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     useCustomResolution && customSizeValidation && !customSizeValidation.supported
       ? getCustomSizeUnsupportedMessage(customSizeValidation)
       : "宽高需为 16px 的倍数；总像素 655,360 - 8,294,400。";
-  const canvasImage = selectCanvasImage({ images, selectedInspirationImage });
+  const canvasImage = selectCanvasImage({ images, selectedInspirationImage, selectedImageIndex });
   const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
+  const visibleCanvasImages = loading ? [] : images;
   const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
   const canvasLoadingWarningText = getCanvasLoadingWarningText({ loading });
   const generationProgress = loading ? estimateGenerationProgress(loadingSeconds) : 0;
   const promptEnhancement = useMemo(
     () => buildPromptMetadata(prompt),
-    [detailStrength, negativePrompt, prompt, selectedStyle, selectedTypes]
+    [detailStrength, negativePrompt, prompt, selectedStyle]
   );
   const referenceCount = referenceFiles.length + reusedReferences.length;
   const referencePreviewItems = useMemo(
@@ -392,6 +397,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
   }, [canvasPrompt, currentTaskId, history, images]);
+  const currentModelLabel =
+    studioModelOptions.find((option) => option.key === model)?.label || model;
   const canvasMeta = useMemo(
     () =>
       buildCanvasMeta({
@@ -646,6 +653,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setTip(null);
     setShareDialog(null);
     setSelectedHistoryThumb(null);
+    setSelectedImageIndex(0);
     setRequestPreview(buildRequestPreview(metadata));
     const submitController = new AbortController();
     const submitTimeoutId = window.setTimeout(
@@ -672,7 +680,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           size: activeSize.size,
           resolution: effectiveResolution,
           quality,
-          count: 1,
+          count: generationCount,
           referenceAssets: references
         })
       });
@@ -722,6 +730,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         });
       } else {
         setImages(generatedImages);
+        setSelectedImageIndex(0);
         setSelectedInspirationImage(null);
         setSelectedHistoryThumb(null);
         setCanvasPrompt(task.prompt || submissionPrompt);
@@ -768,7 +777,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
     return buildPromptEnhancementMetadata({
       userPrompt: promptWithDetail,
-      selectedTypes,
       selectedStyle,
       negativePrompt
     });
@@ -779,7 +787,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       prompt: buildSubmissionPrompt(metadata),
       rawPrompt: metadata.rawPrompt,
       finalPrompt: metadata.finalPrompt,
-      selectedTypes: metadata.selectedTypes,
       selectedStyle: metadata.selectedStyle,
       negativePrompt: metadata.negativePrompt,
       providerSupportNotes: [
@@ -791,7 +798,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       size: activeSize.size,
       resolution: effectiveResolution,
       quality,
-      count: 1,
+      count: generationCount,
       referenceCount,
       hasMask: false
     });
@@ -853,6 +860,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
     setUseCustomResolution(false);
     setImageResolution(nextResolution);
+    setModel(getPreferredImage2ModelForResolution(nextResolution));
 
     if (recommendedRatio && unsupportedReason) {
       setRatioLabel(recommendedRatio);
@@ -862,6 +870,13 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         message: `${unsupportedReason} 已为你切换到推荐的 ${recommendedRatio}。`
       });
     }
+  }
+
+  function getPreferredImage2ModelForResolution(resolution: ImageResolutionTier): ModelKey {
+    const preferredModel = image2ModelByResolution[resolution];
+    return studioModelOptions.some((option) => option.key === preferredModel)
+      ? preferredModel
+      : "gpt-image-2";
   }
 
   function handleRatioChange(option: (typeof ratioOptions)[number]) {
@@ -906,14 +921,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     }
   }
 
-  function handleToggleType(typeKey: PromptTypeKey) {
-    setSelectedTypes((currentTypes) =>
-      currentTypes.includes(typeKey)
-        ? currentTypes.filter((currentType) => currentType !== typeKey)
-        : [...currentTypes, typeKey]
-    );
-  }
-
   function handleApplyTag(tag: string) {
     setPrompt((current) => appendPromptToken(current, tag));
   }
@@ -921,6 +928,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   function handleApplyPromptLibraryItem(item: PromptLibraryItem) {
     setPrompt(item.prompt);
     setImages([]);
+    setSelectedImageIndex(0);
     setCurrentTaskId(null);
     setSelectedInspirationImage(item.image);
     setSelectedHistoryThumb(null);
@@ -937,6 +945,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   function handleApplySavedPortfolioItem(item: SavedPortfolioItem) {
     setPrompt(item.prompt);
     setImages([]);
+    setSelectedImageIndex(0);
     setCurrentTaskId(null);
     setSelectedInspirationImage(item.url);
     setSelectedHistoryThumb(null);
@@ -954,6 +963,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedInspirationImage(thumb.url);
     setSelectedHistoryThumb(thumb);
     setImages([]);
+    setSelectedImageIndex(0);
     setCurrentTaskId(thumb.taskId || null);
     setCanvasPrompt(thumb.prompt || null);
     setRequestPreview(null);
@@ -1040,17 +1050,26 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
-    setImages([]);
-    setCurrentTaskId(null);
-    setSelectedInspirationImage(null);
-    setSelectedHistoryThumb(null);
-    setCanvasPrompt(null);
-    setRequestPreview(null);
-    setShareDialog(null);
+    if (images.length > 1) {
+      const nextImages = images.filter((_, index) => index !== selectedImageIndex);
+      setImages(nextImages);
+      setSelectedImageIndex(Math.min(selectedImageIndex, nextImages.length - 1));
+      setShareDialog(null);
+    } else {
+      setImages([]);
+      setSelectedImageIndex(0);
+      setCurrentTaskId(null);
+      setSelectedInspirationImage(null);
+      setSelectedHistoryThumb(null);
+      setCanvasPrompt(null);
+      setRequestPreview(null);
+      setShareDialog(null);
+    }
+
     showTip({
       type: "success",
       title: "已删除当前图片",
-      message: "画布已清空。"
+      message: images.length > 1 ? "已从当前结果组移除这张图。" : "画布已清空。"
     });
   }
 
@@ -1450,24 +1469,39 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               />
             </section>
 
-            <section className="studio-section type-section">
-              <SectionLabel>类型</SectionLabel>
-              <div className="type-grid" role="group" aria-label="选择类型">
-                {promptTypeChoices.map((item) => {
-                  const isSelected = selectedTypes.includes(item.key);
-                  return (
-                  <button
-                    key={item.key}
-                    className={isSelected ? "option-tile is-selected" : "option-tile"}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => handleToggleType(item.key)}
+            <section className="studio-section model-section">
+              <SectionLabel>模型</SectionLabel>
+              <div className="model-control-grid">
+                <label className="studio-select-control">
+                  <span>模型</span>
+                  <select
+                    value={model}
+                    onChange={(event) => setModel(event.currentTarget.value as ModelKey)}
+                    aria-label="选择生成模型"
                   >
-                    <StudioIcon name={typeChoiceIcons[item.key]} size={14} />
-                    <span>{item.label}</span>
-                  </button>
-                  );
-                })}
+                    {studioModelOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="studio-select-control">
+                  <span>张数</span>
+                  <select
+                    value={generationCount}
+                    onChange={(event) =>
+                      setGenerationCount(Number(event.currentTarget.value) as GenerationCount)
+                    }
+                    aria-label="选择生成张数"
+                  >
+                    {generationCountOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option} 张
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             </section>
 
@@ -1560,13 +1594,19 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               <div className="meta-line">
                 <span className="model-chip">
                   <StudioIcon name="sparkle" size={12} />
-                  Lumio v2.1
+                  {currentModelLabel}
                 </span>
                 <span>{canvasMeta.size}</span>
                 <span className="meta-dot">·</span>
                 <span>{canvasMeta.timing}</span>
                 <span className="meta-dot">·</span>
                 <span>{canvasMeta.status}</span>
+                {images.length > 1 ? (
+                  <>
+                    <span className="meta-dot">·</span>
+                    <span>{selectedImageIndex + 1}/{images.length}</span>
+                  </>
+                ) : null}
               </div>
               {canvasPrompt ? <p>{canvasPrompt}</p> : null}
             </div>
@@ -1580,12 +1620,34 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               className={[
                 "main-image-frame",
                 visibleCanvasImage ? "" : "is-empty",
-                loading ? "is-loading" : ""
+                loading ? "is-loading" : "",
+                visibleCanvasImages.length > 1 ? "is-grid" : "",
+                visibleCanvasImages.length > 1 ? `count-${visibleCanvasImages.length}` : ""
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              {visibleCanvasImage ? (
+              {visibleCanvasImages.length > 1 ? (
+                <div className="generated-image-grid" role="list" aria-label="生成结果列表">
+                  {visibleCanvasImages.map((image, index) => (
+                    <button
+                      className={
+                        selectedImageIndex === index
+                          ? "generated-image-tile is-selected"
+                          : "generated-image-tile"
+                      }
+                      key={image.key || image.url}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(index)}
+                      aria-label={`选择第 ${index + 1} 张生成图`}
+                      aria-pressed={selectedImageIndex === index}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={image.url} alt={`生成预览 ${index + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              ) : visibleCanvasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={visibleCanvasImage.url} alt="生成预览" />
               ) : canvasPlaceholderText ? (

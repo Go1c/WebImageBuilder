@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export type Provider = "openai" | "gemini";
-export type ModelKey = "gpt-image-2" | "gemini-image";
+export type ModelKey =
+  | "gpt-image-2"
+  | "gpt-image-2-2k"
+  | "gpt-image-2-4k"
+  | "gemini-3.1-flash-image-preview";
 export type GenerationMode = "text-to-image" | "image-to-image" | "inpaint" | "variation";
 export type ReleasePhase = "v1" | "v1.1";
 export type ImageResolutionTier = "1K" | "2K" | "4K";
@@ -46,16 +50,30 @@ export type NormalizedGenerationInput = {
 const modelOptions: Record<ModelKey, ModelOption> = {
   "gpt-image-2": {
     key: "gpt-image-2",
-    label: "GPT Image 2",
+    label: "gpt-image-2",
     provider: "openai",
-    providerModel: getOpenAIProviderModel(),
-    description: "适合高质量文生图、参考图和编辑。所有分辨率请求使用 gpt-image-2，尺寸由 size 参数决定。"
+    providerModel: "gpt-image-2",
+    description: "适合 1K 高质量文生图、参考图和编辑。"
   },
-  "gemini-image": {
-    key: "gemini-image",
-    label: "Gemini",
+  "gpt-image-2-2k": {
+    key: "gpt-image-2-2k",
+    label: "gpt-image-2-2k",
+    provider: "openai",
+    providerModel: "gpt-image-2-2k",
+    description: "适合 2K 高质量文生图、参考图和编辑。"
+  },
+  "gpt-image-2-4k": {
+    key: "gpt-image-2-4k",
+    label: "gpt-image-2-4k",
+    provider: "openai",
+    providerModel: "gpt-image-2-4k",
+    description: "适合 4K 高质量文生图、参考图和编辑。"
+  },
+  "gemini-3.1-flash-image-preview": {
+    key: "gemini-3.1-flash-image-preview",
+    label: "gemini-3.1-flash-image-preview",
     provider: "gemini",
-    providerModel: process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image",
+    providerModel: "gemini-3.1-flash-image-preview",
     description: "适合快速创意探索和多模态参考图编辑。"
   }
 };
@@ -104,11 +122,16 @@ const generationSizeSchema = z
 const generationInputSchema = z.object({
   prompt: z.string().trim().min(1).max(4000),
   mode: z.enum(["text-to-image", "image-to-image", "inpaint", "variation"]),
-  model: z.enum(["gpt-image-2", "gemini-image"]),
+  model: z.enum([
+    "gpt-image-2",
+    "gpt-image-2-2k",
+    "gpt-image-2-4k",
+    "gemini-3.1-flash-image-preview"
+  ]),
   size: generationSizeSchema.default("1024x1024"),
   resolution: z.enum(["1K", "2K", "4K"]).default("1K"),
   quality: z.enum(["standard", "high"]).default("standard"),
-  count: z.number().int().min(1).max(16).default(1),
+  count: z.number().int().min(1).max(4).default(1),
   referenceAssets: z.array(assetSchema).default([]),
   maskAsset: assetSchema.optional(),
   sessionId: z.string().uuid().optional()
@@ -156,7 +179,7 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
 
   const model = getModelOption(parsed.model);
   const size = parsed.size as NormalizedGenerationInput["size"];
-  if (model.key === "gpt-image-2") {
+  if (model.provider === "openai") {
     assertGptImage2SupportsSize(size);
   }
 
@@ -166,7 +189,7 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
     size,
     provider: model.provider,
     providerModel: getProviderModelForResolution(model, parsed.resolution),
-    count: Math.min(parsed.count, 4)
+    count: parsed.count
   };
 }
 
@@ -174,15 +197,7 @@ function getProviderModelForResolution(
   model: ModelOption,
   _resolution: ImageResolutionTier
 ): string {
-  if (model.key === "gpt-image-2") {
-    return getOpenAIProviderModel();
-  }
-
   return model.providerModel;
-}
-
-function getOpenAIProviderModel(): string {
-  return process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 }
 
 function assertGptImage2SupportsSize(size: NormalizedGenerationInput["size"]): void {

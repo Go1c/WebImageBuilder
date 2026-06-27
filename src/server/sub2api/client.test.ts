@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getSub2ApiGenerationApiKey,
   getSub2ApiImageApiKey,
   getSub2ApiCurrentUser,
   refreshSub2ApiToken,
@@ -123,6 +124,79 @@ describe("Sub2API client", () => {
         })
       })
     );
+  });
+
+  it("selects an active Gemini API key from a Gemini group", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          code: 0,
+          message: "success",
+          data: {
+            items: [
+              {
+                id: 1,
+                key: "gemini-chat-key",
+                name: "Gemini chat key",
+                status: "active",
+                group: { id: 11, name: "Gemini Chat", platform: "gemini" }
+              },
+              {
+                id: 2,
+                key: "gemini-image-key",
+                name: "Gemini image key",
+                status: "active",
+                group: { id: 12, name: "Gemini（生图专用）", platform: "Gemini" }
+              }
+            ],
+            total: 2,
+            page: 1,
+            page_size: 100,
+            pages: 1
+          }
+        })
+      )
+    );
+
+    await expect(
+      getSub2ApiGenerationApiKey("access", "gemini", "https://api.example.com/api/v1")
+    ).resolves.toBe("gemini-image-key");
+  });
+
+  it("raises a Gemini setup error when no active Gemini image group key exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          code: 0,
+          message: "success",
+          data: {
+            items: [
+              {
+                id: 1,
+                key: "sk-openai-image",
+                name: "Image key",
+                status: "active",
+                group: { id: 12, name: "Image-2（生图专用）", platform: "openai" }
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 100,
+            pages: 1
+          }
+        })
+      )
+    );
+
+    await expect(
+      getSub2ApiGenerationApiKey("access", "gemini", "https://api.example.com/api/v1")
+    ).rejects.toMatchObject({
+      status: 402,
+      code: "account_unavailable",
+      message: expect.stringContaining("Gemini")
+    });
   });
 
   it("raises a setup error when no active OpenAI image group key exists", async () => {

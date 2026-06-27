@@ -262,6 +262,17 @@ export function tipFromApiError(
     };
   }
 
+  if (error.code === "account_unavailable") {
+    const mappedTip = apiErrorTipMap.get(error.code);
+    return {
+      ...(mappedTip || {
+        type: "warning",
+        title: "需要创建图片生成 Key"
+      }),
+      message: error.message || mappedTip?.message || "请先创建或启用对应模型分组的图片生成 Key。"
+    };
+  }
+
   const mappedTip = error.code ? apiErrorTipMap.get(error.code) : undefined;
 
   if (mappedTip) {

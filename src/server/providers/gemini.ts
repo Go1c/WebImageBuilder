@@ -34,9 +34,25 @@ type GeminiResponse = {
   };
 };
 
+type GeminiImageProviderOptions = {
+  apiKey?: string;
+};
+
 export class GeminiImageProvider implements ImageProvider {
+  constructor(private readonly options: GeminiImageProviderOptions = {}) {}
+
   async generate(input: NormalizedGenerationInput): Promise<GeneratedImage[]> {
-    const parts: unknown[] = [{ text: buildPrompt(input) }];
+    const requests = Array.from({ length: input.count }, (_, index) => index);
+    const results = await runWithConcurrency(requests, 2, async (index) => {
+      const prompt = buildPrompt(input, input.count > 1 ? index : undefined);
+      return this.generateSingle(input, prompt);
+    });
+
+    return results.flat().slice(0, input.count);
+  }
+
+  private async generateSingle(input: NormalizedGenerationInput, prompt: string): Promise<GeneratedImage[]> {
+    const parts: unknown[] = [{ text: prompt }];
 
     for (const asset of input.referenceAssets) {
       const fetched = await fetchAsset(asset.url);
@@ -62,7 +78,7 @@ export class GeminiImageProvider implements ImageProvider {
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:generateContent?key=${encodeURIComponent(
-      requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY")
+      this.options.apiKey || requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY")
     )}`;
 
     const response = await fetchGemini(
@@ -111,16 +127,21 @@ async function fetchGemini(url: string, init: RequestInit, timeoutMs: number): P
   }
 }
 
-function buildPrompt(input: NormalizedGenerationInput): string {
+function buildPrompt(input: NormalizedGenerationInput, variationIndex?: number): string {
+  const variationPrompt =
+    typeof variationIndex === "number"
+      ? `\n\nVariation ${variationIndex + 1}: choose a distinct composition, lighting, color palette, camera angle, or detail treatment while preserving the user's core intent.`
+      : "";
+
   if (input.mode === "variation") {
-    return `Generate ${input.count} visual variation(s) based on the reference image. ${input.prompt}`;
+    return `Generate one visual variation based on the reference image. ${input.prompt}${variationPrompt}`;
   }
 
   if (input.mode === "inpaint") {
-    return `Edit only the masked area and keep the rest consistent. ${input.prompt}`;
+    return `Edit only the masked area and keep the rest consistent. ${input.prompt}${variationPrompt}`;
   }
 
-  return input.prompt;
+  return `${input.prompt}${variationPrompt}`;
 }
 
 function parseGeminiResponse(body: UpstreamResponseBody<GeminiResponse>, status: number): GeneratedImage[] {
@@ -163,4 +184,31 @@ function parseGeminiResponse(body: UpstreamResponseBody<GeminiResponse>, status:
   }
 
   return images;
+}
+
+async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runNext(): Promise<void> {
+    const index = nextIndex;
+    nextIndex += 1;
+
+    if (index >= items.length) {
+      return;
+    }
+
+    results[index] = await worker(items[index]);
+    await runNext();
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => runNext())
+  );
+
+  return results;
 }

@@ -14,10 +14,11 @@ import {
   settleInviteReward
 } from "../db/repositories";
 import { getImageProvider } from "../providers";
+import { GeminiImageProvider } from "../providers/gemini";
 import { OpenAIImageProvider } from "../providers/openai";
 import { UpstreamProviderError, type ProviderUpstreamErrorDetail } from "../providers/upstream";
 import { uploadBuffer, type StoredAsset } from "../storage/s3";
-import { getSub2ApiImageApiKey } from "../sub2api/client";
+import { getSub2ApiGenerationApiKey } from "../sub2api/client";
 import { getAppConfig } from "../config";
 import { chooseGenerationFunding, type GenerationFundingDecision } from "./funding";
 import type { DbQuotaState } from "../db/types";
@@ -42,6 +43,7 @@ type PreparedGeneration = {
   generation: NormalizedGenerationInput;
   funding: ActiveFunding;
   quotaState: DbQuotaState;
+  sub2ApiApiKey?: string;
 };
 
 type GenerationActorInput = {
@@ -60,7 +62,8 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
   if (input.actor.type === "anonymous") {
     const anonymousDecision = canUseAnonymousQuota({
       anonymousUsed: quotaState.anonymousUsed,
-      ipDailyUsed: quotaState.ipDailyUsed
+      ipDailyUsed: quotaState.ipDailyUsed,
+      amount: generation.count
     });
 
     if (!anonymousDecision.allowed) {
@@ -78,8 +81,10 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
 
   const funding = chooseGenerationFunding({
     quotaState,
-    allowSub2ApiFallback: input.actor.type === "user" && generation.provider === "openai",
-    allowSiteFunding: generation.resolution === "1K"
+    allowSub2ApiFallback:
+      input.actor.type === "user" && ["openai", "gemini"].includes(generation.provider),
+    allowSiteFunding: generation.resolution === "1K",
+    amount: generation.count
   });
 
   if (funding.kind === "blocked") {
@@ -95,14 +100,24 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
   }
 
   // Validate the sub2api session up front so the client gets 401 immediately
-  // instead of waiting for the background task to fail.
+  // instead of waiting for the background task to fail. When a user-funded
+  // model is selected, validate the matching provider group key up front too
+  // so setup guidance can be returned directly to the client.
+  let sub2ApiApiKey: string | undefined;
   if (funding.kind === "sub2api" && !input.sub2ApiAccessToken) {
     throw new ApiError(401, "unauthorized", "Sub2API 账号生成需要重新登录。");
   }
 
+  if (funding.kind === "sub2api") {
+    sub2ApiApiKey = await getSub2ApiGenerationApiKey(
+      input.sub2ApiAccessToken as string,
+      generation.provider
+    );
+  }
+
   const taskId = await createTask({ actor: input.actor, generation });
 
-  return { taskId, generation, funding, quotaState };
+  return { taskId, generation, funding, quotaState, sub2ApiApiKey };
 }
 
 // Runs the slow part (provider call + upload + persistence). Persists failures
@@ -118,7 +133,8 @@ async function executeGenerationTask(
       funding.kind === "sub2api"
         ? await generateWithSub2ApiAccount({
             generation,
-            accessToken: input.sub2ApiAccessToken
+            accessToken: input.sub2ApiAccessToken,
+            apiKey: input.sub2ApiApiKey
           })
         : await getImageProvider(generation.provider).generate(generation);
     const stored = await Promise.all(
@@ -226,12 +242,19 @@ export async function startGeneration(input: GenerationActorInput): Promise<Star
 async function generateWithSub2ApiAccount(input: {
   generation: NormalizedGenerationInput;
   accessToken?: string;
+  apiKey?: string;
 }) {
   if (!input.accessToken) {
     throw new ApiError(401, "unauthorized", "Sub2API 账号生成需要重新登录。");
   }
 
-  const apiKey = await getSub2ApiImageApiKey(input.accessToken);
+  const apiKey =
+    input.apiKey || (await getSub2ApiGenerationApiKey(input.accessToken, input.generation.provider));
+
+  if (input.generation.provider === "gemini") {
+    return new GeminiImageProvider({ apiKey }).generate(input.generation);
+  }
+
   return new OpenAIImageProvider({
     apiKey,
     baseUrl: getAppConfig().lumioApiBaseUrl

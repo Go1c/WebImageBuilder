@@ -20,6 +20,7 @@ export function chooseGenerationFunding(input: {
   quotaState: DbQuotaState;
   allowSub2ApiFallback: boolean;
   allowSiteFunding: boolean;
+  amount?: number;
   config?: QuotaConfig;
 }): GenerationFundingDecision {
   if (!input.allowSiteFunding) {
@@ -36,6 +37,7 @@ export function chooseGenerationFunding(input: {
     loginUsed: input.quotaState.loginUsed,
     inviteCredits: input.quotaState.inviteCredits,
     paidCredits: input.quotaState.paidCredits,
+    amount: input.amount,
     config: input.config
   });
 

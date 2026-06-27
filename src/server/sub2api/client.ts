@@ -95,7 +95,17 @@ export async function listSub2ApiKeys(
   );
 }
 
+export type Sub2ApiGenerationProvider = "openai" | "gemini";
+
 export async function getSub2ApiImageApiKey(accessToken: string, baseUrl?: string): Promise<string> {
+  return getSub2ApiGenerationApiKey(accessToken, "openai", baseUrl);
+}
+
+export async function getSub2ApiGenerationApiKey(
+  accessToken: string,
+  provider: Sub2ApiGenerationProvider,
+  baseUrl?: string
+): Promise<string> {
   let keys: Sub2ApiPaginatedResponse<Sub2ApiApiKey>;
   try {
     keys = await listSub2ApiKeys(accessToken, baseUrl);
@@ -105,34 +115,65 @@ export async function getSub2ApiImageApiKey(accessToken: string, baseUrl?: strin
     }
 
     if (isKeyLookupSetupFailure(error)) {
-      throw missingSub2ApiImageKeyError();
+      throw missingSub2ApiImageKeyError(provider);
     }
 
     throw error;
   }
 
-  const imageKey = (keys.items || []).find((item) => {
-    return isImageOpenAIKey(item);
-  });
+  const imageKey = selectGenerationKeyForProvider(keys.items || [], provider);
 
   if (!imageKey?.key) {
-    throw missingSub2ApiImageKeyError();
+    throw missingSub2ApiImageKeyError(provider);
   }
 
   return imageKey.key;
 }
 
-function isImageOpenAIKey(item: Sub2ApiApiKey): boolean {
-  const platform = item.group?.platform?.trim().toLowerCase();
-  const groupName = item.group?.name?.trim().toLowerCase() || "";
-  return item.status === "active" && Boolean(item.key) && platform === "openai" && groupName.includes("image");
+function selectGenerationKeyForProvider(
+  keys: Sub2ApiApiKey[],
+  provider: Sub2ApiGenerationProvider
+): Sub2ApiApiKey | undefined {
+  if (provider === "openai") {
+    return keys.find((item) => isActiveProviderKey(item, provider) && isImageGroupName(item.group?.name));
+  }
+
+  const providerKeys = keys.filter((item) => isActiveProviderKey(item, provider));
+  return (
+    providerKeys.find((item) => isImageGroupName(item.group?.name)) ||
+    providerKeys.find((item) => item.group?.name?.trim().toLowerCase().includes("gemini")) ||
+    providerKeys[0]
+  );
 }
 
-function missingSub2ApiImageKeyError(): ApiError {
+function isActiveProviderKey(item: Sub2ApiApiKey, provider: Sub2ApiGenerationProvider): boolean {
+  const platform = item.group?.platform?.trim().toLowerCase();
+  return item.status === "active" && Boolean(item.key) && platform === provider;
+}
+
+function isImageGroupName(name: string | undefined): boolean {
+  const groupName = name?.trim().toLowerCase() || "";
+  return groupName.includes("image") || groupName.includes("生图");
+}
+
+function missingSub2ApiImageKeyError(provider: Sub2ApiGenerationProvider): ApiError {
+  const description =
+    provider === "gemini"
+      ? {
+          platform: "Gemini",
+          group: "Gemini（生图专用）",
+          keyword: "gemini 或 image"
+        }
+      : {
+          platform: "OpenAI",
+          group: "Image-2（生图专用）",
+          keyword: "image"
+        };
+
   return new ApiError(
     402,
     "account_unavailable",
-    "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。"
+    `未找到可用于图片生成的 active ${description.platform} API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 ${description.platform}、分组名包含 ${description.keyword} 的分组，例如 ${description.group}。可查看教程或帮助文档完成创建。`
   );
 }
 

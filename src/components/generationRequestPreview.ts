@@ -1,15 +1,13 @@
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
 import {
   negativePromptProviderSupportNote,
-  type PromptStylePreset,
-  type PromptTypeKey
+  type PromptStylePreset
 } from "./promptEnhancers";
 
 export type GenerationRequestPreviewInput = {
   prompt: string;
   rawPrompt?: string;
   finalPrompt?: string;
-  selectedTypes?: readonly PromptTypeKey[];
   selectedStyle?: Pick<PromptStylePreset, "key" | "label"> | null;
   negativePrompt?: string;
   providerSupportNotes?: readonly string[];
@@ -37,7 +35,6 @@ export function buildGenerationRequestPreview(input: GenerationRequestPreviewInp
       prompt: {
         raw: rawPrompt,
         final: finalPrompt,
-        selectedTypes: [...(input.selectedTypes || [])],
         selectedStyle: input.selectedStyle
           ? {
               key: input.selectedStyle.key,

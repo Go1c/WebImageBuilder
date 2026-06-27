@@ -64,12 +64,12 @@ describe("studio layout CSS", () => {
     const leftScrollRule = readRule(".left-panel-scroll");
     const promptCardRule = readRule(".prompt-card");
     const promptTextareaRule = readRule(".prompt-card textarea");
-    const optionTileRule = readRule(".option-tile");
+    const modelControlRule = readRule(".model-control-grid");
 
     expect(leftScrollRule).toContain("gap: 14px");
     expect(promptCardRule).toContain("min-height: 188px");
     expect(promptTextareaRule).toContain("min-height: 118px");
-    expect(optionTileRule).toContain("height: 48px");
+    expect(modelControlRule).toContain("grid-template-columns");
   });
 
   it("shows enabled icon buttons as active, not greyed out", () => {
@@ -99,6 +99,16 @@ describe("studio layout CSS", () => {
     expect(imageRule).toContain("width: auto");
     expect(imageRule).toContain("height: auto");
     expect(imageRule).toContain("object-fit: contain");
+  });
+
+  it("uses a stable grid for multi-image canvas results", () => {
+    const gridFrameRule = readRule(".main-image-frame.is-grid");
+    const generatedGridRule = readRule(".generated-image-grid");
+    const generatedTileRule = readRule(".generated-image-tile");
+
+    expect(gridFrameRule).toContain("aspect-ratio: 1 / 1");
+    expect(generatedGridRule).toContain("grid-template-columns: repeat(2");
+    expect(generatedTileRule).toContain("border: 2px solid transparent");
   });
 
   it("keeps the prompt library scrollable on narrow viewports", () => {

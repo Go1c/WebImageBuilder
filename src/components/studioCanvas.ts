@@ -46,8 +46,9 @@ export type CanvasMeta = {
 export function selectCanvasImage(input: {
   images: CanvasImageCandidate[];
   selectedInspirationImage: string | null;
+  selectedImageIndex?: number;
 }): CanvasImage | null {
-  const generatedImage = input.images[0];
+  const generatedImage = input.images[input.selectedImageIndex ?? 0] || input.images[0];
 
   if (generatedImage) {
     return {

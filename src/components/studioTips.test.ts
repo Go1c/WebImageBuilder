@@ -7,7 +7,6 @@ describe("studio tips", () => {
     ["quota_exhausted", "额度已用完", "Lumio 账户"],
     ["trial_resolution_unsupported", "免费试用仅支持 1K", "登录"],
     ["rate_limited", "请求过于频繁", "稍后再试"],
-    ["account_unavailable", "需要创建图片生成 Key", "Image-2"],
     ["provider_error", "生成服务暂时不可用", "上游图像服务"],
     ["configuration_error", "服务配置异常", "联系管理员"],
     ["unauthorized", "需要登录", "登录后"],
@@ -38,6 +37,26 @@ describe("studio tips", () => {
     expect(tip.message).toBe(
       "未找到可用于图片生成的 active OpenAI API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 OpenAI、分组名包含 image 的分组，例如 Image-2（生图专用）。可查看教程或帮助文档完成创建。"
     );
+  });
+
+  it("shows Gemini-specific key setup guidance from the API response", () => {
+    const tip = tipFromApiError(
+      apiErrorDetail({
+        code: "account_unavailable",
+        message:
+          "未找到可用于图片生成的 active Gemini API Key。请在 Sub2API 创建或启用一个 Key，并绑定到平台为 Gemini、分组名包含 gemini 或 image 的分组，例如 Gemini（生图专用）。"
+      })
+    );
+
+    expect(tip).toMatchObject({
+      type: "warning",
+      title: "需要创建图片生成 Key",
+      actionLabel: "去创建 Key",
+      actionHref: "https://api.lumio.games/keys"
+    });
+    expect(tip.message).toContain("Gemini API Key");
+    expect(tip.message).toContain("Gemini（生图专用）");
+    expect(tip.message).not.toContain("Image-2");
   });
 
   it("explains generic image gateway 502 errors as upstream service failures", () => {
