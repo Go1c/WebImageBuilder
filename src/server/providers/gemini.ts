@@ -36,6 +36,7 @@ type GeminiResponse = {
 
 type GeminiImageProviderOptions = {
   apiKey?: string;
+  baseUrl?: string;
 };
 
 export class GeminiImageProvider implements ImageProvider {
@@ -77,15 +78,20 @@ export class GeminiImageProvider implements ImageProvider {
       });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:generateContent?key=${encodeURIComponent(
-      this.options.apiKey || requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY")
-    )}`;
+    const apiKey = this.options.apiKey || requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY");
+    const gatewayBaseUrl = this.options.baseUrl;
+    const url = gatewayBaseUrl
+      ? `${gatewayBaseUrl.replace(/\/+$/, "")}/v1beta/models/${input.providerModel}:generateContent`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:generateContent?key=${encodeURIComponent(
+          apiKey
+        )}`;
 
     const response = await fetchGemini(
       url,
       {
         method: "POST",
         headers: {
+          ...(gatewayBaseUrl ? { Authorization: `Bearer ${apiKey}` } : {}),
           "Content-Type": "application/json"
         },
         body: JSON.stringify({

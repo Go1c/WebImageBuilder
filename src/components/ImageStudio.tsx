@@ -130,9 +130,23 @@ type HistoryItem = {
 
 type GeneratedImage = {
   key: string;
+  taskId?: string;
   url: string;
   originalUrl?: string;
   mimeType: string;
+};
+
+type GenerationSlotStatus = "queued" | "running" | "succeeded" | "failed";
+
+type GenerationSlot = {
+  id: string;
+  index: number;
+  status: GenerationSlotStatus;
+  startedAtMs?: number;
+  completedAtMs?: number;
+  taskId?: string;
+  image?: GeneratedImage;
+  errorMessage?: string;
 };
 
 type HistoryThumb = {
@@ -316,6 +330,30 @@ async function pollGenerationTask(
   }
 }
 
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> {
+  let nextIndex = 0;
+
+  async function runNext(): Promise<void> {
+    const index = nextIndex;
+    nextIndex += 1;
+
+    if (index >= items.length) {
+      return;
+    }
+
+    await worker(items[index]);
+    await runNext();
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => runNext())
+  );
+}
+
 function buildGeneratedImageFromAsset(asset: {
   id?: string;
   key?: string;
@@ -333,9 +371,50 @@ function buildGeneratedImageFromAsset(asset: {
   };
 }
 
+function buildGenerationSlots(count: GenerationCount): GenerationSlot[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `generation-slot-${Date.now()}-${index}`,
+    index,
+    status: "queued"
+  }));
+}
+
+function getGenerationSlotStatusLabel(status: GenerationSlotStatus): string {
+  switch (status) {
+    case "queued":
+      return "等待中";
+    case "running":
+      return "生成中";
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "生成失败";
+    default:
+      return "生成中";
+  }
+}
+
+function getGenerationSlotElapsedSeconds(slot: GenerationSlot): number {
+  if (!slot.startedAtMs) {
+    return 0;
+  }
+
+  const endedAtMs = slot.completedAtMs || Date.now();
+  return Math.max(1, Math.floor((endedAtMs - slot.startedAtMs) / 1000));
+}
+
+function buildVariationPrompt(prompt: string, index: number, count: number): string {
+  if (count <= 1) {
+    return prompt;
+  }
+
+  return `${prompt}\n\nVariation ${index + 1}: choose a distinct composition, lighting, color palette, camera angle, or detail treatment while preserving the user's core intent.`;
+}
+
 export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } = {}) {
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const libraryPanelRef = useRef<HTMLElement | null>(null);
+  const generationRunIdRef = useRef(0);
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
   const [model, setModel] = useState<ModelKey>("gpt-image-2");
   const [generationCount, setGenerationCount] = useState<GenerationCount>(1);
@@ -355,6 +434,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const [globalStats, setGlobalStats] = useState<StatsResponse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [generationSlots, setGenerationSlots] = useState<GenerationSlot[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [selectedInspirationImage, setSelectedInspirationImage] = useState<string | null>(null);
@@ -398,9 +478,16 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     useCustomResolution && customSizeValidation && !customSizeValidation.supported
       ? getCustomSizeUnsupportedMessage(customSizeValidation)
       : "宽高需为 16px 的倍数；总像素 655,360 - 8,294,400。";
-  const canvasImage = selectCanvasImage({ images, selectedInspirationImage, selectedImageIndex });
-  const visibleCanvasImage = selectVisibleCanvasImage({ canvasImage, loading });
-  const visibleCanvasImages = loading ? [] : images;
+  const selectedGenerationSlot = generationSlots[selectedImageIndex] || null;
+  const canvasImage = selectedGenerationSlot?.image || (
+    generationSlots.length
+      ? null
+      : selectCanvasImage({ images, selectedInspirationImage, selectedImageIndex })
+  );
+  const visibleCanvasImage = generationSlots.length
+    ? canvasImage
+    : selectVisibleCanvasImage({ canvasImage, loading });
+  const visibleCanvasImages = generationSlots.length || loading ? [] : images;
   const canvasPlaceholderText = getCanvasPlaceholderText({ loading });
   const canvasLoadingWarningText = getCanvasLoadingWarningText({ loading });
   const generationProgress = loading ? estimateGenerationProgress(loadingSeconds) : 0;
@@ -419,7 +506,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   );
   const submitMode: GenerationMode = referenceCount > 0 ? "image-to-image" : "text-to-image";
   const canRegenerate = Boolean(promptEnhancement.finalPrompt.trim() || (canvasPrompt || "").trim());
-  const canShareCurrentCanvas = Boolean(canvasImage && currentTaskId);
+  const activeTaskId = selectedGenerationSlot?.taskId || currentTaskId;
+  const canShareCurrentCanvas = Boolean(canvasImage && activeTaskId);
   const actionStates = getStudioActionStates({
     image: canvasImage,
     canRegenerate,
@@ -437,6 +525,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const sub2ApiBalanceText = formatSub2ApiBalance(sub2ApiSession?.user?.balance);
   const globalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations);
   const compactGlobalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations, { compact: true });
+  const visibleResultCount = generationSlots.length || images.length;
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
@@ -444,14 +533,29 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const currentModelLabel =
     studioModelOptions.find((option) => option.key === model)?.label || model;
   const canvasMeta = useMemo(
-    () =>
-      buildCanvasMeta({
+    () => {
+      if (selectedGenerationSlot) {
+        const elapsedSeconds = getGenerationSlotElapsedSeconds(selectedGenerationSlot);
+        return {
+          size: activeSize.meta,
+          timing:
+            selectedGenerationSlot.status === "queued"
+              ? "等待"
+              : selectedGenerationSlot.status === "succeeded"
+                ? "刚刚"
+                : `${elapsedSeconds || 1}.0s`,
+          status: getGenerationSlotStatusLabel(selectedGenerationSlot.status)
+        };
+      }
+
+      return buildCanvasMeta({
         activeSizeMeta: activeSize.meta,
         loading,
         loadingSeconds,
         selectedHistoryThumb
-      }),
-    [activeSize.meta, loading, loadingSeconds, selectedHistoryThumb]
+      });
+    },
+    [activeSize.meta, loading, loadingSeconds, selectedGenerationSlot, selectedHistoryThumb]
   );
 
   const quotaText = useMemo(() => {
@@ -553,6 +657,18 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
     return () => window.clearInterval(intervalId);
   }, [loading]);
+
+  useEffect(() => {
+    if (!generationSlots.length) {
+      return;
+    }
+
+    setImages(
+      generationSlots
+        .filter((slot) => slot.image)
+        .map((slot) => slot.image as GeneratedImage)
+    );
+  }, [generationSlots]);
 
   async function refreshData() {
     const [quotaResponse, historyResponse, statsResponse] = await Promise.allSettled([
@@ -699,12 +815,42 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     setSelectedHistoryThumb(null);
     setSelectedImageIndex(0);
     setRequestPreview(buildRequestPreview(metadata));
-    const submitController = new AbortController();
-    const pollBudgetMs = getGenerationRequestTimeoutMs(effectiveResolution, generationCount);
-    const submitTimeoutId = window.setTimeout(
-      () => submitController.abort(),
-      pollBudgetMs + 30_000
-    );
+    const runId = generationRunIdRef.current + 1;
+    generationRunIdRef.current = runId;
+    const slots = buildGenerationSlots(generationCount);
+    const slotBudgetMs = getGenerationRequestTimeoutMs(effectiveResolution, 1);
+    const slotResults: Array<{ ok: boolean; error?: unknown }> = new Array(slots.length);
+
+    const updateGenerationSlot = (
+      slotIndex: number,
+      updater: (slot: GenerationSlot) => GenerationSlot
+    ) => {
+      if (generationRunIdRef.current !== runId) {
+        return;
+      }
+
+      setGenerationSlots((currentSlots) => {
+        return currentSlots.map((slot) =>
+          slot.index === slotIndex ? updater(slot) : slot
+        );
+      });
+    };
+
+    const readSlotErrorMessage = (error: unknown): string => {
+      if (error instanceof StudioApiResponseError) {
+        return error.detail.message;
+      }
+
+      if (error instanceof GenerationPollTimeoutError) {
+        return `生成超过 ${Math.round(slotBudgetMs / 1000)} 秒仍未完成`;
+      }
+
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return "请求超时";
+      }
+
+      return error instanceof Error ? error.message : "生成失败";
+    };
 
     try {
       await refreshSub2ApiSession({ silent: true });
@@ -713,109 +859,140 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         : [];
       const references = [...reusedReferences.map(toAssetRef), ...uploadedReferences];
 
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: submitController.signal,
-        body: JSON.stringify({
-          prompt: submissionPrompt,
-          mode: submitMode,
-          model,
-          size: activeSize.size,
-          resolution: effectiveResolution,
-          quality,
-          count: generationCount,
-          referenceAssets: references
-        })
-      });
-      window.clearTimeout(submitTimeoutId);
+      setGenerationSlots(slots);
+      setImages([]);
+      setCurrentTaskId(null);
+      setSelectedInspirationImage(null);
+      setSelectedHistoryThumb(null);
+      setCanvasPrompt(submissionPrompt);
 
-      if (!response.ok) {
-        throw new StudioApiResponseError(await readApiErrorDetail(response));
-      }
+      await runWithConcurrency(slots, 2, async (slot) => {
+        updateGenerationSlot(slot.index, (currentSlot) => ({
+          ...currentSlot,
+          status: "running",
+          startedAtMs: Date.now(),
+          errorMessage: undefined
+        }));
 
-      const submitResult = await readApiJson<GenerateSubmitResponse>(
-        response,
-        "生成接口返回了非 JSON 响应，请刷新页面后重试"
-      );
+        const submitController = new AbortController();
+        const submitTimeoutId = window.setTimeout(
+          () => submitController.abort(),
+          slotBudgetMs + 30_000
+        );
 
-      setCurrentTaskId(submitResult.taskId);
-      setQuota((current) => (current ? { ...current, quota: submitResult.quota } : current));
-
-      let completedPrompt = submissionPrompt;
-      let generatedImages: GeneratedImage[] = (submitResult.images || []).map(
-        buildGeneratedImageFromAsset
-      );
-
-      if (!generatedImages.length) {
-        const task = await pollGenerationTask(submitResult.taskId, {
-          budgetMs: pollBudgetMs,
-          intervalMs: GENERATION_POLL_INTERVAL_MS
-        });
-
-        if (task.status === "failed") {
-          showTip(
-            tipFromApiError({
-              code: "provider_error",
-              message: task.errorMessage || "生成失败，请稍后重试。",
-              status: 502,
-              statusText: ""
+        try {
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: submitController.signal,
+            body: JSON.stringify({
+              prompt: buildVariationPrompt(submissionPrompt, slot.index, generationCount),
+              mode: submitMode,
+              model,
+              size: activeSize.size,
+              resolution: effectiveResolution,
+              quality,
+              count: 1,
+              referenceAssets: references
             })
+          });
+          window.clearTimeout(submitTimeoutId);
+
+          if (!response.ok) {
+            throw new StudioApiResponseError(await readApiErrorDetail(response));
+          }
+
+          const submitResult = await readApiJson<GenerateSubmitResponse>(
+            response,
+            "生成接口返回了非 JSON 响应，请刷新页面后重试"
           );
-          return;
+          let generatedImages: GeneratedImage[] = (submitResult.images || []).map(
+            buildGeneratedImageFromAsset
+          );
+
+          setQuota((current) => (current ? { ...current, quota: submitResult.quota } : current));
+          if (slot.index === 0) {
+            setCurrentTaskId(submitResult.taskId);
+          }
+
+          if (!generatedImages.length) {
+            const task = await pollGenerationTask(submitResult.taskId, {
+              budgetMs: slotBudgetMs,
+              intervalMs: GENERATION_POLL_INTERVAL_MS
+            });
+
+            if (task.status === "failed") {
+              throw new Error(task.errorMessage || "生成失败，请稍后重试。");
+            }
+
+            generatedImages = task.assets
+              .filter((asset) => asset.type === "result")
+              .map(buildGeneratedImageFromAsset);
+          }
+
+          const image = generatedImages[0]
+            ? { ...generatedImages[0], taskId: submitResult.taskId }
+            : null;
+          if (!image) {
+            throw new Error("图片已生成，但接口没有返回可显示的图片。");
+          }
+
+          updateGenerationSlot(slot.index, (currentSlot) => ({
+            ...currentSlot,
+            status: "succeeded",
+            taskId: submitResult.taskId,
+            image,
+            completedAtMs: Date.now(),
+            errorMessage: undefined
+          }));
+          slotResults[slot.index] = { ok: true };
+        } catch (error) {
+          window.clearTimeout(submitTimeoutId);
+          updateGenerationSlot(slot.index, (currentSlot) => ({
+            ...currentSlot,
+            status: "failed",
+            completedAtMs: Date.now(),
+            errorMessage: readSlotErrorMessage(error)
+          }));
+          slotResults[slot.index] = { ok: false, error };
         }
+      });
 
-        completedPrompt = task.prompt || submissionPrompt;
-        generatedImages = task.assets
-          .filter((asset) => asset.type === "result")
-          .map(buildGeneratedImageFromAsset);
-      }
+      const succeededCount = slotResults.filter((result) => result?.ok).length;
+      const failedCount = slotResults.filter((result) => result && !result.ok).length;
 
-      if (!generatedImages.length) {
-        showTip({
-          type: "warning",
-          title: "生成完成",
-          message: "图片已生成，请在下方历史记录中查看。"
-        });
-      } else {
-        setImages(generatedImages);
-        setSelectedImageIndex(0);
-        setSelectedInspirationImage(null);
-        setSelectedHistoryThumb(null);
-        setCanvasPrompt(completedPrompt);
+      if (succeededCount > 0) {
         setReusedReferences([]);
         showTip({
-          type: "success",
-          title: "生成完成",
-          message: "把这个提示词分享出去，让别人一键生成同款。"
+          type: failedCount > 0 ? "warning" : "success",
+          title: failedCount > 0 ? "部分生成完成" : "生成完成",
+          message:
+            failedCount > 0
+              ? `已完成 ${succeededCount}/${generationCount} 张，失败的窗口可查看具体状态。`
+              : "把这个提示词分享出去，让别人一键生成同款。"
         });
+      } else {
+        const firstError = slotResults.find((result) => result?.error)?.error;
+        if (firstError instanceof StudioApiResponseError) {
+          showTip(tipFromApiError(firstError.detail));
+        } else {
+          showTip(tipFromActionFailure({ kind: "failed", action: "生成图片", error: firstError }));
+        }
       }
 
       await refreshData();
       await refreshSub2ApiSession({ silent: true });
     } catch (error) {
-      window.clearTimeout(submitTimeoutId);
-      if (error instanceof GenerationPollTimeoutError) {
-        showTip({
-          type: "warning",
-          title: "生成耗时较长",
-          message: `生成已超过 ${Math.round(pollBudgetMs / 1000)} 秒仍在后台进行，请稍后在下方历史记录中查看。`
-        });
-        await refreshData().catch(() => {});
-      } else if (error instanceof DOMException && error.name === "AbortError") {
-        showTip({
-          type: "error",
-          title: "请求超时",
-          message: "提交生成请求超时，请稍后重试。"
-        });
-      } else if (error instanceof StudioApiResponseError) {
+      setGenerationSlots([]);
+      if (error instanceof StudioApiResponseError) {
         showTip(tipFromApiError(error.detail));
       } else {
         showTip(tipFromActionFailure({ kind: "failed", action: "生成图片", error }));
       }
     } finally {
-      window.clearTimeout(submitTimeoutId);
-      setLoading(false);
+      if (generationRunIdRef.current === runId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -976,6 +1153,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
   function handleApplyPromptLibraryItem(item: PromptLibraryItem) {
     setPrompt(item.prompt);
+    setGenerationSlots([]);
     setImages([]);
     setSelectedImageIndex(0);
     setCurrentTaskId(null);
@@ -993,6 +1171,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
   function handleApplySavedPortfolioItem(item: SavedPortfolioItem) {
     setPrompt(item.prompt);
+    setGenerationSlots([]);
     setImages([]);
     setSelectedImageIndex(0);
     setCurrentTaskId(null);
@@ -1009,9 +1188,11 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }
 
   function handleHistoryThumbClick(thumb: HistoryThumb) {
+    setGenerationSlots([]);
     setImages([
       {
         key: thumb.key || thumb.id,
+        taskId: thumb.taskId,
         url: thumb.url,
         originalUrl: thumb.originalUrl,
         mimeType: thumb.mimeType || "image/png"
@@ -1106,12 +1287,20 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       return;
     }
 
-    if (images.length > 1) {
+    if (generationSlots.length > 1) {
+      const nextSlots = generationSlots
+        .filter((_, index) => index !== selectedImageIndex)
+        .map((slot, index) => ({ ...slot, index }));
+      setGenerationSlots(nextSlots);
+      setSelectedImageIndex(Math.min(selectedImageIndex, nextSlots.length - 1));
+      setShareDialog(null);
+    } else if (images.length > 1) {
       const nextImages = images.filter((_, index) => index !== selectedImageIndex);
       setImages(nextImages);
       setSelectedImageIndex(Math.min(selectedImageIndex, nextImages.length - 1));
       setShareDialog(null);
     } else {
+      setGenerationSlots([]);
       setImages([]);
       setSelectedImageIndex(0);
       setCurrentTaskId(null);
@@ -1125,7 +1314,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     showTip({
       type: "success",
       title: "已删除当前图片",
-      message: images.length > 1 ? "已从当前结果组移除这张图。" : "画布已清空。"
+      message: generationSlots.length > 1 || images.length > 1 ? "已从当前结果组移除这张图。" : "画布已清空。"
     });
   }
 
@@ -1167,7 +1356,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     if (
       !ensureActionEnabled("分享提示词", actionStates.share) ||
       !canvasImage ||
-      !currentTaskId
+      !activeTaskId
     ) {
       return;
     }
@@ -1177,7 +1366,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taskId: currentTaskId,
+          taskId: activeTaskId,
           imageUrl: canvasImage.originalUrl || canvasImage.url
         })
       });
@@ -1657,10 +1846,10 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                 <span>{canvasMeta.timing}</span>
                 <span className="meta-dot">·</span>
                 <span>{canvasMeta.status}</span>
-                {images.length > 1 ? (
+                {visibleResultCount > 1 ? (
                   <>
                     <span className="meta-dot">·</span>
-                    <span>{selectedImageIndex + 1}/{images.length}</span>
+                    <span>{selectedImageIndex + 1}/{visibleResultCount}</span>
                   </>
                 ) : null}
               </div>
@@ -1677,13 +1866,78 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                 "main-image-frame",
                 visibleCanvasImage ? "" : "is-empty",
                 loading ? "is-loading" : "",
-                visibleCanvasImages.length > 1 ? "is-grid" : "",
-                visibleCanvasImages.length > 1 ? `count-${visibleCanvasImages.length}` : ""
+                generationSlots.length > 1 || visibleCanvasImages.length > 1 ? "is-grid" : "",
+                generationSlots.length > 1
+                  ? `count-${generationSlots.length}`
+                  : visibleCanvasImages.length > 1
+                    ? `count-${visibleCanvasImages.length}`
+                    : ""
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              {visibleCanvasImages.length > 1 ? (
+              {generationSlots.length > 1 ? (
+                <div className="generated-image-grid" role="list" aria-label="生成结果列表">
+                  {generationSlots.map((slot, index) => {
+                    const elapsedSeconds = getGenerationSlotElapsedSeconds(slot);
+                    const slotProgress =
+                      slot.status === "succeeded"
+                        ? 100
+                        : slot.status === "failed"
+                          ? 0
+                          : slot.status === "queued"
+                            ? 0
+                            : estimateGenerationProgress(elapsedSeconds);
+
+                    return (
+                      <button
+                        className={[
+                          "generated-image-tile",
+                          selectedImageIndex === index ? "is-selected" : "",
+                          slot.status === "succeeded" ? "is-complete" : "",
+                          slot.status === "failed" ? "is-failed" : "",
+                          slot.status === "queued" || slot.status === "running" ? "is-pending" : ""
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(index)}
+                        aria-label={`选择第 ${index + 1} 张生成图`}
+                        aria-pressed={selectedImageIndex === index}
+                      >
+                        {slot.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={slot.image.url} alt={`生成预览 ${index + 1}`} />
+                        ) : (
+                          <div className="generated-tile-loading">
+                            <span>{getGenerationSlotStatusLabel(slot.status)}</span>
+                            <div
+                              className="tile-loading-progress"
+                              role="progressbar"
+                              aria-valuenow={slotProgress}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                            >
+                              <div
+                                className="tile-loading-progress-bar"
+                                style={{ width: `${slotProgress}%` }}
+                              />
+                            </div>
+                            <small>
+                              {slot.status === "failed"
+                                ? slot.errorMessage || "生成失败"
+                                : slot.status === "queued"
+                                  ? "等待空闲通道"
+                                  : `${elapsedSeconds || 1}s`}
+                            </small>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : visibleCanvasImages.length > 1 ? (
                 <div className="generated-image-grid" role="list" aria-label="生成结果列表">
                   {visibleCanvasImages.map((image, index) => (
                     <button
@@ -1703,13 +1957,46 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                     </button>
                   ))}
                 </div>
+              ) : generationSlots.length === 1 && !visibleCanvasImage ? (
+                <div className="generated-tile-loading">
+                  <span>{getGenerationSlotStatusLabel(generationSlots[0].status)}</span>
+                  <div
+                    className="tile-loading-progress"
+                    role="progressbar"
+                    aria-valuenow={
+                      generationSlots[0].status === "running"
+                        ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                        : 0
+                    }
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div
+                      className="tile-loading-progress-bar"
+                      style={{
+                        width: `${
+                          generationSlots[0].status === "running"
+                            ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                            : 0
+                        }%`
+                      }}
+                    />
+                  </div>
+                  <small>
+                    {generationSlots[0].status === "failed"
+                      ? generationSlots[0].errorMessage || "生成失败"
+                      : generationSlots[0].status === "queued"
+                        ? "等待空闲通道"
+                        : `${getGenerationSlotElapsedSeconds(generationSlots[0]) || 1}s`}
+                  </small>
+                </div>
               ) : visibleCanvasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={visibleCanvasImage.url} alt="生成预览" />
               ) : canvasPlaceholderText ? (
                 <span>{canvasPlaceholderText}</span>
               ) : null}
-              {loading ? (
+              {loading && generationSlots.length === 0 ? (
                 <div className="image-loading">
                   <span>生成中 {loadingSeconds}s</span>
                   <div

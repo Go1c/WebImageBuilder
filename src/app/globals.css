@@ -922,15 +922,26 @@ textarea:focus-visible {
   position: relative;
   min-width: 0;
   min-height: 0;
+  display: block;
   overflow: hidden;
   border: 2px solid transparent;
   border-radius: 16px;
   padding: 0;
   background: white;
+  color: inherit;
 }
 
 .generated-image-tile.is-selected {
   border-color: var(--studio-black);
+}
+
+.generated-image-tile.is-pending {
+  background: #f2f2f2;
+}
+
+.generated-image-tile.is-failed {
+  background: #fff1f2;
+  border-color: #fda4af;
 }
 
 .generated-image-tile img {
@@ -939,6 +950,60 @@ textarea:focus-visible {
   max-width: none;
   max-height: none;
   object-fit: contain;
+}
+
+.generated-tile-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  text-align: center;
+}
+
+.generated-tile-loading span {
+  color: #404040;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.generated-tile-loading small {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: #737373;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.generated-image-tile.is-failed .generated-tile-loading span,
+.generated-image-tile.is-failed .generated-tile-loading small {
+  color: #be123c;
+}
+
+.tile-loading-progress {
+  width: min(160px, 72%);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #d4d4d4;
+}
+
+.tile-loading-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--studio-black, #171717);
+  transition: width 0.6s ease;
+}
+
+.generated-image-tile.is-failed .tile-loading-progress-bar {
+  background: #e11d48;
 }
 
 .image-loading {

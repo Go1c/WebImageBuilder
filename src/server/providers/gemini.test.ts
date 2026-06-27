@@ -103,7 +103,7 @@ describe("Gemini image provider", () => {
     ]);
   });
 
-  it("uses a supplied Gemini API key when provided", async () => {
+  it("uses a supplied Gemini API key for direct Google requests", async () => {
     const fetchMock = vi.fn(async () =>
       Response.json({
         candidates: [
@@ -127,6 +127,43 @@ describe("Gemini image provider", () => {
     await new GeminiImageProvider({ apiKey: "user-gemini-key" }).generate(buildInput());
 
     expect(String(fetchMock.mock.calls[0][0])).toContain("key=user-gemini-key");
+  });
+
+  it("routes supplied Sub2API Gemini keys through the Lumio Gemini-compatible gateway", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: "image/png",
+                    data: Buffer.from("image").toString("base64")
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new GeminiImageProvider({
+      apiKey: "user-sub2api-gemini-key",
+      baseUrl: "https://api.lumio.games"
+    }).generate(buildInput());
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lumio.games/v1beta/models/gemini-2.5-flash-image:generateContent",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-sub2api-gemini-key"
+        })
+      })
+    );
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain("key=user-sub2api-gemini-key");
   });
 });
 

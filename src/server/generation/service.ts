@@ -254,7 +254,10 @@ async function generateWithSub2ApiAccount(input: {
     input.apiKey || (await getSub2ApiGenerationApiKey(input.accessToken, input.generation.provider));
 
   if (input.generation.provider === "gemini") {
-    return new GeminiImageProvider({ apiKey }).generate(input.generation);
+    return new GeminiImageProvider({
+      apiKey,
+      baseUrl: getAppConfig().lumioApiBaseUrl
+    }).generate(input.generation);
   }
 
   return new OpenAIImageProvider({

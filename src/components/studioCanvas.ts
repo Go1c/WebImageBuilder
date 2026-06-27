@@ -1,5 +1,6 @@
 export type CanvasImageCandidate = {
   key?: string;
+  taskId?: string;
   url: string;
   originalUrl?: string;
   mimeType?: string;
@@ -112,7 +113,9 @@ export function buildCanvasHistoryThumbs(input: {
   input.images.forEach((image, index) => {
     appendThumb({
       id: `generated-${image.key || index}`,
-      ...(input.currentTaskId ? { taskId: input.currentTaskId } : {}),
+      ...(image.taskId || input.currentTaskId
+        ? { taskId: image.taskId || input.currentTaskId || undefined }
+        : {}),
       url: image.url,
       ...(image.originalUrl ? { originalUrl: image.originalUrl } : {}),
       mimeType: image.mimeType,
