@@ -3,7 +3,11 @@ import { SharePromptCopyButton } from "@/components/SharePromptCopyButton";
 import { ShareProtectedImage } from "@/components/ShareProtectedImage";
 import { ShareUnavailableRedirect } from "@/components/ShareUnavailableRedirect";
 import { getPromptShare } from "@/server/db/repositories";
-import { PROMPT_SHARE_COMPLIANCE_NOTICE, buildPromptTryUrl } from "@/server/shares";
+import {
+  PROMPT_SHARE_COMPLIANCE_NOTICE,
+  buildPromptShareImageUrl,
+  buildPromptTryUrl
+} from "@/server/shares";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,13 +39,14 @@ export default async function PromptSharePage({
   }
 
   const tryUrl = buildPromptTryUrl(share.prompt);
+  const imageUrl = buildPromptShareImageUrl(id);
 
   return (
     <main className="share-page">
       <section className="share-card" aria-label="提示词分享">
         <div className="share-image-wrap">
           <ShareProtectedImage
-            imageUrl={share.imageUrl}
+            imageUrl={imageUrl}
             alt="分享缩略图"
             watermark={PROMPT_SHARE_COMPLIANCE_NOTICE}
           />

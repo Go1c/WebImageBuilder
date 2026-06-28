@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PROMPT_SHARE_COMPLIANCE_NOTICE,
+  buildPromptShareImageUrl,
   buildPromptShareUrl,
   buildPromptTryUrl
 } from "./shares";
@@ -46,6 +47,12 @@ describe("prompt share helpers", () => {
         "https://img.lumio.games/"
       )
     ).toBe("https://img.lumio.games/share/U64qHbr4MFsA");
+  });
+
+  it("builds a same-origin image route for public share previews", () => {
+    expect(buildPromptShareImageUrl("U64qHbr4MFsA")).toBe(
+      "/api/shares/U64qHbr4MFsA/image"
+    );
   });
 
   it("exposes the compliance notice shown during share and public viewing", () => {

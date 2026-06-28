@@ -4,10 +4,15 @@ import {
   getQuotaSnapshot,
   type SpendSource
 } from "../domain/quota";
-import { normalizeGenerationInput, type NormalizedGenerationInput } from "../domain/models";
+import {
+  normalizeGenerationInput,
+  type AssetReference,
+  type NormalizedGenerationInput
+} from "../domain/models";
 import type { Actor } from "../db/types";
 import {
   createTask,
+  getOwnedAsset,
   getQuotaState,
   markTaskFailed,
   markTaskSucceeded,
@@ -17,7 +22,7 @@ import { getImageProvider } from "../providers";
 import { GeminiImageProvider } from "../providers/gemini";
 import { OpenAIImageProvider } from "../providers/openai";
 import { UpstreamProviderError, type ProviderUpstreamErrorDetail } from "../providers/upstream";
-import { uploadBuffer, type StoredAsset } from "../storage/s3";
+import { downloadStoredAsset, uploadBuffer, type StoredAsset } from "../storage/s3";
 import { getSub2ApiGenerationApiKey } from "../sub2api/client";
 import { getAppConfig } from "../config";
 import { chooseGenerationFunding, type GenerationFundingDecision } from "./funding";
@@ -131,14 +136,15 @@ async function executeGenerationTask(
   const { actor, taskId, generation, funding, quotaState } = input;
 
   try {
+    const providerGeneration = await resolveStoredGenerationAssets(actor, generation);
     const generated =
       funding.kind === "sub2api"
         ? await generateWithSub2ApiAccount({
-            generation,
+            generation: providerGeneration,
             accessToken: input.sub2ApiAccessToken,
             apiKey: input.sub2ApiApiKey
           })
-        : await getImageProvider(generation.provider).generate(generation);
+        : await getImageProvider(providerGeneration.provider).generate(providerGeneration);
     const stored = await Promise.all(
       generated.map((image) =>
         uploadBuffer({
@@ -201,6 +207,60 @@ async function executeGenerationTask(
       error instanceof Error ? error.message : "Generation failed"
     );
   }
+}
+
+async function resolveStoredGenerationAssets(
+  actor: Actor,
+  generation: NormalizedGenerationInput
+): Promise<NormalizedGenerationInput> {
+  if (!generation.referenceAssets.length && !generation.maskAsset) {
+    return generation;
+  }
+
+  return {
+    ...generation,
+    referenceAssets: await Promise.all(
+      generation.referenceAssets.map((asset) => resolveStoredAssetReference(actor, asset))
+    ),
+    ...(generation.maskAsset
+      ? { maskAsset: await resolveStoredAssetReference(actor, generation.maskAsset) }
+      : {})
+  };
+}
+
+async function resolveStoredAssetReference(
+  actor: Actor,
+  asset: AssetReference
+): Promise<AssetReference> {
+  const ownedAsset = await getOwnedAsset(actor, {
+    storageKey: asset.key,
+    url: asset.url
+  });
+
+  if (!ownedAsset) {
+    return asset;
+  }
+
+  if (ownedAsset.url.startsWith("data:")) {
+    return {
+      ...asset,
+      key: ownedAsset.storageKey,
+      url: ownedAsset.url,
+      mimeType: ownedAsset.mimeType || asset.mimeType
+    };
+  }
+
+  const downloaded = await downloadStoredAsset(ownedAsset.storageKey);
+  return {
+    ...asset,
+    key: ownedAsset.storageKey,
+    url: buildDataUrl(downloaded.buffer, downloaded.mimeType),
+    mimeType: downloaded.mimeType
+  };
+}
+
+function buildDataUrl(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
 // Synchronous flow: waits for the whole pipeline and returns the images. Kept

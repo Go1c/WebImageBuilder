@@ -29,6 +29,10 @@ export function buildPromptShareUrl(
   return new URL(`/share/${encodeURIComponent(shareId)}`, origin).toString();
 }
 
+export function buildPromptShareImageUrl(shareId: string): string {
+  return `/api/shares/${encodeURIComponent(shareId)}/image`;
+}
+
 function getForwardedOrigin(request: PublicUrlRequest): string | null {
   const host = firstHeaderValue(request.headers.get("x-forwarded-host")) ||
     firstHeaderValue(request.headers.get("host"));

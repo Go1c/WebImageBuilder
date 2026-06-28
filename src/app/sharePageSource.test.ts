@@ -15,6 +15,7 @@ describe("public prompt share page source", () => {
     expect(pageSource).toContain("revalidate = 0");
     expect(pageSource).toContain("<ShareUnavailableRedirect />");
     expect(pageSource).toContain("PROMPT_SHARE_COMPLIANCE_NOTICE");
+    expect(pageSource).toContain("buildPromptShareImageUrl");
     expect(pageSource).toContain("用这个提示词生成");
     expect(pageSource).toContain("<SharePromptCopyButton");
     expect(pageSource).toContain("<ShareProtectedImage");
@@ -39,6 +40,7 @@ describe("public prompt share page source", () => {
 
     expect(pageSource).toContain("<ShareProtectedImage");
     expect(pageSource).not.toContain("<img src={share.imageUrl}");
+    expect(pageSource).not.toContain("imageUrl={share.imageUrl}");
     expect(protectedImageSource).toContain("onContextMenu");
     expect(protectedImageSource).toContain("event.preventDefault()");
     expect(protectedImageSource).toContain("onDragStart");

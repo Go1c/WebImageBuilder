@@ -1,13 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { createTask, getQuotaState, markTaskFailed } from "../db/repositories";
+import { createTask, getOwnedAsset, getQuotaState, markTaskFailed } from "../db/repositories";
 import { ApiError } from "../http";
 import { getImageProvider } from "../providers";
 import { UpstreamProviderError } from "../providers/upstream";
+import { downloadStoredAsset, uploadBuffer } from "../storage/s3";
 import { getSub2ApiGenerationApiKey } from "../sub2api/client";
 import { generateImagesForActor } from "./service";
 
 vi.mock("../db/repositories", () => ({
   createTask: vi.fn(),
+  getOwnedAsset: vi.fn(),
   getQuotaState: vi.fn(),
   markTaskFailed: vi.fn(),
   markTaskSucceeded: vi.fn(),
@@ -16,6 +18,11 @@ vi.mock("../db/repositories", () => ({
 
 vi.mock("../providers", () => ({
   getImageProvider: vi.fn()
+}));
+
+vi.mock("../storage/s3", () => ({
+  downloadStoredAsset: vi.fn(),
+  uploadBuffer: vi.fn()
 }));
 
 vi.mock("../sub2api/client", () => ({
@@ -251,6 +258,89 @@ describe("generation service", () => {
       }
     });
     expect(markTaskFailed).toHaveBeenCalledWith("task-1", "status_code=400, 提示词违规 请检查提示词");
+  });
+
+  it("hydrates owned reference asset keys from storage before calling the provider", async () => {
+    const providerGenerate = vi.fn(async () => [
+      {
+        buffer: Buffer.from("generated image"),
+        mimeType: "image/png"
+      }
+    ]);
+    vi.mocked(getQuotaState).mockResolvedValueOnce({
+      actorType: "anonymous",
+      anonymousUsed: 0,
+      loginUsed: 0,
+      inviteCredits: 0,
+      paidCredits: 0,
+      ipDailyUsed: 0
+    });
+    vi.mocked(createTask).mockResolvedValueOnce("task-1");
+    vi.mocked(getOwnedAsset).mockResolvedValueOnce({
+      storageKey: "reference/anon-1/ref.png",
+      url: "https://cdn.example.com/reference/anon-1/ref.png",
+      mimeType: "image/png"
+    });
+    vi.mocked(downloadStoredAsset).mockResolvedValueOnce({
+      buffer: Buffer.from("reference image"),
+      mimeType: "image/png"
+    });
+    vi.mocked(uploadBuffer).mockResolvedValueOnce({
+      key: "generated/anon-1/task-1/result.png",
+      url: "data:image/png;base64,cmVzdWx0",
+      mimeType: "image/png"
+    });
+    vi.mocked(getImageProvider).mockReturnValueOnce({
+      generate: providerGenerate
+    });
+
+    await generateImagesForActor({
+      actor: {
+        type: "anonymous",
+        anonymousDeviceId: "anon-1",
+        deviceId: "device-1",
+        ipHash: "ip-1"
+      },
+      rawInput: {
+        prompt: "use this reference",
+        mode: "image-to-image",
+        model: "gpt-image-2",
+        size: "1024x1024",
+        resolution: "1K",
+        quality: "standard",
+        count: 1,
+        referenceAssets: [
+          {
+            key: "reference/anon-1/ref.png",
+            url: "https://cdn.example.com/reference/anon-1/ref.png",
+            mimeType: "image/png"
+          }
+        ]
+      }
+    });
+
+    expect(getOwnedAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "anonymous",
+        anonymousDeviceId: "anon-1"
+      }),
+      {
+        storageKey: "reference/anon-1/ref.png",
+        url: "https://cdn.example.com/reference/anon-1/ref.png"
+      }
+    );
+    expect(downloadStoredAsset).toHaveBeenCalledWith("reference/anon-1/ref.png");
+    expect(providerGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceAssets: [
+          expect.objectContaining({
+            key: "reference/anon-1/ref.png",
+            url: `data:image/png;base64,${Buffer.from("reference image").toString("base64")}`,
+            mimeType: "image/png"
+          })
+        ]
+      })
+    );
   });
 
   it.each([

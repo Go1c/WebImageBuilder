@@ -8,11 +8,13 @@ import { getQuotaConfig } from "../domain/quota";
 import type { NormalizedGenerationInput } from "../domain/models";
 import type { SpendSource } from "../domain/quota";
 
+export type OwnedAssetType = "reference" | "mask" | "result";
+
 type AssetInput = {
   taskId?: string;
   userId?: string | null;
   anonymousDeviceId?: string | null;
-  assetType: "reference" | "mask" | "result";
+  assetType: OwnedAssetType;
   storageKey: string;
   url: string;
   mimeType?: string | null;
@@ -639,6 +641,14 @@ export async function getOwnedResultAsset(
   actor: Actor,
   input: { storageKey?: string; url?: string }
 ): Promise<OwnedAsset | null> {
+  return getOwnedAsset(actor, input, ["result"]);
+}
+
+export async function getOwnedAsset(
+  actor: Actor,
+  input: { storageKey?: string; url?: string },
+  assetTypes: OwnedAssetType[] = ["reference", "mask", "result"]
+): Promise<OwnedAsset | null> {
   if (!input.storageKey && !input.url) {
     return null;
   }
@@ -649,7 +659,7 @@ export async function getOwnedResultAsset(
       .flatMap((task) => task.assets)
       .find(
         (taskAsset) =>
-          taskAsset.assetType === "result" &&
+          assetTypes.includes(taskAsset.assetType) &&
           ((input.storageKey && taskAsset.storageKey === input.storageKey) ||
             (input.url && taskAsset.url === input.url))
       );
@@ -672,7 +682,7 @@ export async function getOwnedResultAsset(
         a.url,
         a.mime_type as "mimeType"
       from assets a
-      where a.asset_type = 'result'
+      where a.asset_type = any($4::text[])
         and ${ownerClause}
         and (
           ($1::text is not null and a.storage_key = $1)
@@ -681,7 +691,7 @@ export async function getOwnedResultAsset(
       order by a.created_at desc
       limit 1
     `,
-    [input.storageKey ?? null, input.url ?? null, ownerId]
+    [input.storageKey ?? null, input.url ?? null, ownerId, assetTypes]
   );
 
   return result.rows[0] ?? null;

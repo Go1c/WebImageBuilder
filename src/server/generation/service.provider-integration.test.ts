@@ -5,6 +5,7 @@ import { generateImagesForActor } from "./service";
 
 vi.mock("../db/repositories", () => ({
   createTask: vi.fn(),
+  getOwnedAsset: vi.fn(),
   getQuotaState: vi.fn(),
   markTaskFailed: vi.fn(),
   markTaskSucceeded: vi.fn(),
