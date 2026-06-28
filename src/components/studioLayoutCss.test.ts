@@ -55,6 +55,8 @@ describe("studio layout CSS", () => {
 
     expect(rule).toContain("right: 24px");
     expect(rule).toContain("bottom: 24px");
+    expect(rule).toContain("min-width:");
+    expect(rule).toContain("align-items: flex-start");
     expect(rule).toContain("transform: none");
     expect(rule).not.toContain("left: 50%");
     expect(rule).not.toContain("bottom: 18px");
@@ -105,9 +107,12 @@ describe("studio layout CSS", () => {
     const gridFrameRule = readRule(".main-image-frame.is-grid");
     const generatedGridRule = readRule(".generated-image-grid");
     const generatedTileRule = readRule(".generated-image-tile");
+    const countThreeRule = readRule(".main-image-frame.count-3 .generated-image-grid");
 
     expect(gridFrameRule).toContain("aspect-ratio: 1 / 1");
     expect(generatedGridRule).toContain("grid-template-columns: repeat(2");
+    expect(generatedGridRule).toContain("grid-template-rows: repeat(2");
+    expect(countThreeRule).toContain("grid-template-columns: repeat(2");
     expect(generatedTileRule).toContain("border: 2px solid transparent");
   });
 

@@ -1996,6 +1996,12 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               ) : canvasPlaceholderText ? (
                 <span>{canvasPlaceholderText}</span>
               ) : null}
+              {loading && generationSlots.length > 0 && canvasLoadingWarningText ? (
+                <div className="generation-loading-note" role="status">
+                  <strong>请保持页面打开</strong>
+                  <p>{canvasLoadingWarningText}</p>
+                </div>
+              ) : null}
               {loading && generationSlots.length === 0 ? (
                 <div className="image-loading">
                   <span>生成中 {loadingSeconds}s</span>

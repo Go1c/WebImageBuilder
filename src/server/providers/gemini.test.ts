@@ -50,6 +50,91 @@ describe("Gemini image provider", () => {
     );
   });
 
+  it("retries transient Gemini gateway outages once before failing the slot", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            error: {
+              code: 502,
+              message: "Upstream service temporarily unavailable"
+            }
+          },
+          { status: 502 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `data: ${JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType: "image/png",
+                        data: Buffer.from("image after retry").toString("base64")
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          })}\n\n`,
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" }
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const images = await new GeminiImageProvider({
+      apiKey: "user-sub2api-gemini-key",
+      baseUrl: "https://api.lumio.games"
+    }).generate(buildInput());
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(images[0].buffer.toString()).toBe("image after retry");
+  });
+
+  it("returns structured upstream diagnostics for repeated Gemini gateway outages", async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json(
+        {
+          error: {
+            code: 502,
+            message: "Upstream service temporarily unavailable"
+          }
+        },
+        { status: 502 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      new GeminiImageProvider({
+        apiKey: "user-sub2api-gemini-key",
+        baseUrl: "https://api.lumio.games"
+      }).generate(buildInput())
+    ).rejects.toMatchObject({
+      upstream: {
+        statusCode: 502,
+        gatewayStatus: 502,
+        code: "upstream_unavailable",
+        message: "Upstream service temporarily unavailable",
+        rawResponse: {
+          error: {
+            code: 502,
+            message: "Upstream service temporarily unavailable"
+          }
+        }
+      }
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("runs one Gemini request per requested image with distinct variation prompts", async () => {
     process.env = {
       ...originalEnv,

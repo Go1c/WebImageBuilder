@@ -10,6 +10,8 @@ import {
   formatNonJsonUpstreamResponse,
   formatUpstreamErrorMessage,
   readUpstreamResponseBody,
+  UpstreamProviderError,
+  type ProviderUpstreamErrorDetail,
   type UpstreamResponseBody
 } from "./upstream";
 
@@ -30,8 +32,15 @@ type GeminiResponse = {
     };
   }>;
   error?: {
+    code?: unknown;
     message?: string;
+    status?: unknown;
+    type?: unknown;
   };
+  message?: string;
+  code?: unknown;
+  status?: unknown;
+  type?: unknown;
 };
 
 type GeminiImageProviderOptions = {
@@ -84,7 +93,7 @@ export class GeminiImageProvider implements ImageProvider {
       ? `${gatewayBaseUrl.replace(/\/+$/, "")}/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`
       : `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`;
 
-    const response = await fetchGemini(
+    const response = await fetchGeminiWithRetry(
       url,
       {
         method: "POST",
@@ -117,6 +126,45 @@ export class GeminiImageProvider implements ImageProvider {
   }
 }
 
+const transientGeminiRetryDelayMs = process.env.NODE_ENV === "test" ? 0 : 1_200;
+const transientGeminiMaxRetries = 1;
+
+async function fetchGeminiWithRetry(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  for (let attempt = 0; attempt <= transientGeminiMaxRetries; attempt += 1) {
+    try {
+      const response = await fetchGemini(url, init, timeoutMs);
+      if (!isRetryableGeminiStatus(response.status)) {
+        return response;
+      }
+
+      const body = await readUpstreamResponseBody<GeminiResponse>(response);
+      const error = getGeminiError(body, response.status);
+      if (attempt >= transientGeminiMaxRetries) {
+        throw new UpstreamProviderError(error.message, error.upstream);
+      }
+
+      await sleep(transientGeminiRetryDelayMs);
+    } catch (error) {
+      if (
+        attempt < transientGeminiMaxRetries &&
+        !(error instanceof Error && error.name === "AbortError") &&
+        !(error instanceof UpstreamProviderError)
+      ) {
+        await sleep(transientGeminiRetryDelayMs);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("Gemini image request failed");
+}
+
 async function fetchGemini(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -135,6 +183,14 @@ async function fetchGemini(url: string, init: RequestInit, timeoutMs: number): P
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function isRetryableGeminiStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function buildPrompt(input: NormalizedGenerationInput, variationIndex?: number): string {
@@ -171,14 +227,8 @@ function parseGeminiResponse(
   status: number
 ): GeneratedImage[] {
   if (status >= 400) {
-    throw new Error(
-      formatUpstreamErrorMessage({
-        body,
-        fallbackMessage: `Gemini image request failed: ${status}`,
-        primaryMessage: body.json?.error?.message,
-        status
-      })
-    );
+    const error = getGeminiError(body, status);
+    throw new UpstreamProviderError(error.message, error.upstream);
   }
 
   if (!body.json) {
@@ -232,7 +282,13 @@ function parseGeminiStream(text: string): GeneratedImage[] {
     }
 
     if (body.error?.message) {
-      throw new Error(body.error.message);
+      const responseBody: UpstreamResponseBody<GeminiResponse> = {
+        contentType: "text/event-stream",
+        json: body,
+        text: trimmed
+      };
+      const error = getGeminiError(responseBody, 200);
+      throw new UpstreamProviderError(error.message, error.upstream);
     }
 
     images.push(...extractGeminiImages(body));
@@ -243,6 +299,131 @@ function parseGeminiStream(text: string): GeneratedImage[] {
   }
 
   return images;
+}
+
+function getGeminiError(
+  body: UpstreamResponseBody<GeminiResponse>,
+  status: number
+): {
+  message: string;
+  upstream: ProviderUpstreamErrorDetail;
+} {
+  const primaryMessage =
+    readMessage(body.json?.error?.message) ||
+    readMessage(body.json?.message) ||
+    (status === 504 ? "Gemini 图像网关超时，请稍后重试或降低图片数量" : "");
+  const message = formatUpstreamErrorMessage({
+    body,
+    fallbackMessage: `Gemini image request failed: ${status}`,
+    primaryMessage,
+    status
+  });
+
+  return {
+    message,
+    upstream: buildGeminiUpstreamDetail({ body, message: primaryMessage || message, status })
+  };
+}
+
+function buildGeminiUpstreamDetail(input: {
+  body: UpstreamResponseBody<GeminiResponse>;
+  message: string;
+  status: number;
+}): ProviderUpstreamErrorDetail {
+  const rawResponse = input.body.json ?? input.body.text.trim();
+  const oneLineBody = input.body.text.replace(/\s+/g, " ").trim();
+  const primaryMessage = input.message || oneLineBody;
+  const effectiveStatusCode =
+    readEmbeddedStatusCode(primaryMessage) ?? readEmbeddedStatusCode(oneLineBody) ?? input.status;
+  const cleanMessage = stripStatusCodePrefix(primaryMessage || oneLineBody);
+  const explicitCode =
+    readMessage(input.body.json?.error?.code) || readMessage(input.body.json?.code);
+  const explicitType =
+    readMessage(input.body.json?.error?.type) ||
+    readMessage(input.body.json?.error?.status) ||
+    readMessage(input.body.json?.type) ||
+    readMessage(input.body.json?.status);
+  const inferredCode =
+    explicitCode || inferGeminiUpstreamCode(cleanMessage || oneLineBody, effectiveStatusCode);
+
+  return {
+    statusCode: effectiveStatusCode,
+    gatewayStatus: input.status,
+    ...(inferredCode ? { code: inferredCode } : {}),
+    ...(explicitType ? { type: explicitType } : {}),
+    ...(cleanMessage ? { message: cleanMessage } : {}),
+    ...(rawResponse ? { rawResponse } : {}),
+    contentType: input.body.contentType
+  };
+}
+
+function inferGeminiUpstreamCode(message: string, statusCode: number): string | undefined {
+  const normalized = message.toLowerCase();
+  const embeddedCode = message.match(/图片生成失败\(([a-z0-9_-]+)\)/i)?.[1];
+
+  if (embeddedCode) {
+    return embeddedCode;
+  }
+
+  if (
+    normalized.includes("upstream service temporarily unavailable") ||
+    normalized.includes("temporarily unavailable") ||
+    normalized.includes("upstream_error") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("unavailable")
+  ) {
+    return "upstream_unavailable";
+  }
+
+  if (
+    normalized.includes("api key not valid") ||
+    normalized.includes("invalid api key") ||
+    normalized.includes("permission_denied") ||
+    normalized.includes("unauthenticated")
+  ) {
+    return "auth_required";
+  }
+
+  if (
+    message.includes("提示词违规") ||
+    normalized.includes("content_policy") ||
+    normalized.includes("policy violation") ||
+    normalized.includes("safety")
+  ) {
+    return "prompt_violation";
+  }
+
+  if (
+    message.includes("等待超时") ||
+    normalized.includes("context deadline") ||
+    normalized.includes("deadline exceeded") ||
+    normalized.includes("timeout")
+  ) {
+    return "upstream_timeout";
+  }
+
+  if (statusCode === 404 || normalized.includes("not found")) {
+    return "upstream_not_found";
+  }
+
+  if (statusCode === 400) {
+    return "upstream_bad_request";
+  }
+
+  return undefined;
+}
+
+function readMessage(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readEmbeddedStatusCode(message: string): number | undefined {
+  const match = message.match(/\bstatus_code\s*=\s*(\d{3})\b/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function stripStatusCodePrefix(message: string): string {
+  return message.replace(/^status_code\s*=\s*\d{3}\s*,\s*/i, "").trim();
 }
 
 function parseServerSentEvents(text: string): string[] {

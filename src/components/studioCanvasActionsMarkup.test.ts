@@ -108,6 +108,12 @@ describe("studio canvas actions markup", () => {
     expect(refreshIndex).toBeLessThan(generateIndex);
   });
 
+  it("keeps the refresh warning visible during per-slot generation", () => {
+    expect(source).toContain('className="generation-loading-note"');
+    expect(source).toContain("canvasLoadingWarningText");
+    expect(source).toContain("请保持页面打开");
+  });
+
   it("documents pricing and invite rewards in the tutorial panels", () => {
     const panel = readHeaderContextPanelSource();
 
