@@ -114,11 +114,12 @@ describe("studio canvas actions markup", () => {
     expect(source).toContain("请保持页面打开");
   });
 
-  it("does not combine the multi-image grid with single-image empty loading classes", () => {
+  it("renders multi-image slots in a dedicated frame instead of the single-image frame", () => {
     expect(source).toContain("const isCanvasGrid = generationSlots.length > 1 || visibleCanvasImages.length > 1");
-    expect(source).toContain('!visibleCanvasImage && !isCanvasGrid ? "is-empty" : ""');
-    expect(source).toContain('loading && !isCanvasGrid ? "is-loading" : ""');
-    expect(source).toContain('isCanvasGrid ? "is-grid" : ""');
+    expect(source).toContain('"multi-image-frame"');
+    expect(source).toContain('"main-image-frame"');
+    expect(source).not.toContain('isCanvasGrid ? "is-grid" : ""');
+    expect(source).not.toContain('"main-image-frame",\n                !visibleCanvasImage && !isCanvasGrid');
   });
 
   it("documents pricing and invite rewards in the tutorial panels", () => {

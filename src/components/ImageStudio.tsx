@@ -1862,167 +1862,174 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           </div>
 
           <div className="image-stage">
-            <div
-              className={[
-                "main-image-frame",
-                !visibleCanvasImage && !isCanvasGrid ? "is-empty" : "",
-                loading && !isCanvasGrid ? "is-loading" : "",
-                isCanvasGrid ? "is-grid" : "",
-                generationSlots.length > 1
-                  ? `count-${generationSlots.length}`
-                  : visibleCanvasImages.length > 1
-                    ? `count-${visibleCanvasImages.length}`
-                    : ""
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {generationSlots.length > 1 ? (
+            {isCanvasGrid ? (
+              <div
+                className={[
+                  "multi-image-frame",
+                  generationSlots.length > 1
+                    ? `count-${generationSlots.length}`
+                    : visibleCanvasImages.length > 1
+                      ? `count-${visibleCanvasImages.length}`
+                      : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <div className="generated-image-grid" role="list" aria-label="生成结果列表">
-                  {generationSlots.map((slot, index) => {
-                    const elapsedSeconds = getGenerationSlotElapsedSeconds(slot);
-                    const slotProgress =
-                      slot.status === "succeeded"
-                        ? 100
-                        : slot.status === "failed"
-                          ? 0
-                          : slot.status === "queued"
-                            ? 0
-                            : estimateGenerationProgress(elapsedSeconds);
+                  {generationSlots.length > 1
+                    ? generationSlots.map((slot, index) => {
+                        const elapsedSeconds = getGenerationSlotElapsedSeconds(slot);
+                        const slotProgress =
+                          slot.status === "succeeded"
+                            ? 100
+                            : slot.status === "failed"
+                              ? 0
+                              : slot.status === "queued"
+                                ? 0
+                                : estimateGenerationProgress(elapsedSeconds);
 
-                    return (
+                        return (
+                          <button
+                            className={[
+                              "generated-image-tile",
+                              selectedImageIndex === index ? "is-selected" : "",
+                              slot.status === "succeeded" ? "is-complete" : "",
+                              slot.status === "failed" ? "is-failed" : "",
+                              slot.status === "queued" || slot.status === "running" ? "is-pending" : ""
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            key={slot.id}
+                            type="button"
+                            onClick={() => setSelectedImageIndex(index)}
+                            aria-label={`选择第 ${index + 1} 张生成图`}
+                            aria-pressed={selectedImageIndex === index}
+                          >
+                            {slot.image ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={slot.image.url} alt={`生成预览 ${index + 1}`} />
+                            ) : (
+                              <div className="generated-tile-loading">
+                                <span>{getGenerationSlotStatusLabel(slot.status)}</span>
+                                <div
+                                  className="tile-loading-progress"
+                                  role="progressbar"
+                                  aria-valuenow={slotProgress}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                >
+                                  <div
+                                    className="tile-loading-progress-bar"
+                                    style={{ width: `${slotProgress}%` }}
+                                  />
+                                </div>
+                                <small>
+                                  {slot.status === "failed"
+                                    ? slot.errorMessage || "生成失败"
+                                    : slot.status === "queued"
+                                      ? "等待空闲通道"
+                                      : `${elapsedSeconds || 1}s`}
+                                </small>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    : visibleCanvasImages.map((image, index) => (
                       <button
-                        className={[
-                          "generated-image-tile",
-                          selectedImageIndex === index ? "is-selected" : "",
-                          slot.status === "succeeded" ? "is-complete" : "",
-                          slot.status === "failed" ? "is-failed" : "",
-                          slot.status === "queued" || slot.status === "running" ? "is-pending" : ""
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        key={slot.id}
+                        className={
+                          selectedImageIndex === index
+                            ? "generated-image-tile is-selected"
+                            : "generated-image-tile"
+                        }
+                        key={image.key || image.url}
                         type="button"
                         onClick={() => setSelectedImageIndex(index)}
                         aria-label={`选择第 ${index + 1} 张生成图`}
                         aria-pressed={selectedImageIndex === index}
                       >
-                        {slot.image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={slot.image.url} alt={`生成预览 ${index + 1}`} />
-                        ) : (
-                          <div className="generated-tile-loading">
-                            <span>{getGenerationSlotStatusLabel(slot.status)}</span>
-                            <div
-                              className="tile-loading-progress"
-                              role="progressbar"
-                              aria-valuenow={slotProgress}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                            >
-                              <div
-                                className="tile-loading-progress-bar"
-                                style={{ width: `${slotProgress}%` }}
-                              />
-                            </div>
-                            <small>
-                              {slot.status === "failed"
-                                ? slot.errorMessage || "生成失败"
-                                : slot.status === "queued"
-                                  ? "等待空闲通道"
-                                  : `${elapsedSeconds || 1}s`}
-                            </small>
-                          </div>
-                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image.url} alt={`生成预览 ${index + 1}`} />
                       </button>
-                    );
-                  })}
+                    ))}
                 </div>
-              ) : visibleCanvasImages.length > 1 ? (
-                <div className="generated-image-grid" role="list" aria-label="生成结果列表">
-                  {visibleCanvasImages.map((image, index) => (
-                    <button
-                      className={
-                        selectedImageIndex === index
-                          ? "generated-image-tile is-selected"
-                          : "generated-image-tile"
+                {loading && generationSlots.length > 0 && canvasLoadingWarningText ? (
+                  <div className="generation-loading-note" role="status">
+                    <strong>请保持页面打开</strong>
+                    <p>{canvasLoadingWarningText}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div
+                className={[
+                  "main-image-frame",
+                  visibleCanvasImage ? "" : "is-empty",
+                  loading ? "is-loading" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {generationSlots.length === 1 && !visibleCanvasImage ? (
+                  <div className="generated-tile-loading">
+                    <span>{getGenerationSlotStatusLabel(generationSlots[0].status)}</span>
+                    <div
+                      className="tile-loading-progress"
+                      role="progressbar"
+                      aria-valuenow={
+                        generationSlots[0].status === "running"
+                          ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                          : 0
                       }
-                      key={image.key || image.url}
-                      type="button"
-                      onClick={() => setSelectedImageIndex(index)}
-                      aria-label={`选择第 ${index + 1} 张生成图`}
-                      aria-pressed={selectedImageIndex === index}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.url} alt={`生成预览 ${index + 1}`} />
-                    </button>
-                  ))}
-                </div>
-              ) : generationSlots.length === 1 && !visibleCanvasImage ? (
-                <div className="generated-tile-loading">
-                  <span>{getGenerationSlotStatusLabel(generationSlots[0].status)}</span>
-                  <div
-                    className="tile-loading-progress"
-                    role="progressbar"
-                    aria-valuenow={
-                      generationSlots[0].status === "running"
-                        ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
-                        : 0
-                    }
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
-                    <div
-                      className="tile-loading-progress-bar"
-                      style={{
-                        width: `${
-                          generationSlots[0].status === "running"
-                            ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
-                            : 0
-                        }%`
-                      }}
-                    />
+                      <div
+                        className="tile-loading-progress-bar"
+                        style={{
+                          width: `${
+                            generationSlots[0].status === "running"
+                              ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                              : 0
+                          }%`
+                        }}
+                      />
+                    </div>
+                    <small>
+                      {generationSlots[0].status === "failed"
+                        ? generationSlots[0].errorMessage || "生成失败"
+                        : generationSlots[0].status === "queued"
+                          ? "等待空闲通道"
+                          : `${getGenerationSlotElapsedSeconds(generationSlots[0]) || 1}s`}
+                    </small>
                   </div>
-                  <small>
-                    {generationSlots[0].status === "failed"
-                      ? generationSlots[0].errorMessage || "生成失败"
-                      : generationSlots[0].status === "queued"
-                        ? "等待空闲通道"
-                        : `${getGenerationSlotElapsedSeconds(generationSlots[0]) || 1}s`}
-                  </small>
-                </div>
-              ) : visibleCanvasImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={visibleCanvasImage.url} alt="生成预览" />
-              ) : canvasPlaceholderText ? (
-                <span>{canvasPlaceholderText}</span>
-              ) : null}
-              {loading && generationSlots.length > 0 && canvasLoadingWarningText ? (
-                <div className="generation-loading-note" role="status">
-                  <strong>请保持页面打开</strong>
-                  <p>{canvasLoadingWarningText}</p>
-                </div>
-              ) : null}
-              {loading && generationSlots.length === 0 ? (
-                <div className="image-loading">
-                  <span>生成中 {loadingSeconds}s</span>
-                  <div
-                    className="image-loading-progress"
-                    role="progressbar"
-                    aria-valuenow={generationProgress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
+                ) : visibleCanvasImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={visibleCanvasImage.url} alt="生成预览" />
+                ) : canvasPlaceholderText ? (
+                  <span>{canvasPlaceholderText}</span>
+                ) : null}
+                {loading && generationSlots.length === 0 ? (
+                  <div className="image-loading">
+                    <span>生成中 {loadingSeconds}s</span>
                     <div
-                      className="image-loading-progress-bar"
-                      style={{ width: `${generationProgress}%` }}
-                    />
+                      className="image-loading-progress"
+                      role="progressbar"
+                      aria-valuenow={generationProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="image-loading-progress-bar"
+                        style={{ width: `${generationProgress}%` }}
+                      />
+                    </div>
+                    <p>出图通常需要 1–3 分钟，请保持页面打开；完成后会自动显示。</p>
+                    {canvasLoadingWarningText ? <p>{canvasLoadingWarningText}</p> : null}
                   </div>
-                  <p>出图通常需要 1–3 分钟，请保持页面打开；完成后会自动显示。</p>
-                  {canvasLoadingWarningText ? <p>{canvasLoadingWarningText}</p> : null}
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div className="canvas-actions">

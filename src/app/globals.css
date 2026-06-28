@@ -886,21 +886,26 @@ textarea:focus-visible {
   box-shadow: none;
 }
 
-.main-image-frame.is-grid {
+.multi-image-frame {
+  position: relative;
   width: min(720px, calc(100% - 64px), max(220px, calc(100dvh - 250px)));
   max-height: min(720px, max(220px, calc(100dvh - 250px)));
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--studio-line);
+  border-radius: 24px;
   padding: 8px;
   background: #f7f7f7;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.25);
 }
 
-.main-image-frame.is-grid.count-2 {
+.multi-image-frame.count-2 {
   aspect-ratio: 2 / 1;
 }
 
-.main-image-frame.is-grid.count-3 {
+.multi-image-frame.count-3 {
   aspect-ratio: 1 / 1;
 }
 
@@ -915,12 +920,12 @@ textarea:focus-visible {
   gap: 8px;
 }
 
-.main-image-frame.count-2 .generated-image-grid {
+.multi-image-frame.count-2 .generated-image-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: minmax(0, 1fr);
 }
 
-.main-image-frame.count-3 .generated-image-grid {
+.multi-image-frame.count-3 .generated-image-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
 }

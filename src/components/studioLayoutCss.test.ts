@@ -104,14 +104,15 @@ describe("studio layout CSS", () => {
   });
 
   it("uses a stable grid for multi-image canvas results", () => {
-    const gridFrameRule = readRule(".main-image-frame.is-grid");
+    const gridFrameRule = readRule(".multi-image-frame");
     const generatedGridRule = readRule(".generated-image-grid");
     const generatedTileRule = readRule(".generated-image-tile");
-    const countThreeRule = readRule(".main-image-frame.count-3 .generated-image-grid");
+    const countThreeRule = readRule(".multi-image-frame.count-3 .generated-image-grid");
 
     expect(gridFrameRule).toContain("aspect-ratio: 1 / 1");
     expect(gridFrameRule).toContain("display: grid");
     expect(gridFrameRule).toContain("place-items: stretch");
+    expect(gridFrameRule).toContain("position: relative");
     expect(generatedGridRule).toContain("min-width: 0");
     expect(generatedGridRule).toContain("min-height: 0");
     expect(generatedGridRule).toContain("grid-template-columns: repeat(2");
