@@ -46,7 +46,7 @@ describe("/api/download", () => {
       url: "https://cdn.example.com/generated/result.png",
       mimeType: "image/png"
     });
-    vi.mocked(fetchAsset).mockResolvedValueOnce({
+    vi.mocked(downloadStoredAsset).mockResolvedValueOnce({
       buffer: Buffer.from("png-bytes"),
       mimeType: "image/png"
     });
@@ -73,6 +73,8 @@ describe("/api/download", () => {
         url: undefined
       }
     );
+    expect(downloadStoredAsset).toHaveBeenCalledWith("generated/user-1/task-1/result.png");
+    expect(fetchAsset).not.toHaveBeenCalled();
   });
 
   it("downloads trusted public generated images through the app download route", async () => {
@@ -100,7 +102,7 @@ describe("/api/download", () => {
       url: "https://cdn.example.com/generated/result.png",
       mimeType: "image/png"
     });
-    vi.mocked(fetchAsset).mockResolvedValueOnce({
+    vi.mocked(downloadStoredAsset).mockResolvedValueOnce({
       buffer: Buffer.from("png-bytes"),
       mimeType: "image/png"
     });
@@ -113,9 +115,11 @@ describe("/api/download", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-disposition")).toBe('inline; filename="lumio-image.png"');
+    expect(downloadStoredAsset).toHaveBeenCalledWith("generated/user-1/task-1/result.png");
+    expect(fetchAsset).not.toHaveBeenCalled();
   });
 
-  it("reads s3-only owned assets by storage key instead of fetching the s3 URL", async () => {
+  it("reads owned assets by storage key instead of fetching the stored URL", async () => {
     vi.mocked(getOwnedResultAsset).mockResolvedValueOnce({
       storageKey: "generated/user-1/task-1/result.png",
       url: "s3://bucket/generated/user-1/task-1/result.png",

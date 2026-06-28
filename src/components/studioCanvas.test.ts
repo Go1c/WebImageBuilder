@@ -167,6 +167,17 @@ describe("studio canvas helpers", () => {
     );
   });
 
+  it("prefers owned download previews when a stored asset also has an http URL", () => {
+    expect(
+      buildPreviewAssetUrl({
+        storageKey: "generated/user-1/task-http/result.png",
+        url: "https://cdn.lumio.games/generated/user-1/task-http/result.png"
+      })
+    ).toBe(
+      "/api/download?key=generated%2Fuser-1%2Ftask-http%2Fresult.png&disposition=inline"
+    );
+  });
+
   it("uses inline download previews for persisted s3 history thumbs", () => {
     expect(
       buildCanvasHistoryThumbs({

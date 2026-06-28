@@ -153,16 +153,16 @@ export function buildPreviewAssetUrl(input: {
   storageKey?: string | null;
   url: string;
 }): string {
-  if (isDirectPreviewUrl(input.url)) {
-    return input.url;
-  }
-
   if (input.storageKey) {
     const params = new URLSearchParams({
       key: input.storageKey,
       disposition: "inline"
     });
     return `/api/download?${params.toString()}`;
+  }
+
+  if (isDirectPreviewUrl(input.url)) {
+    return input.url;
   }
 
   return input.url;

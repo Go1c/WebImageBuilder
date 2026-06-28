@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 }
 
 function shouldReadOwnedAssetFromStorage(asset: { storageKey: string; url: string }): boolean {
-  return asset.url.startsWith("s3://");
+  return !asset.url.startsWith("data:");
 }
 
 function sanitizeDownloadFileName(value: string | undefined): string | null {
