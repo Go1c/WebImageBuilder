@@ -121,7 +121,7 @@ describe("studio action helpers", () => {
     });
   });
 
-  it("computes disabled action states with explicit reasons while loading", () => {
+  it("keeps completed-image actions enabled while other slots are still loading", () => {
     const states = getStudioActionStates({
       image: {
         url: "https://cdn.lumio.games/generated/city.png",
@@ -132,24 +132,21 @@ describe("studio action helpers", () => {
     });
 
     expect(states.save).toEqual({
-      enabled: false,
-      label: "保存到作品集",
-      reason: "生成完成后才能保存。"
+      enabled: true,
+      label: "保存到作品集"
     });
     expect(states.share).toEqual({
       enabled: false,
       label: "分享提示词",
-      reason: "生成完成后才能分享。"
+      reason: "只有生成完成的图片可以分享。"
     });
     expect(states.referenceReuse).toEqual({
-      enabled: false,
-      label: "用作参考图",
-      reason: "生成完成后才能用作参考图。"
+      enabled: true,
+      label: "用作参考图"
     });
     expect(states.download).toEqual({
-      enabled: false,
-      label: "下载图片",
-      reason: "生成完成后才能下载。"
+      enabled: true,
+      label: "下载图片"
     });
     expect(states.delete).toEqual({
       enabled: false,
@@ -162,9 +159,34 @@ describe("studio action helpers", () => {
       reason: "当前生成完成后才能重新生成。"
     });
     expect(states.zoom).toEqual({
-      enabled: false,
-      label: "打开大图",
-      reason: "生成完成后才能打开大图。"
+      enabled: true,
+      label: "打开大图"
+    });
+  });
+
+  it("allows sharing a completed generated slot while sibling slots continue loading", () => {
+    const states = getStudioActionStates({
+      image: {
+        key: "generated/result-key",
+        url: "https://cdn.lumio.games/generated/city.png",
+        mimeType: "image/png"
+      },
+      canRegenerate: true,
+      canShare: true,
+      loading: true
+    });
+
+    expect(states.share).toEqual({
+      enabled: true,
+      label: "分享提示词"
+    });
+    expect(states.download).toEqual({
+      enabled: true,
+      label: "下载图片"
+    });
+    expect(states.save).toEqual({
+      enabled: true,
+      label: "保存到作品集"
     });
   });
 

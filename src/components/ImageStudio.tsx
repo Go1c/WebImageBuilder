@@ -526,6 +526,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const globalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations);
   const compactGlobalGenerationText = formatGlobalGenerationTotal(globalStats?.totalGenerations, { compact: true });
   const visibleResultCount = generationSlots.length || images.length;
+  const isCanvasGrid = generationSlots.length > 1 || visibleCanvasImages.length > 1;
 
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
@@ -1864,9 +1865,9 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
             <div
               className={[
                 "main-image-frame",
-                visibleCanvasImage ? "" : "is-empty",
-                loading ? "is-loading" : "",
-                generationSlots.length > 1 || visibleCanvasImages.length > 1 ? "is-grid" : "",
+                !visibleCanvasImage && !isCanvasGrid ? "is-empty" : "",
+                loading && !isCanvasGrid ? "is-loading" : "",
+                isCanvasGrid ? "is-grid" : "",
                 generationSlots.length > 1
                   ? `count-${generationSlots.length}`
                   : visibleCanvasImages.length > 1

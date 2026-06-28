@@ -890,6 +890,8 @@ textarea:focus-visible {
   width: min(720px, calc(100% - 64px), max(220px, calc(100dvh - 250px)));
   max-height: min(720px, max(220px, calc(100dvh - 250px)));
   aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: stretch;
   padding: 8px;
   background: #f7f7f7;
 }
@@ -903,6 +905,8 @@ textarea:focus-visible {
 }
 
 .generated-image-grid {
+  min-width: 0;
+  min-height: 0;
   width: 100%;
   height: 100%;
   display: grid;

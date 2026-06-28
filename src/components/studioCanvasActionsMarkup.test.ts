@@ -114,6 +114,13 @@ describe("studio canvas actions markup", () => {
     expect(source).toContain("请保持页面打开");
   });
 
+  it("does not combine the multi-image grid with single-image empty loading classes", () => {
+    expect(source).toContain("const isCanvasGrid = generationSlots.length > 1 || visibleCanvasImages.length > 1");
+    expect(source).toContain('!visibleCanvasImage && !isCanvasGrid ? "is-empty" : ""');
+    expect(source).toContain('loading && !isCanvasGrid ? "is-loading" : ""');
+    expect(source).toContain('isCanvasGrid ? "is-grid" : ""');
+  });
+
   it("documents pricing and invite rewards in the tutorial panels", () => {
     const panel = readHeaderContextPanelSource();
 

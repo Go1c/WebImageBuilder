@@ -129,26 +129,25 @@ export function getStudioActionStates(input: {
     save: getImageActionState({
       label: "保存到作品集",
       image: input.image,
-      loading: input.loading,
+      loading: false,
       loadingReason: "生成完成后才能保存。",
       missingImageReason: "画布上没有可保存的图片。"
     }),
     share: getShareActionState({
       image: input.image,
-      canShare: Boolean(input.canShare),
-      loading: input.loading
+      canShare: Boolean(input.canShare)
     }),
     referenceReuse: getImageActionState({
       label: "用作参考图",
       image: input.image,
-      loading: input.loading,
+      loading: false,
       loadingReason: "生成完成后才能用作参考图。",
       missingImageReason: "画布上没有可用作参考图的图片。"
     }),
     download: getImageActionState({
       label: "下载图片",
       image: input.image,
-      loading: input.loading,
+      loading: false,
       loadingReason: "生成完成后才能下载。",
       missingImageReason: "画布上没有可下载的图片。"
     }),
@@ -163,7 +162,7 @@ export function getStudioActionStates(input: {
     zoom: getImageActionState({
       label: "打开大图",
       image: input.image,
-      loading: input.loading,
+      loading: false,
       loadingReason: "生成完成后才能打开大图。",
       missingImageReason: "画布上没有可打开的大图。"
     })
@@ -173,16 +172,7 @@ export function getStudioActionStates(input: {
 function getShareActionState(input: {
   image: StudioActionImage | null;
   canShare: boolean;
-  loading: boolean;
 }): StudioActionState {
-  if (input.loading) {
-    return {
-      enabled: false,
-      label: "分享提示词",
-      reason: "生成完成后才能分享。"
-    };
-  }
-
   if (!input.image) {
     return {
       enabled: false,

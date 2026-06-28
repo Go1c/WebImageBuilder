@@ -110,6 +110,10 @@ describe("studio layout CSS", () => {
     const countThreeRule = readRule(".main-image-frame.count-3 .generated-image-grid");
 
     expect(gridFrameRule).toContain("aspect-ratio: 1 / 1");
+    expect(gridFrameRule).toContain("display: grid");
+    expect(gridFrameRule).toContain("place-items: stretch");
+    expect(generatedGridRule).toContain("min-width: 0");
+    expect(generatedGridRule).toContain("min-height: 0");
     expect(generatedGridRule).toContain("grid-template-columns: repeat(2");
     expect(generatedGridRule).toContain("grid-template-rows: repeat(2");
     expect(countThreeRule).toContain("grid-template-columns: repeat(2");
