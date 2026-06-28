@@ -81,17 +81,18 @@ export class GeminiImageProvider implements ImageProvider {
     const apiKey = this.options.apiKey || requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY");
     const gatewayBaseUrl = this.options.baseUrl;
     const url = gatewayBaseUrl
-      ? `${gatewayBaseUrl.replace(/\/+$/, "")}/v1beta/models/${input.providerModel}:generateContent`
-      : `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:generateContent?key=${encodeURIComponent(
-          apiKey
-        )}`;
+      ? `${gatewayBaseUrl.replace(/\/+$/, "")}/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`;
 
     const response = await fetchGemini(
       url,
       {
         method: "POST",
         headers: {
-          ...(gatewayBaseUrl ? { Authorization: `Bearer ${apiKey}` } : {}),
+          ...(gatewayBaseUrl
+            ? { Authorization: `Bearer ${apiKey}` }
+            : { "x-goog-api-key": apiKey }),
+          Accept: "text/event-stream, application/json",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -102,14 +103,17 @@ export class GeminiImageProvider implements ImageProvider {
             }
           ],
           generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"]
+            responseModalities: ["TEXT", "IMAGE"],
+            imageConfig: {
+              aspectRatio: getGeminiAspectRatio(input.size)
+            }
           }
         })
       },
       getGenerationTimeoutMs(input.resolution)
     );
 
-    return parseGeminiResponse(await readUpstreamResponseBody<GeminiResponse>(response), response.status);
+    return parseGeminiResponseBody(response);
   }
 }
 
@@ -150,7 +154,22 @@ function buildPrompt(input: NormalizedGenerationInput, variationIndex?: number):
   return `${input.prompt}${variationPrompt}`;
 }
 
-function parseGeminiResponse(body: UpstreamResponseBody<GeminiResponse>, status: number): GeneratedImage[] {
+async function parseGeminiResponseBody(response: Response): Promise<GeneratedImage[]> {
+  const contentType = response.headers.get("content-type") || "";
+  if (response.status >= 400 || !contentType.includes("text/event-stream")) {
+    return parseGeminiResponse(
+      await readUpstreamResponseBody<GeminiResponse>(response),
+      response.status
+    );
+  }
+
+  return parseGeminiStream(await response.text());
+}
+
+function parseGeminiResponse(
+  body: UpstreamResponseBody<GeminiResponse>,
+  status: number
+): GeneratedImage[] {
   if (status >= 400) {
     throw new Error(
       formatUpstreamErrorMessage({
@@ -190,6 +209,101 @@ function parseGeminiResponse(body: UpstreamResponseBody<GeminiResponse>, status:
   }
 
   return images;
+}
+
+function parseGeminiStream(text: string): GeneratedImage[] {
+  const images: GeneratedImage[] = [];
+
+  for (const event of parseServerSentEvents(text)) {
+    const trimmed = event.trim();
+    if (!trimmed || trimmed === "[DONE]") {
+      continue;
+    }
+
+    let body: GeminiResponse;
+    try {
+      body = JSON.parse(trimmed) as GeminiResponse;
+    } catch (error) {
+      throw new Error(
+        `Gemini 图像网关返回了无法解析的流式响应: ${
+          error instanceof Error ? error.message : "invalid SSE JSON"
+        }`
+      );
+    }
+
+    if (body.error?.message) {
+      throw new Error(body.error.message);
+    }
+
+    images.push(...extractGeminiImages(body));
+  }
+
+  if (!images.length) {
+    throw new Error("Gemini response did not contain generated images");
+  }
+
+  return images;
+}
+
+function parseServerSentEvents(text: string): string[] {
+  return text
+    .split(/\r?\n\r?\n/)
+    .map((block) =>
+      block
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trimStart())
+        .join("\n")
+    )
+    .filter(Boolean);
+}
+
+function extractGeminiImages(body: GeminiResponse): GeneratedImage[] {
+  const images: GeneratedImage[] = [];
+  for (const candidate of body.candidates || []) {
+    for (const part of candidate.content?.parts || []) {
+      const inline = part.inlineData
+        ? {
+            data: part.inlineData.data,
+            mimeType: part.inlineData.mimeType
+          }
+        : {
+            data: part.inline_data?.data,
+            mimeType: part.inline_data?.mime_type
+          };
+      const mimeType = inline.mimeType || "image/png";
+      if (inline?.data && mimeType.startsWith("image/")) {
+        images.push(base64ToGeneratedImage(inline.data, mimeType));
+      }
+    }
+  }
+
+  return images;
+}
+
+function getGeminiAspectRatio(size: NormalizedGenerationInput["size"]): string {
+  const [width, height] = size.split("x").map(Number);
+  const divisor = greatestCommonDivisor(width, height);
+  const ratio = `${width / divisor}:${height / divisor}`;
+
+  if (["1:1", "3:4", "4:3", "16:9", "9:16"].includes(ratio)) {
+    return ratio;
+  }
+
+  return "1:1";
+}
+
+function greatestCommonDivisor(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+
+  while (y > 0) {
+    const next = x % y;
+    x = y;
+    y = next;
+  }
+
+  return x || 1;
 }
 
 async function runWithConcurrency<T, R>(
