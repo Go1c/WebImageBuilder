@@ -1,0 +1,423 @@
+<!-- @dsCard group="设计交付" viewport="1440x900" name="00 · 统一工作台原型" subtitle="六屏 + 全动线 · 浅/深双主题 · 左下角可切换状态演示" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>Lumio 统一工作台 · 高保真原型</title>
+<link rel="stylesheet" href="tokens.css"></link>
+<link rel="stylesheet" href="shell.css"></link>
+<link rel="stylesheet" href="screens.css"></link>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ═══ 屏 A · 统一顶栏 ═══ -->
+  <header class="shell-topbar" data-screen-label="屏A 统一顶栏">
+    <a class="shell-brand" href="#studio">
+      <span class="brand-mark">
+        <svg class="studio-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg>
+      </span>
+      <span class="brand-name">LumioImageStudio</span>
+    </a>
+    <span class="global-stats-pill" id="global-stats">
+      <span>全站已生成</span><span class="stat-skeleton" id="stat-skeleton"></span><strong id="stat-num" hidden>128,462</strong><span>次</span>
+    </span>
+
+    <nav class="shell-nav" aria-label="主导航">
+      <button type="button" class="nav-generate" data-nav="studio">探索</button>
+      <button type="button" class="nav-canvas" data-nav="canvas">无限画布<span class="nav-beta">Beta</span></button>
+      <button type="button" disabled title="视频创作台即将上线">视频创作台<span class="nav-soon">即将上线</span></button>
+      <button type="button" data-nav="portfolio">作品集</button>
+      <button type="button" data-nav="prompts">提示词库</button>
+      <button type="button" data-nav="tutorial" data-overlay="tutorial">教程</button>
+    </nav>
+
+    <div class="shell-account" id="account-signed-in">
+      <span class="pill quota-pill" id="quota-pill"><span class="pill-label">免费次数</span><strong id="quota-num">3 次</strong></span>
+      <span class="pill balance-pill"><span class="pill-label">余额</span><strong>$12.80</strong></span>
+      <button type="button" class="pill invite-pill" data-overlay="invite">邀请有礼</button>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="切换主题">
+        <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+      </button>
+      <button type="button" class="account-avatar" id="account-avatar" aria-label="账号菜单">C</button>
+    </div>
+    <div class="shell-account" id="account-signed-out" hidden>
+      <span class="pill quota-pill"><span class="pill-label">免费体验</span><strong>3 次</strong></span>
+      <button type="button" class="theme-toggle" data-theme-btn aria-label="切换主题">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+      </button>
+      <button type="button" class="pill login-pill" data-overlay="login">登录</button>
+    </div>
+
+    <!-- 账号菜单 -->
+    <div class="account-menu" id="account-menu">
+      <div class="menu-mail">creator@lumio.games</div>
+      <a href="https://api.lumio.games" target="_blank" rel="noreferrer">Lumio 账户中心 ↗</a>
+      <button type="button" data-overlay="invite">邀请有礼</button>
+      <button type="button" id="menu-config">偏好配置</button>
+      <button type="button" id="menu-theme">切换主题</button>
+      <button type="button" id="menu-logout">退出登录</button>
+      <div class="menu-version">img.lumio.games · v2.4.0</div>
+    </div>
+  </header>
+
+  <!-- 公告横幅（顶栏下通栏，可关闭、多条排队） -->
+  <div class="announce-bar" id="announce-bar" data-screen-label="屏A 公告横幅">
+    <span class="announce-tag">公告</span>
+    <p id="announce-text"></p>
+    <span class="announce-queue" id="announce-queue"></span>
+    <button type="button" class="announce-close" id="announce-close" aria-label="关闭公告">✕</button>
+  </div>
+
+  <!-- ═══ 屏 B · 生图工作台 ═══ -->
+  <main class="page is-flex is-active" id="page-studio" data-screen-label="屏B 生图工作台">
+    <div class="studio-grid">
+      <!-- 左栏 · 创作面板 -->
+      <section class="side-panel prompt-panel" aria-label="创作面板">
+        <div class="panel-header"><h1>创作面板</h1><p>描述画面，选择模型与画幅</p></div>
+        <div class="panel-scroll">
+          <div>
+            <p class="section-label">提示词</p>
+            <div class="prompt-card">
+              <textarea id="prompt-input" placeholder="描述你想要的画面，例如：清晨的城市屋顶花园，一只橘猫望向远方，水彩风格…"></textarea>
+              <div class="prompt-action-row">
+                <div class="reference-row" id="reference-row">
+                  <span class="reference-thumb"><img src="../assets/community-2.jpg" alt="参考图 1"></img><button type="button" class="reference-remove" aria-label="移除参考图">✕</button></span>
+                  <button type="button" class="reference-add" aria-label="上传参考图">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+                  </button>
+                </div>
+                <button type="button" class="generate-fab" id="generate-btn" aria-label="生成">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-9 7 9M12 21V3" transform="rotate(90 12 12)"></path></svg>
+                </button>
+              </div>
+            </div>
+            <p class="quota-hint" id="quota-hint">本次消耗 <strong>1 次免费额度</strong> · 剩 3 次</p>
+          </div>
+
+          <div>
+            <p class="section-label">负面提示词</p>
+            <input class="negative-input" placeholder="不想出现的元素，如：模糊、文字、水印"></input>
+          </div>
+
+          <div>
+            <div class="section-label-row"><p class="section-label">模型与张数</p><span>2K/4K 需登录使用余额</span></div>
+            <div class="model-control-grid">
+              <label class="studio-select-control"><span>模型</span>
+                <select><option>gpt-image-2</option><option>gpt-image-2 · 2K</option><option>gpt-image-2 · 4K</option><option>gemini-3.1-flash</option></select>
+              </label>
+              <label class="studio-select-control"><span>张数</span>
+                <select><option>1 张</option><option>2 张</option><option>3 张</option><option selected>4 张</option></select>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <p class="section-label">画幅比例</p>
+            <div class="ratio-grid" id="ratio-grid">
+              <button type="button" class="ratio-button is-selected">1:1</button>
+              <button type="button" class="ratio-button">4:3</button>
+              <button type="button" class="ratio-button">3:4</button>
+              <button type="button" class="ratio-button">16:9</button>
+              <button type="button" class="ratio-button">9:16</button>
+            </div>
+            <button type="button" class="custom-resolution-button" id="custom-btn">自定义分辨率</button>
+            <div class="custom-size-fields" id="custom-fields">
+              <label>宽 <input class="custom-size-input" value="1024" inputmode="numeric"></input></label>
+              <span class="custom-size-multiply">×</span>
+              <label>高 <input class="custom-size-input" value="1024" inputmode="numeric"></input></label>
+              <p class="custom-size-help">256–4096 像素，64 的倍数</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label-row"><p class="section-label">细节强度</p><span id="detail-val">64</span></div>
+            <input type="range" class="detail-slider" id="detail-slider" min="0" max="100" value="64"></input>
+            <div class="slider-copy"><span>柔和</span><span class="hq-note" id="hq-note" hidden>已启用高质量档</span><span>锐利</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 中央 · 画布 -->
+      <section class="canvas-area" aria-label="生成画布">
+        <div class="canvas-meta">
+          <span class="model-chip">✦ gpt-image-2</span>
+          <span class="meta-dot">·</span>
+          <p id="meta-prompt">深空银河核心，璨璨星云与尘埃，长曝光摄影质感</p>
+          <span class="meta-dot">·</span>
+          <span class="meta-note">1:1 · 1024×1024</span>
+        </div>
+
+        <div class="image-stage" id="image-stage">
+          <!-- 空态（价值引导，与落地页同语气） -->
+          <div class="main-image-frame is-empty" id="stage-empty">
+            <div class="empty-pitch">
+              <h2>从一句<span class="hl">提示词</span>开始</h2>
+              <p>生成、连接和重组，让创作从单次生成变成连续推演。</p>
+              <button type="button" id="try-prompt">试试：赛博朋克夜市，雨后霓虹倒影，电影感构图 →</button>
+            </div>
+          </div>
+          <!-- 加载态 -->
+          <div class="main-image-frame is-loading" id="stage-loading" hidden>
+            <div class="stage-loading">
+              <strong>正在生成…</strong>
+              <div class="loading-progress"><div class="loading-progress-bar" id="progress-bar"></div></div>
+              <p id="loading-note">1K 通常 20–40 秒，请勿关闭页面</p>
+            </div>
+          </div>
+          <!-- 成功态 -->
+          <div class="main-image-frame" id="stage-image" hidden>
+            <img src="../assets/community-6.jpg" id="stage-img" alt="生成预览"></img>
+          </div>
+          <!-- 失败态 -->
+          <div class="main-image-frame is-failed" id="stage-failed" hidden>
+            <div class="stage-failed">
+              <strong>生成没有成功</strong>
+              <p>上游服务暂时繁忙，本次未扣除额度。可以稍后重试，或换一个模型。</p>
+              <button type="button" class="btn" id="retry-btn">重试一次</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-actions" id="canvas-actions" data-screen-label="屏B 结果操作条">
+          <p class="spend-note" id="spend-note">本次消耗 <strong>1 次免费额度</strong> · 剩 <strong id="spend-left">3</strong> 次</p>
+          <button type="button" class="save-button" id="act-save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>
+            保存到作品集
+          </button>
+          <button type="button" class="open-canvas-button" id="act-canvas">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h5.5V12M6.5 10v5.5H12"></path></svg>
+            在画布中打开
+          </button>
+          <button type="button" class="share-card-button" id="act-share">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.6 6.8-3.9M8.6 13.4l6.8 3.9"></path></svg>
+            分享提示词卡片
+          </button>
+          <span class="action-divider"></span>
+          <button type="button" class="icon-button" data-tooltip="下载" id="act-download" aria-label="下载">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+          </button>
+          <button type="button" class="icon-button" data-tooltip="重新生成" id="act-regen" aria-label="重新生成">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"></path></svg>
+          </button>
+          <button type="button" class="icon-button" data-tooltip="删除" id="act-delete" aria-label="删除">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path></svg>
+          </button>
+        </div>
+
+        <div class="canvas-history" id="canvas-history" data-screen-label="屏B 历史条">
+          <span>历史</span>
+        </div>
+      </section>
+
+      <!-- 右栏 · 提示词库嵌入态 -->
+      <section class="side-panel library-panel" aria-label="提示词库" data-screen-label="屏D 提示词库嵌入态">
+        <div class="panel-header"><h1>提示词库</h1><p>点击卡片，提示词直接套用到左侧</p></div>
+        <div class="library-controls">
+          <div class="library-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input placeholder="搜索 335 条提示词"></input>
+          </div>
+          <div class="library-tabs" id="library-tabs">
+            <button type="button" class="is-selected">热门</button>
+            <button type="button">人物</button>
+            <button type="button">场景</button>
+            <button type="button">风格</button>
+            <button type="button">我的</button>
+            <span class="library-count" id="library-count">335 条</span>
+          </div>
+        </div>
+        <div class="panel-scroll" id="library-body"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ═══ 屏 C · 无限画布落地页 ═══ -->
+  <main class="page canvas-landing" id="page-canvas" data-screen-label="屏C 无限画布落地页">
+    <section class="hero">
+      <h1>无限画布</h1>
+      <p class="sub">在<span class="hl-underline">无限画布</span>中生成、连接和重组<span class="hl-block">图片、文字与图形</span>，让创作从单次生成变成连续推演。</p>
+      <div class="hero-ctas">
+        <button type="button" class="btn generate" id="canvas-start">开始使用 →</button>
+        <button type="button" class="btn teal" id="canvas-open">打开画布</button>
+      </div>
+    </section>
+    <section class="showcase">
+      <div class="showcase-head">
+        <div><h2>沉淀每一次好结果</h2><p>收藏稳定出图的提示词、参考风格和结果图片，让下一次创作从已有经验开始。</p></div>
+        <button type="button" class="btn" data-nav="prompts">查看提示词库 →</button>
+      </div>
+      <div class="showcase-grid" id="showcase-grid"></div>
+    </section>
+  </main>
+
+  <!-- ═══ 屏 D · 提示词库完整态 ═══ -->
+  <main class="page prompts-page" id="page-prompts" data-screen-label="屏D 提示词库完整态">
+    <div class="page-head"><h1>提示词库</h1><p>官方提示词 335 条 · 「我的素材」仅保存在本设备</p></div>
+    <div class="filter-row" id="prompts-filter">
+      <div class="library-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <input placeholder="搜索提示词、标签"></input>
+      </div>
+      <button type="button" class="chip on">热门</button>
+      <button type="button" class="chip">人物</button>
+      <button type="button" class="chip">场景</button>
+      <button type="button" class="chip">风格</button>
+      <button type="button" class="chip">我的</button>
+    </div>
+    <div class="cards-wrap"><div class="cards-grid" id="prompts-grid"></div></div>
+  </main>
+
+  <!-- ═══ 作品集（升级为真页面） ═══ -->
+  <main class="page portfolio-page" id="page-portfolio" data-screen-label="屏D 作品集页">
+    <div class="page-head">
+      <h1>作品集</h1>
+      <p>你生成并保存的成品 · <span title="IndexedDB 本地存储">仅保存在本设备，清除浏览器数据会丢失</span></p>
+    </div>
+    <div class="cards-wrap">
+      <div class="portfolio-grid" id="portfolio-grid"></div>
+      <div class="empty-state" id="portfolio-empty" hidden>
+        <h3>还没有作品</h3>
+        <p>去生图工作台生成第一张图，点「保存到作品集」就会出现在这里。</p>
+        <button type="button" class="btn generate" data-nav="studio">去生成 →</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ 屏 F · 分享落地页 ═══ -->
+  <main class="page share-page" id="page-share" data-screen-label="屏F 分享落地页">
+    <div class="share-card" id="share-normal">
+      <div class="share-image-wrap">
+        <img src="../assets/community-2.jpg" alt="分享图片"></img>
+        <div class="share-watermark">img.lumio.games · 仅供预览</div>
+      </div>
+      <div class="share-content">
+        <p class="share-eyebrow">LUMIO 提示词卡片</p>
+        <h1>流动的丝绸渐变</h1>
+        <div class="share-params"><span>gpt-image-2</span><span>4:3 · 1536×1152</span><span>细节 76 · 高质量档</span></div>
+        <pre class="share-prompt">流动的丝绸质感渐变，紫罗兰、青蓝与暖橙交织，柔和体积光，超高清壁纸质感</pre>
+        <span class="share-author">由 c***r@lumio.games 生成 · 3 天前</span>
+        <button type="button" class="share-cta" id="share-try">✦ 我也要生成 · 免费 3 次</button>
+        <div class="share-secondary">
+          <button type="button" id="share-copy">复制提示词</button>
+          <button type="button" id="share-download">下载图片</button>
+          <button type="button" class="share-report-link" id="share-report">举报该内容</button>
+        </div>
+      </div>
+    </div>
+    <div class="share-card" id="share-unavailable" hidden>
+      <div class="share-unavailable">
+        <h2>这张卡片已失效或被下架</h2>
+        <p>分享链接可能已过期，或内容未通过审核。你仍然可以自己创作一张。</p>
+        <button type="button" class="btn generate" data-nav="studio">去生成 →</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ 屏 A · 全站 404 ═══ -->
+  <main class="page" id="page-404" data-screen-label="屏A 404">
+    <div class="notfound">
+      <div>
+        <h1>4<span class="hl">0</span>4</h1>
+        <p>这个页面不在画布上。检查一下链接，或者回到创作。</p>
+        <button type="button" class="btn primary" data-nav="studio">回到生图工作台</button>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<!-- ═══ 浮层：登录 / 邀请 / 教程 / 确认 / 跨域过渡 ═══ -->
+<div class="overlay-scrim" id="ov-login" data-screen-label="屏E 登录浮层">
+  <div class="overlay-card">
+    <div class="overlay-head"><div><p class="overlay-eyebrow">LUMIO 账号</p><h2>登录以继续创作</h2></div><button type="button" class="overlay-close" data-close aria-label="关闭">✕</button></div>
+    <p>账号、余额与邀请奖励由 Lumio 账户中心（api.lumio.games）托管。登录后免费额度 +3，2K / 4K 生成将使用账户余额。</p>
+    <div class="auth-status" id="auth-loading" hidden><span class="auth-spinner"></span><span>正在与 Lumio 账户中心交接登录状态…</span></div>
+    <div class="auth-error" id="auth-error" hidden>登录交接超时。请重试；若多次失败，可能是网络问题或账户中心暂不可用。<br /><button type="button" class="btn" id="auth-retry" style="margin-top:8px">重试</button></div>
+    <button type="button" class="btn primary block" id="login-go">前往 Lumio 登录 ↗</button>
+    <p class="overlay-note">未登录也可匿名免费生成 3 次（仅 1K）。</p>
+  </div>
+</div>
+
+<div class="overlay-scrim" id="ov-invite" data-screen-label="屏E 邀请面板">
+  <div class="overlay-card">
+    <div class="overlay-head"><div><p class="overlay-eyebrow">邀请有礼</p><h2>每邀请 1 位好友，双方各得 20 次</h2></div><button type="button" class="overlay-close" data-close aria-label="关闭">✕</button></div>
+    <div class="invite-kpis">
+      <div><div class="l">已邀请</div><div class="v">4 人</div></div>
+      <div><div class="l">已得奖励</div><div class="v">80 次</div></div>
+      <div><div class="l">待发放</div><div class="v">20 次</div></div>
+    </div>
+    <div class="copy-row"><code>https://img.lumio.games/?invite=LUM-8X2K</code><button type="button" class="btn primary" id="invite-copy">复制链接</button></div>
+    <p class="overlay-note">奖励发放与到账以 Lumio 账户中心为准。<a href="https://api.lumio.games" target="_blank" rel="noreferrer">前往账户中心 ↗</a></p>
+  </div>
+</div>
+
+<div class="overlay-scrim" id="ov-tutorial" data-screen-label="屏E 教程浮层">
+  <div class="overlay-card">
+    <div class="overlay-head"><div><p class="overlay-eyebrow">快速上手</p><h2>三步生成第一张图</h2></div><button type="button" class="overlay-close" data-close aria-label="关闭">✕</button></div>
+    <ol style="margin:8px 0 0; padding-left:20px; color:var(--studio-copy); font-size:13px; line-height:22px">
+      <li>在左侧描述画面，可上传参考图（最多 3 张）。</li>
+      <li>选模型与画幅；1K 免费体验，2K/4K 登录后用余额。</li>
+      <li>点生成。满意的结果可保存到作品集、在画布中继续推演，或分享提示词卡片给朋友。</li>
+    </ol>
+    <p class="overlay-note" style="margin-top:14px">提示：右侧提示词库有 335 条现成提示词，点击即可套用。</p>
+  </div>
+</div>
+
+<div class="overlay-scrim" id="ov-invited" data-screen-label="屏E 被邀请者落地">
+  <div class="overlay-card">
+    <div class="overlay-head"><div><p class="overlay-eyebrow">好友邀请</p><h2>你收到 20 次生成额度</h2></div><button type="button" class="overlay-close" data-close aria-label="关闭">✕</button></div>
+    <p>好友 <strong>c***r@lumio.games</strong> 邀请你加入 LumioImageStudio。现在可以先匿名免费体验 3 次；<strong>登录后邀请奖励 20 次自动到账</strong>。</p>
+    <button type="button" class="btn primary block" data-overlay="login">登录领取 20 次</button>
+    <button type="button" class="btn block" data-close style="margin-top:8px">先逛逛，稍后再说</button>
+  </div>
+</div>
+
+<div class="overlay-scrim" id="ov-crossover" data-screen-label="屏C 跨域过渡态">
+  <div class="overlay-card crossover-card">
+    <div class="overlay-head"><div><p class="overlay-eyebrow" style="color:var(--lumio-teal-strong)">无限画布</p><h2>把这张图带到画布上</h2></div><button type="button" class="overlay-close" data-close aria-label="关闭">✕</button></div>
+    <div class="crossover-flow">
+      <img src="../assets/community-6.jpg" alt="当前生成结果"></img>
+      <span class="crossover-arrow">→</span>
+      <span class="crossover-dest">画布节点</span>
+    </div>
+    <p>图片将作为一个新节点加入画布项目，你可以继续裁剪、超分、Inpaint 或与其他节点连接。</p>
+    <button type="button" class="btn teal block" id="crossover-new">新建画布项目并打开</button>
+    <button type="button" class="btn block" id="crossover-append" style="margin-top:8px">追加到「屋顶花园系列」</button>
+  </div>
+</div>
+
+<div class="overlay-scrim" id="ov-confirm">
+  <div class="overlay-card confirm-card">
+    <h3 id="confirm-title">删除这张生成结果？</h3>
+    <p id="confirm-desc" style="margin:0">删除后无法恢复。</p>
+    <div class="confirm-impact" id="confirm-impact">影响范围：仅删除本设备上的记录，不影响已分享的卡片。</div>
+    <div class="confirm-actions">
+      <button type="button" class="btn" data-close>取消</button>
+      <button type="button" class="btn danger" id="confirm-ok">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- 演示控制条（交付审阅用） -->
+<div class="demo-bar" data-screen-label="演示控制">
+  <strong>状态演示</strong>
+  <button type="button" data-demo="quota-full">额度充足</button>
+  <button type="button" data-demo="quota-low">额度将尽</button>
+  <button type="button" data-demo="quota-out">额度耗尽</button>
+  <button type="button" data-demo="lib-loading">库·加载</button>
+  <button type="button" data-demo="lib-error">库·错误</button>
+  <button type="button" data-demo="lib-empty">库·我的空</button>
+  <button type="button" data-demo="logout">未登录态</button>
+  <button type="button" data-demo="invited">被邀请落地</button>
+  <button type="button" data-demo="share-dead">分享失效态</button>
+  <button type="button" data-demo="portfolio-empty">作品集空</button>
+  <button type="button" data-demo="404">404</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

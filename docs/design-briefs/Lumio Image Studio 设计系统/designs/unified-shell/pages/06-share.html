@@ -1,0 +1,90 @@
+<!-- @dsCard group="页面设计" viewport="1400x900" name="P6 · 分享落地页" subtitle="对外门面：水印卡 + 我也要生成 CTA + 失效态 · 移动优先" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>P6 · 分享落地页 · 页面设计</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="../screens.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+</head>
+<body class="spec-page">
+
+<nav class="spec-topnav">
+  <a href="index.html">页面地图</a><span class="sep">/</span><span class="cur">P6 · 分享落地页（/share/:id · 访客第一屏）</span>
+  <span class="pager"><a href="05-portfolio.html">← P5 作品集</a></span>
+</nav>
+
+<div class="screen-frame">
+  <div style="position:relative; height:760px; font-family:Inter,'PingFang SC',sans-serif" data-screen-label="P6 分享落地页">
+    <!-- 访客精简顶栏 -->
+    <header class="shell-topbar">
+      <a class="shell-brand" href="#"><span class="brand-mark">✦</span><span class="brand-name">LumioImageStudio</span></a>
+      <span class="global-stats-pill">全站已生成 <strong>128,462</strong> 次</span>
+      <div class="shell-account" style="margin-left:auto">
+        <span class="pill quota-pill">免费体验 <strong>3 次</strong></span>
+        <button type="button" class="pill login-pill">登录</button>
+      </div>
+      <i class="spot" style="right:30px; top:44px">1</i>
+    </header>
+
+    <div class="share-page" style="height:calc(100% - 56px)">
+      <div class="share-card" style="position:relative">
+        <div class="share-image-wrap">
+          <img src="../../assets/community-2.jpg" alt="分享图片"></img>
+          <div class="share-watermark">img.lumio.games · 仅供预览</div>
+        </div>
+        <div class="share-content">
+          <p class="share-eyebrow">LUMIO 提示词卡片</p>
+          <h1>流动的丝绸渐变</h1>
+          <div class="share-params"><span>gpt-image-2</span><span>4:3 · 1536×1152</span><span>细节 76 · 高质量档</span></div>
+          <pre class="share-prompt">流动的丝绸质感渐变，紫罗兰、青蓝与暖橙交织，柔和体积光，超高清壁纸质感</pre>
+          <span class="share-author">由 c***r@lumio.games 生成 · 3 天前</span>
+          <button type="button" class="share-cta">✦ 我也要生成 · 免费 3 次</button>
+          <div class="share-secondary">
+            <button type="button">复制提示词</button>
+            <button type="button">下载图片</button>
+            <button type="button" class="share-report-link">举报该内容</button>
+          </div>
+        </div>
+        <i class="spot" style="left:180px; top:180px">2</i>
+        <i class="spot" style="right:180px; bottom:120px; top:auto">3</i>
+        <i class="spot" style="right:60px; bottom:56px; top:auto">4</i>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="screen-caption"><span>访客态（未登录）· 移动端 375px：单列，水印图在上，CTA 吸底</span><span>1440×820</span></p>
+
+<div class="spec-body">
+  <h2>页面定位</h2>
+  <p class="lead">未登录访客看到的第一屏，产品的对外门面与拉新入口。分享链接多在手机打开——<strong>移动优先</strong>：375px 下单列，「我也要生成」CTA 吸底常驻。</p>
+
+  <h2>逐控件规格</h2>
+  <div class="spec-grid">
+    <div class="spec-item"><span class="n">1</span><div><b>访客精简顶栏</b><p>只保留品牌 + 全站计数（社会证明）+ 免费体验 pill + 登录。不出现完整导航——访客动线聚焦转化。</p></div></div>
+    <div class="spec-item"><span class="n">2</span><div><b>水印保护图</b><p>内容安全要求，<strong>不可移除</strong>：斜置半透明水印 + 禁右键拖拽；下载得到的也是水印预览图。图上<span class="act">点击</span>开大图（仍带水印）。</p></div></div>
+    <div class="spec-item"><span class="n">3</span><div><b>「我也要生成」主 CTA</b><p>violet 大按钮 + 「免费 3 次」消除门槛。<span class="go">→ P1 生图工作台 ?prompt= 预填该提示词</span>，落点 toast「提示词已预填」。这是全页唯一强按钮，其余操作降为线框级。</p></div></div>
+    <div class="spec-item"><span class="n">4</span><div><b>次操作与举报</b><p>复制提示词（toast）/ 下载图片（水印版）/ 举报——<span class="act">点击</span>确认弹窗（「24 小时内复核，不通知作者」），提交后按钮变「已举报 ✓」置灰。</p></div></div>
+  </div>
+
+  <h2>四态</h2>
+  <div class="state-row">
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-green)"></i>正常</div><div class="st-body">如上稿。已登录访客：顶栏换完整导航，CTA 文案改「用这条提示词生成」。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-orange)"></i>加载</div><div class="st-body">卡片骨架（图位 + 三行文字骨架），CTA 后置出现避免误点。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-faint)"></i>已失效 / 已下架</div><div class="st-body">体验化卡片（非白屏跳转）：「这张卡片已失效或被下架」+ 解释 + 「去生成 →」CTA。5 秒不操作不自动跳转——把选择权留给访客。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-danger)"></i>举报成功</div><div class="st-body">toast「已收到举报，感谢反馈」+ 按钮态翻转，不打断浏览。</div></div>
+  </div>
+
+  <h2>跳转地图</h2>
+  <div class="jump-map"><table>
+    <tr><th>触点</th><th></th><th>去向</th></tr>
+    <tr><td>我也要生成</td><td class="arr">→</td><td>P1 <code>?prompt=</code> 预填（匿名免费 3 次，1K）</td></tr>
+    <tr><td>顶栏登录</td><td class="arr">→</td><td>登录浮层 <span class="arr">→</span> Lumio 账户中心交接</td></tr>
+    <tr><td>失效态「去生成」</td><td class="arr">→</td><td>P1（无预填）</td></tr>
+  </table></div>
+</div>
+</body>
+</html>

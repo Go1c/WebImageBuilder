@@ -1,0 +1,119 @@
+<!-- @dsCard group="页面设计" viewport="1400x980" name="P4 · 提示词库（完整页）" subtitle="五 tab + 详情弹层 + 我的素材管理 · 词表收敛落点" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>P4 · 提示词库 · 页面设计</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="../screens.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+<style>
+.pd-modal { position: absolute; right: 60px; top: 150px; z-index: 20; width: 560px; display: grid; grid-template-columns: 250px 1fr; border: 1px solid var(--studio-line-strong); border-radius: 16px; background: var(--studio-surface); box-shadow: 0 24px 70px -20px rgba(0,0,0,.35); overflow: hidden; }
+.pd-modal img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pd-body { padding: 16px; display: flex; flex-direction: column; gap: 9px; font-size: 12px; }
+.pd-body h3 { margin: 0; font-size: 16px; }
+.pd-body .meta { color: var(--studio-faint); font-size: 11px; }
+.pd-body pre { margin: 0; border: 1px solid var(--studio-line); border-radius: 8px; padding: 9px 10px; background: var(--studio-bg); color: var(--studio-copy); font: 12px/18px inherit; white-space: pre-wrap; }
+.pd-body .row { display: flex; gap: 6px; margin-top: auto; }
+</style>
+</head>
+<body class="spec-page">
+
+<nav class="spec-topnav">
+  <a href="index.html">页面地图</a><span class="sep">/</span><span class="cur">P4 · 提示词库（完整页 /prompts）</span>
+  <span class="pager"><a href="03-canvas-editor.html">← P3 编辑器</a><a href="05-portfolio.html">P5 作品集 →</a></span>
+</nav>
+
+<div class="screen-frame">
+  <div style="position:relative; height:860px; overflow:hidden; font-family:Inter,'PingFang SC',sans-serif; background:var(--studio-bg); color:var(--studio-text)" data-screen-label="P4 提示词库">
+    <header class="shell-topbar">
+      <a class="shell-brand" href="#"><span class="brand-mark">✦</span><span class="brand-name">LumioImageStudio</span></a>
+      <nav class="shell-nav">
+        <button type="button" class="nav-generate">探索</button>
+        <button type="button" class="nav-canvas">无限画布<span class="nav-beta">Beta</span></button>
+        <button type="button" disabled>视频创作台</button>
+        <button type="button">作品集</button>
+        <button type="button" class="is-selected">提示词库</button>
+        <button type="button">教程</button>
+      </nav>
+      <div class="shell-account"><span class="pill quota-pill">免费次数 <strong>3 次</strong></span><button type="button" class="account-avatar">C</button></div>
+    </header>
+
+    <div class="page-head" style="position:relative">
+      <h1>提示词库</h1>
+      <p>官方提示词 335 条 · 「我的素材」仅保存在本设备</p>
+      <i class="spot" style="left:340px; top:52px">1</i>
+    </div>
+    <div class="filter-row" style="position:relative">
+      <div class="library-search">⌕ <input placeholder="搜索提示词、标签"></input></div>
+      <button type="button" class="chip on">热门</button><button type="button" class="chip">人物</button><button type="button" class="chip">场景</button><button type="button" class="chip">风格</button><button type="button" class="chip">我的 4</button>
+      <span style="margin-left:auto; color:var(--studio-faint); font-size:12px">335 条 · 每行按窗口自适应</span>
+      <i class="spot" style="left:560px; top:2px">2</i>
+    </div>
+    <div class="cards-wrap">
+      <div class="cards-grid" style="grid-template-columns:repeat(5,1fr)">
+        <button type="button" class="prompt-lib-card"><img src="../../assets/case1.jpg" alt=""></img><span class="card-fav faved">★</span><span class="t">城市生命系统图谱</span><span class="m">#1 · 场景</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/case15.jpg" alt=""></img><span class="t">夜市大排档人像海报</span><span class="m">#15 · 人物</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/case17.jpg" alt=""></img><span class="t">成都吃货暴走地图</span><span class="m">#17 · 场景</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/case14.jpg" alt=""></img><span class="t">国风美食图鉴</span><span class="m">#14 · 风格</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/community-2.jpg" alt=""></img><span class="t">流动的丝绸渐变</span><span class="m">#21 · 风格</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/community-4.jpg" alt=""></img><span class="t">彩虹光晕</span><span class="m">#22 · 风格</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/community-6.jpg" alt=""></img><span class="t">银河星空</span><span class="m">#23 · 场景</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/community-5.jpg" alt=""></img><span class="t">周末清晨的咖啡</span><span class="m">#24 · 人物</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/community-1.jpg" alt=""></img><span class="t">工坊里的匠人</span><span class="m">#25 · 人物</span></button>
+        <button type="button" class="prompt-lib-card"><img src="../../assets/case19.jpg" alt=""></img><span class="t">图解式故事海报</span><span class="m">#19 · 风格</span></button>
+      </div>
+      <i class="spot" style="left:80px; top:80px; position:absolute">3</i>
+    </div>
+
+    <!-- 详情弹层 -->
+    <div class="pd-modal" data-screen-label="P4 详情弹层">
+      <img src="../../assets/case17.jpg" alt="成都吃货暴走地图"></img>
+      <div class="pd-body">
+        <h3>成都吃货暴走地图</h3>
+        <span class="meta">#17 · 场景 · 被使用 1,204 次</span>
+        <pre>手绘水彩城市美食地图，成都地标与小吃插画，暖米色纸纹底，编号标注式排版，可爱风格</pre>
+        <div class="row">
+          <button type="button" class="btn generate" style="min-height:34px; font-size:12px">✦ 用它生成</button>
+          <button type="button" class="btn" style="min-height:34px; font-size:12px">☆ 加入我的素材</button>
+          <button type="button" class="btn" style="min-height:34px; font-size:12px">复制</button>
+        </div>
+      </div>
+    </div>
+    <i class="spot" style="right:40px; top:130px">4</i>
+  </div>
+</div>
+<p class="screen-caption"><span>完整态（/prompts 可深链：?tab=风格&amp;q=胶片）· 与 P1 右栏嵌入态卡片同源</span><span>1440×900</span></p>
+
+<div class="spec-body">
+  <h2>词表定稿（逐字执行）</h2>
+  <p class="lead">官方内容 = <strong>提示词库</strong>（热门/人物/场景/风格）；用户收藏与上传 = <strong>我的素材</strong>（本页「我的」tab，含导入/导出 ZIP、编辑、删除）；生成成品 = <strong>作品集</strong>（P5）。「素材库」一词全站退役。</p>
+
+  <h2>逐控件规格</h2>
+  <div class="spec-grid">
+    <div class="spec-item"><span class="n">1</span><div><b>页头 + 本地存储标注</b><p>总数与「我的素材仅保存在本设备」诚实标注常驻。</p></div></div>
+    <div class="spec-item"><span class="n">2</span><div><b>搜索 + 分类 chip</b><p>搜索标题/标签/提示词全文（300ms 防抖）；chip 单选，「我的」带计数徽标。<strong>tab 与搜索词写入 URL</strong>（?tab=&amp;q=）可深链分享。「我的」tab 追加工具行：导入 ZIP / 导出 ZIP / 新建素材。</p></div></div>
+    <div class="spec-item"><span class="n">3</span><div><b>卡片（与嵌入态同源 anatomy）</b><p>缩略图 + 标题 + <code>#序号 · 分类</code>；<span class="act">悬停出 ☆</span>（点击加入我的素材，★ 常显）；<span class="act">点卡片</span>开详情弹层（不直接套用——完整页以浏览为主，套用是二步动作）。</p></div></div>
+    <div class="spec-item"><span class="n">4</span><div><b>详情弹层</b><p>大图 + 全文 + 使用次数。「✦ 用它生成」violet<span class="go">→ P1 ?prompt= 预填</span>；「加入我的素材」轻反馈 toast；「复制」复制全文。Esc / 点外部关闭；弹层 URL 化（/prompts/13）可直接分享。<strong>「我的」素材的弹层</strong>多出：编辑 / 删除（确认弹窗）。</p></div></div>
+  </div>
+
+  <h2>四态</h2>
+  <div class="state-row">
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-green)"></i>默认</div><div class="st-body">瀑布网格，无限滚动，每批 30 条 + 底部计数「已显示 30 / 335」。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-faint)"></i>我的·空</div><div class="st-body">「还没有收藏的素材」+ 去逛提示词库 / 导入 ZIP 两出路。搜索无结果：「没有匹配『xx』的提示词」+ 清除搜索。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-orange)"></i>加载</div><div class="st-body">30 格骨架微光。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-danger)"></i>错误</div><div class="st-body">「提示词库暂时拉取失败，不是没有内容」+ 重试。</div></div>
+  </div>
+
+  <h2>跳转地图</h2>
+  <div class="jump-map"><table>
+    <tr><th>触点</th><th></th><th>去向</th></tr>
+    <tr><td>详情「用它生成」</td><td class="arr">→</td><td>P1 <code>?prompt=</code> 预填 + toast</td></tr>
+    <tr><td>卡片 ☆ / 我的管理</td><td class="arr">→</td><td>写入本地「我的素材」（IndexedDB）</td></tr>
+    <tr><td>URL</td><td class="arr">→</td><td><code>/prompts?tab=&amp;q=</code> · 详情 <code>/prompts/:n</code> 均可深链</td></tr>
+  </table></div>
+</div>
+</body>
+</html>

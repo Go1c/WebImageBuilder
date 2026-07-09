@@ -214,4 +214,135 @@ select.ad-chip { appearance: none; padding-right: 26px; background-image: url("d
 .ad-forbidden p { color: var(--ad-muted); font-size: 14px; margin: 0 0 20px; }
 
 @media (prefers-reduced-motion: reduce) { .ad-drawer, .ad-scrim { transition: none !important; } }
-@media (max-width: 1080px) { .ad-root { grid-template-columns: 1fr; } .ad-side { display: none; } .ad-kpi-row, .ad-kpi-row.cols-4 { grid-template-columns: repeat(2, 1fr); } .ad-grid-2 { grid-template-columns: 1fr; } }
+/* NOTE: 1080px degrade for the sidebar is handled in the .adx-* section below
+   (sidebar collapses to a drawer via .adx-menu-btn), so the base media query here
+   intentionally does NOT hide .ad-side. */
+
+/* ======================================================================
+   Lumio Admin · 屏A 公共组件补全（本轮新增,01-admin §3.A）
+   ConfirmDialog / Toast / EmptyState×3 / 诚实截断条 / 统一分页器 /
+   图表 tooltip / 行过渡 / 拖拽排序 / 1080px 降级
+   逐字沿自 admin-components.css（.adx-* 前缀,不污染 .ad-* 基础体系）
+   ====================================================================== */
+
+/* ---- ConfirmDialog（替换 window.confirm / alert） ---- */
+.adx-dialog-scrim { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 24px; background: rgba(20,24,40,.44); opacity: 0; pointer-events: none; transition: opacity .16s; }
+.adx-dialog-scrim.open { opacity: 1; pointer-events: auto; }
+.adx-dialog { width: min(420px, 100%); background: var(--ad-surface); border-radius: 14px; box-shadow: var(--ad-shadow-lg); padding: 22px; }
+.adx-dialog h3 { margin: 0 0 6px; font-size: 16px; font-weight: 650; }
+.adx-dialog .desc { margin: 0; color: var(--ad-muted); font-size: 13px; }
+.adx-impact { margin: 14px 0 0; border: 1px solid #F0DCB2; background: var(--ad-warn-soft); color: var(--ad-warn); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; display: flex; gap: 8px; }
+.adx-impact.crit { border-color: #F0C9CA; background: var(--ad-crit-soft); color: var(--ad-crit); }
+.adx-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.adx-dialog .ad-btn.confirm-crit { background: var(--ad-crit); border-color: var(--ad-crit); color: #fff; }
+.adx-dialog .ad-btn.confirm-crit:hover { background: #C03A3E; }
+
+/* ---- Toast（成功/失败轻反馈） ---- */
+.adx-toast-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 90; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.adx-toast { display: flex; align-items: center; gap: 9px; max-width: 380px; background: #1C1F29; color: #EDEFF4; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 550; box-shadow: var(--ad-shadow-lg); animation: adxToastIn .18s ease; }
+.adx-toast::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ad-good); }
+.adx-toast.err::before { background: var(--ad-crit); }
+.adx-toast small { color: #9AA0B0; font-weight: 400; }
+@keyframes adxToastIn { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---- EmptyState 三变体 ---- */
+.adx-empty { padding: 44px 20px; text-align: center; }
+.adx-empty .glyph { width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 12px; display: grid; place-items: center; background: #EEF0F4; color: var(--ad-faint); }
+.adx-empty h4 { margin: 0 0 4px; font-size: 14px; font-weight: 620; color: var(--ad-ink); }
+.adx-empty p { margin: 0 0 14px; color: var(--ad-muted); font-size: 12.5px; }
+.adx-empty.celebrate .glyph { background: var(--ad-good-soft); color: var(--ad-good); }
+.adx-empty.error .glyph { background: var(--ad-crit-soft); color: var(--ad-crit); }
+
+/* ---- 诚实截断条 ---- */
+.adx-truncate-strip { display: flex; align-items: center; gap: 9px; padding: 10px 16px; border-top: 1px dashed var(--ad-border-strong); background: #FBFBFC; color: var(--ad-muted); font-size: 12.5px; }
+.adx-truncate-strip strong { color: var(--ad-ink); font-weight: 620; }
+.adx-truncate-strip a { margin-left: auto; font-weight: 600; }
+
+/* ---- 统一分页器 ---- */
+.adx-pager { display: flex; align-items: center; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--ad-border); color: var(--ad-muted); font-size: 12.5px; }
+.adx-pager .total { margin-right: auto; }
+.adx-pager button { border: 1px solid var(--ad-border); background: var(--ad-surface); border-radius: 7px; min-width: 28px; height: 28px; font-family: inherit; font-size: 12.5px; color: var(--ad-muted); cursor: pointer; }
+.adx-pager button:hover { border-color: var(--ad-faint); }
+.adx-pager button.on { background: var(--ad-accent); border-color: var(--ad-accent); color: #fff; font-weight: 600; }
+.adx-pager button:disabled { opacity: .4; cursor: default; }
+
+/* ---- 图表 + tooltip ---- */
+.adx-chart { position: relative; }
+.adx-chart svg { display: block; width: 100%; }
+.adx-chart-tip { position: absolute; z-index: 5; pointer-events: none; background: #1C1F29; color: #EDEFF4; border-radius: 8px; padding: 7px 10px; font-size: 12px; line-height: 1.5; box-shadow: var(--ad-shadow-lg); transform: translate(-50%, calc(-100% - 10px)); white-space: nowrap; display: none; }
+.adx-chart-tip.show { display: block; }
+.adx-chart-tip .d { color: #9AA0B0; }
+.adx-chart-tip .row { display: flex; align-items: center; gap: 6px; }
+.adx-chart-tip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.adx-legend { display: flex; gap: 14px; font-size: 12px; color: var(--ad-muted); padding: 4px 2px 0; }
+.adx-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.adx-legend i { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ---- 行过渡（操作后局部刷新） ---- */
+@keyframes adxRowOut { to { opacity: 0; transform: translateX(10px); } }
+.adx-row-leaving { animation: adxRowOut .28s ease forwards; }
+@keyframes adxRowFlash { 0% { background: var(--ad-accent-soft); } 100% { background: transparent; } }
+.adx-row-flash { animation: adxRowFlash 1.1s ease; }
+
+/* ---- 素材隐藏态徽标 + 拖拽 ---- */
+.ad-mat-card.hidden-state { }
+.ad-mat-card.hidden-state .ad-mat-thumb { filter: grayscale(.9); opacity: .6; }
+.adx-hidden-badge { position: absolute; top: 8px; right: 8px; z-index: 2; background: #3A3E4A; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; }
+.ad-mat-card[draggable="true"] { cursor: grab; }
+.ad-mat-card.dragging { opacity: .45; }
+.ad-mat-card.drag-over { outline: 2px solid var(--ad-accent); outline-offset: 2px; }
+.adx-drag-hint { display: inline-flex; align-items: center; gap: 6px; color: var(--ad-faint); font-size: 12px; }
+
+/* ---- 公告状态机 / 预览 ---- */
+.adx-statemachine { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ad-faint); margin: 4px 0 16px; }
+.adx-statemachine .st { border: 1px solid var(--ad-border); border-radius: 20px; padding: 2px 10px; color: var(--ad-muted); }
+.adx-statemachine .st.on { border-color: var(--ad-good); background: var(--ad-good-soft); color: var(--ad-good); font-weight: 600; }
+.adx-banner-preview { border: 1px dashed var(--ad-border-strong); border-radius: 10px; padding: 14px; background: var(--ad-ground); }
+.adx-banner-preview .cap { font-size: 11px; color: var(--ad-faint); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+/* 所见即所得：复用 00 号屏 A 公告横幅样式（浅色态） */
+.lumio-announce { display: flex; align-items: center; gap: 10px; border: 1px solid #fef3c6; border-radius: 8px; background: #fffbeb; color: #bb4d00; padding: 7px 12px; font-size: 13px; font-family: Inter, var(--ad-sans); }
+.lumio-announce .tag { flex: 0 0 auto; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: #f3a63a; color: #3b2a00; }
+.lumio-announce p { margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lumio-announce .x { color: inherit; opacity: .7; }
+
+/* ---- 复制按钮 / mono 值 ---- */
+.adx-copy { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+.adx-copy code { font-family: var(--ad-mono); font-size: 12px; background: #F2F3F7; border-radius: 6px; padding: 2px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adx-copy button { border: none; background: none; color: var(--ad-faint); cursor: pointer; padding: 2px; display: grid; place-items: center; }
+.adx-copy button:hover { color: var(--ad-accent); }
+.adx-copy button svg { width: 13px; height: 13px; }
+
+/* ---- 待处理主角区（总览） ---- */
+.adx-attention { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+.adx-attention a { display: flex; align-items: center; gap: 12px; background: var(--ad-surface); border: 1px solid var(--ad-border); border-left: 3px solid var(--ad-crit); border-radius: 12px; padding: 14px 16px; box-shadow: var(--ad-shadow); color: inherit; transition: box-shadow .15s; }
+.adx-attention a:hover { box-shadow: var(--ad-shadow-lg); color: inherit; }
+.adx-attention .n { font-size: 24px; font-weight: 680; letter-spacing: -.02em; min-width: 40px; }
+.adx-attention .t { font-size: 13px; font-weight: 600; }
+.adx-attention .s { font-size: 12px; color: var(--ad-muted); }
+.adx-attention .go { margin-left: auto; color: var(--ad-faint); }
+.adx-attention a.zero { border-left-color: var(--ad-good); }
+.adx-attention a.zero .n { color: var(--ad-good); }
+
+/* ---- 模块切页 ---- */
+.ad-view { display: none; }
+.ad-view.active { display: block; }
+
+/* ---- 1080px 降级：侧栏抽屉 + 表格横滚 ---- */
+.adx-menu-btn { display: none; border: 1px solid var(--ad-border-strong); background: var(--ad-surface); border-radius: 8px; width: 34px; height: 34px; place-items: center; cursor: pointer; color: var(--ad-ink); }
+@media (max-width: 1080px) {
+  .ad-root { grid-template-columns: 1fr; }
+  .ad-side { position: fixed; left: 0; top: 0; bottom: 0; width: 250px; z-index: 60; transform: translateX(-100%); transition: transform .22s; }
+  .ad-side.open { transform: none; }
+  .adx-menu-btn { display: grid; }
+  .ad-kpi-row, .ad-kpi-row.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .ad-grid-2 { grid-template-columns: 1fr; }
+  .adx-attention { grid-template-columns: 1fr; }
+  .ad-content { padding: 18px 16px 60px; }
+  .ad-topbar { padding: 12px 16px 12px 58px; }
+}
+/* scrim shown when the mobile sidebar drawer is open */
+.adx-side-scrim { display: none; }
+@media (max-width: 1080px) {
+  .adx-side-scrim { position: fixed; inset: 0; z-index: 55; background: rgba(20,24,40,.4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .adx-side-scrim.open { display: block; opacity: 1; pointer-events: auto; }
+}

@@ -1,0 +1,218 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "designs/admin/**",
+              "designs/unified-shell/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:JetBrains Mono|PingFang SC))/i]",
+        "message": "Font not provided by the design system. Available: JetBrains Mono, PingFang SC."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--ad-accent",
+      "--ad-accent-ink",
+      "--ad-accent-soft",
+      "--ad-border",
+      "--ad-border-strong",
+      "--ad-crit",
+      "--ad-crit-soft",
+      "--ad-faint",
+      "--ad-good",
+      "--ad-good-soft",
+      "--ad-ground",
+      "--ad-ink",
+      "--ad-mono",
+      "--ad-muted",
+      "--ad-sans",
+      "--ad-shadow",
+      "--ad-shadow-lg",
+      "--ad-sidebar",
+      "--ad-surface",
+      "--ad-warn",
+      "--ad-warn-soft",
+      "--dot-grid",
+      "--dot-grid-size",
+      "--hero-ink",
+      "--lumio-danger",
+      "--lumio-danger-soft",
+      "--lumio-orange",
+      "--lumio-orange-soft",
+      "--lumio-teal",
+      "--lumio-teal-line",
+      "--lumio-teal-soft",
+      "--lumio-teal-strong",
+      "--lumio-violet",
+      "--lumio-violet-line",
+      "--lumio-violet-soft",
+      "--studio-accent-2",
+      "--studio-accent-bg",
+      "--studio-amber-bg",
+      "--studio-amber-border",
+      "--studio-amber-text",
+      "--studio-bg",
+      "--studio-bg-soft",
+      "--studio-black",
+      "--studio-copy",
+      "--studio-copy-2",
+      "--studio-danger",
+      "--studio-danger-bg",
+      "--studio-danger-text",
+      "--studio-faint",
+      "--studio-green",
+      "--studio-hairline",
+      "--studio-hairline-2",
+      "--studio-line",
+      "--studio-line-strong",
+      "--studio-muted",
+      "--studio-panel",
+      "--studio-panel-strong",
+      "--studio-purple",
+      "--studio-success",
+      "--studio-surface",
+      "--studio-surface-2",
+      "--studio-surface-3",
+      "--studio-surface-4",
+      "--studio-text",
+      "--studio-toast-err-bg",
+      "--studio-toast-err-text",
+      "--studio-toast-ok-bg",
+      "--studio-toast-ok-text",
+      "--studio-toast-warn-bg",
+      "--studio-toast-warn-text",
+      "--ui-accent",
+      "--ui-accent-contrast",
+      "--ui-canvas",
+      "--ui-generate",
+      "--ui-money",
+      "--ui-radius-card",
+      "--ui-radius-control"
+    ],
+    "tokenKinds": {
+      "--lumio-violet": "color",
+      "--lumio-violet-soft": "color",
+      "--lumio-violet-line": "color",
+      "--lumio-teal": "color",
+      "--lumio-teal-strong": "color",
+      "--lumio-teal-soft": "color",
+      "--lumio-teal-line": "color",
+      "--lumio-orange": "color",
+      "--lumio-orange-soft": "color",
+      "--lumio-danger": "color",
+      "--lumio-danger-soft": "color",
+      "--studio-bg": "color",
+      "--studio-bg-soft": "color",
+      "--studio-surface": "color",
+      "--studio-panel": "color",
+      "--studio-panel-strong": "color",
+      "--studio-line": "color",
+      "--studio-line-strong": "color",
+      "--studio-text": "font",
+      "--studio-copy": "color",
+      "--studio-copy-2": "color",
+      "--studio-muted": "color",
+      "--studio-faint": "color",
+      "--studio-black": "color",
+      "--studio-purple": "color",
+      "--studio-green": "color",
+      "--studio-success": "color",
+      "--studio-accent-2": "color",
+      "--studio-accent-bg": "color",
+      "--studio-hairline": "color",
+      "--studio-hairline-2": "color",
+      "--studio-surface-2": "color",
+      "--studio-surface-3": "color",
+      "--studio-surface-4": "color",
+      "--studio-danger": "color",
+      "--studio-danger-text": "font",
+      "--studio-danger-bg": "color",
+      "--studio-amber-bg": "color",
+      "--studio-amber-border": "color",
+      "--studio-amber-text": "font",
+      "--studio-toast-warn-bg": "color",
+      "--studio-toast-warn-text": "font",
+      "--studio-toast-ok-bg": "color",
+      "--studio-toast-ok-text": "font",
+      "--studio-toast-err-bg": "color",
+      "--studio-toast-err-text": "font",
+      "--ui-accent": "color",
+      "--ui-accent-contrast": "color",
+      "--ui-generate": "color",
+      "--ui-canvas": "color",
+      "--ui-money": "color",
+      "--ui-radius-control": "radius",
+      "--ui-radius-card": "radius",
+      "--dot-grid": "other",
+      "--dot-grid-size": "spacing",
+      "--hero-ink": "color",
+      "--ad-ground": "color",
+      "--ad-sidebar": "color",
+      "--ad-surface": "color",
+      "--ad-border": "color",
+      "--ad-border-strong": "color",
+      "--ad-ink": "color",
+      "--ad-muted": "color",
+      "--ad-faint": "color",
+      "--ad-accent": "color",
+      "--ad-accent-ink": "color",
+      "--ad-accent-soft": "color",
+      "--ad-good": "color",
+      "--ad-good-soft": "color",
+      "--ad-warn": "color",
+      "--ad-warn-soft": "color",
+      "--ad-crit": "color",
+      "--ad-crit-soft": "color",
+      "--ad-sans": "font",
+      "--ad-mono": "font",
+      "--ad-shadow": "shadow",
+      "--ad-shadow-lg": "shadow"
+    },
+    "fontFamilies": [
+      "JetBrains Mono",
+      "PingFang SC"
+    ]
+  }
+}

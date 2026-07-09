@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="浅色 / 深色主题表面" subtitle="同一组件换 token：浅色 Studio 气质 · 深色近黑 + 点阵网格" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"></meta><link rel="stylesheet" href="../styles.css"></link>
+<style>
+.half { display: grid; grid-template-columns: 1fr 1fr; height: 180px; }
+.side { padding: 14px 16px; background: var(--studio-bg); color: var(--studio-text); }
+.side[data-theme="dark"] { background-image: var(--dot-grid); background-size: var(--dot-grid-size); }
+.demo-card { border: 1px solid var(--studio-line-strong); border-radius: 16px; background: var(--studio-surface); box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px 14px; }
+.demo-card b { font-size: 13px; }
+.demo-card p { margin: 4px 0 0; color: var(--studio-muted); font-size: 11px; }
+.toks { margin-top: 8px; font-size: 10px; color: var(--studio-faint); font-family: ui-monospace, Menlo, monospace; }
+</style></head>
+<body style="margin:0; font-family:Inter, 'PingFang SC', sans-serif">
+<div class="half">
+  <div class="side">
+    <div class="demo-card"><b>浅色 · Studio</b><p>白卡 · 半透明面板 · 克制阴影</p></div>
+    <div class="toks">--studio-bg #fafafa · --studio-surface #fff · --studio-text #171717</div>
+  </div>
+  <div class="side" data-theme="dark">
+    <div class="demo-card"><b>深色 · Canvas</b><p>近黑底 + 点阵网格 · 同组件换 token</p></div>
+    <div class="toks">--studio-bg #090a0f · --studio-surface #14161f · --studio-text #eeeff3</div>
+  </div>
+</div>
+</body></html>

@@ -1,31 +1,19 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
+// NOTE: No longer auto-redirects. Per design P6「已失效 / 已下架」态：
+// 体验化卡片而非白屏跳转，把选择权留给访客（handoff 明确要求不自动跳转）。
 export function ShareUnavailableRedirect() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      router.replace("/");
-    }, 2000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [router]);
-
   return (
     <main className="share-page">
-      <section className="share-card share-unavailable-card" aria-label="分享不可访问">
-        <div className="share-content share-unavailable-content">
-          <p className="share-eyebrow">Lumio 提示词分享</p>
-          <h1>分享已不可访问</h1>
-          <p className="share-compliance">该链接可能已被举报或不存在，2 秒后返回主页。</p>
-          <div className="share-actions">
-            <a className="share-primary" href="/">
-              返回主页
-            </a>
-          </div>
+      <section className="share-card" aria-label="分享不可访问">
+        <div className="share-unavailable">
+          <p className="share-eyebrow">LUMIO 提示词卡片</p>
+          <h2>这张卡片已失效或被下架</h2>
+          <p>
+            链接可能已过期、被作者删除，或因内容被举报后下架。
+            你仍然可以打开工作台，用自己的创意生成一张新图。
+          </p>
+          <a className="btn generate" href="/">
+            去生成 →
+          </a>
         </div>
       </section>
     </main>

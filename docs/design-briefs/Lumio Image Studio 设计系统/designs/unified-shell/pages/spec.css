@@ -1,0 +1,70 @@
+/* 页面设计稿公共规格层：编号标注 + 规格表 + 跳转地图 */
+.spec-page { background: var(--studio-bg); min-height: 100vh; }
+.spec-topnav {
+  position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px;
+  background: var(--studio-panel-strong); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--studio-line); padding: 10px 20px;
+  font-family: Inter, "PingFang SC", sans-serif;
+}
+.spec-topnav a { font-size: 13px; color: var(--studio-muted); }
+.spec-topnav a:hover { color: var(--studio-text); }
+.spec-topnav .cur { color: var(--studio-text); font-weight: 600; }
+.spec-topnav .sep { color: var(--studio-hairline-2); }
+.spec-topnav .pager { margin-left: auto; display: flex; gap: 8px; }
+.spec-topnav .pager a { border: 1px solid var(--studio-line-strong); border-radius: 999px; padding: 4px 12px; background: var(--studio-surface); }
+
+/* 屏幕画框 */
+/* 画稿固定设计宽度：窄窗口横向滚动，不挤压排版 */
+.screen-frame { position: relative; margin: 24px auto; width: min(1360px, calc(100% - 48px)); border: 1px solid var(--studio-line-strong); border-radius: 14px; overflow: hidden; overflow-x: auto; box-shadow: 0 24px 70px -30px rgba(0,0,0,.3); background: var(--studio-bg); }
+.screen-frame > [data-screen-label] { width: 1358px; }
+/* 画稿为固定 1358px 设计宽度：抵消按视口触发的响应式隐藏/收窄 */
+.screen-frame .global-stats-pill { display: inline-flex; }
+.screen-frame .quota-pill, .screen-frame .balance-pill, .screen-frame .invite-pill { display: inline-flex; }
+.screen-frame .pill-label { display: inline; }
+.screen-frame .nav-beta, .screen-frame .nav-soon { display: inline; }
+.screen-frame .shell-nav button { padding: 0 13px; font-size: 14px; }
+.screen-frame .shell-brand .brand-name { display: inline; }
+.screen-frame .shell-nav { overflow: visible; margin: 0 auto; }
+.screen-frame.dark-frame { color-scheme: dark; }
+.screen-caption { width: min(1360px, calc(100% - 48px)); margin: -12px auto 8px; color: var(--studio-faint); font-size: 12px; font-family: Inter, "PingFang SC", sans-serif; display: flex; justify-content: space-between; }
+
+/* 编号标注点 */
+.spot {
+  position: absolute; z-index: 30; width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 999px; background: var(--lumio-orange); color: #3b2a00;
+  font: 700 12px/1 Inter, sans-serif; font-style: normal;
+  box-shadow: 0 0 0 3px rgba(243, 166, 58, 0.3), 0 2px 6px rgba(0,0,0,.25);
+  cursor: default;
+}
+.spot.teal { background: var(--lumio-teal); color: #052420; box-shadow: 0 0 0 3px rgba(44,212,190,.3), 0 2px 6px rgba(0,0,0,.25); }
+
+/* 规格区 */
+.spec-body { width: min(1360px, calc(100% - 48px)); margin: 0 auto; padding: 8px 0 80px; font-family: Inter, "PingFang SC", sans-serif; }
+.spec-body h2 { font-size: 18px; margin: 36px 0 4px; color: var(--studio-text); }
+.spec-body h2 small { font-weight: 400; color: var(--studio-faint); font-size: 12px; margin-left: 8px; }
+.spec-body > p.lead { margin: 0 0 16px; color: var(--studio-muted); font-size: 13px; max-width: 760px; }
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.spec-item { display: grid; grid-template-columns: 26px 1fr; gap: 10px; border: 1px solid var(--studio-line); border-radius: 12px; background: var(--studio-surface); padding: 12px 14px; }
+.spec-item .n { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; background: var(--lumio-orange); color: #3b2a00; font: 700 12px/1 Inter, sans-serif; }
+.spec-item.teal .n { background: var(--lumio-teal); color: #052420; }
+.spec-item b { font-size: 13px; color: var(--studio-text); display: block; margin-bottom: 3px; }
+.spec-item p { margin: 0; font-size: 12px; line-height: 18px; color: var(--studio-copy-2); text-wrap: pretty; }
+.spec-item p strong { color: var(--studio-text); font-weight: 600; }
+.spec-item .act { color: var(--studio-accent-2); }
+.spec-item .go { color: var(--lumio-teal-strong); }
+
+/* 状态分支条 */
+.state-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.state-card { border: 1px solid var(--studio-line); border-radius: 12px; background: var(--studio-surface); overflow: hidden; }
+.state-card .st-head { padding: 8px 12px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--studio-line); display: flex; gap: 6px; align-items: center; }
+.state-card .st-head i { width: 8px; height: 8px; border-radius: 50%; font-style: normal; }
+.state-card .st-body { padding: 12px; font-size: 12px; color: var(--studio-copy-2); line-height: 18px; min-height: 64px; text-wrap: pretty; }
+
+/* 跳转地图 */
+.jump-map { border: 1px dashed var(--studio-line-strong); border-radius: 12px; padding: 14px 16px; background: var(--studio-panel); }
+.jump-map table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.jump-map th { text-align: left; color: var(--studio-faint); font-size: 11px; font-weight: 600; padding: 4px 10px; }
+.jump-map td { padding: 6px 10px; border-top: 1px solid var(--studio-line); color: var(--studio-copy); }
+.jump-map td:first-child { font-weight: 600; color: var(--studio-text); }
+.jump-map .arr { color: var(--lumio-teal-strong); font-weight: 700; }
+.jump-map code { font-size: 11px; background: var(--studio-surface-3); border-radius: 5px; padding: 1px 6px; }

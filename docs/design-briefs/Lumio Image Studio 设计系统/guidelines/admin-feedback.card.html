@@ -1,0 +1,19 @@
+<!-- @dsCard group="Admin 公共件" viewport="700x200" name="ConfirmDialog · Toast · 空态" subtitle="本轮新增公共件：确认弹窗（影响范围条）/ 轻反馈 / 三变体空态" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"></meta><link rel="stylesheet" href="../styles.css"></link></head>
+<body style="margin:0; background:var(--ad-ground); font-family:var(--ad-sans); padding:16px 20px; display:grid; grid-template-columns:1.2fr 1fr; gap:14px">
+<div class="adx-dialog" style="width:auto">
+  <h3>下架「极地星空」？</h3>
+  <p class="desc">适用于违规或被多次举报的内容。</p>
+  <div class="adx-impact crit">影响范围：下架后分享链接立即失效，访客将看到「已失效或已下架」页。</div>
+  <div class="adx-dialog-actions"><button type="button" class="ad-btn">取消</button><button type="button" class="ad-btn confirm-crit">确认下架</button></div>
+</div>
+<div style="display:flex; flex-direction:column; gap:10px">
+  <div class="adx-toast" style="animation:none">已下架 <small>sh-77c0 · 已记入审计日志</small></div>
+  <div class="adx-toast err" style="animation:none">结束时间早于开始时间，请修正</div>
+  <div class="adx-empty celebrate" style="padding:14px; background:var(--ad-surface); border-radius:12px; border:1px solid var(--ad-border)">
+    <div class="glyph">🎉</div><h4>复审队列清空了</h4><p style="margin:0">新命中的请求会自动出现在这里。</p>
+  </div>
+</div>
+</body></html>

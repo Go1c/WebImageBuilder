@@ -35,8 +35,12 @@ export default function CostPage() {
         <div className="lead">
           <h2>成本 / 用量看板</h2>
           <p>基于成功生图任务数与各 provider 单价的估算。</p>
-          <p className="ad-sub">估算值，实际以 provider 账单为准</p>
         </div>
+      </div>
+
+      <div className="ad-note-strip">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" /></svg>
+        本页均为估算值,实际费用以 provider 账单为准。
       </div>
 
       {loading ? <Loading /> : null}
@@ -48,7 +52,11 @@ export default function CostPage() {
             <Kpi label="本月生图总数" value={fmtCount(data.totalCount)} />
             <Kpi label="估算成本" value={`$${fmtNum(data.estCost)}`} />
             <Kpi label="单张均价" value={`$${data.avgPrice.toFixed(3)}`} />
-            <Kpi label="失败重试损耗" value={`$${fmtNum(data.retryLoss)}`} valueTone={data.retryLoss ? "var(--ad-crit)" : undefined} />
+            <Kpi
+              label="失败重试损耗"
+              value={data.retryLoss > 0 ? `$${fmtNum(data.retryLoss)}` : "✓ 无损耗"}
+              valueTone={data.retryLoss > 0 ? "var(--ad-warn)" : "var(--ad-good)"}
+            />
           </div>
 
           <div className="ad-grid-2">

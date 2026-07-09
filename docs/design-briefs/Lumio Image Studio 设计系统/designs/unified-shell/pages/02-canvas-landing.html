@@ -1,0 +1,100 @@
+<!-- @dsCard group="页面设计" viewport="1400x980" name="P2 · 无限画布落地页（主页）" subtitle="Hero 叙事 + 双 CTA + 提示词库导流 · 替代 canvas /home" -->
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>P2 · 无限画布落地页 · 页面设计</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="../screens.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+</head>
+<body class="spec-page">
+
+<nav class="spec-topnav">
+  <a href="index.html">页面地图</a><span class="sep">/</span><span class="cur">P2 · 无限画布 · 落地页（画布域主页）</span>
+  <span class="pager"><a href="01-studio.html">← P1 生图工作台</a><a href="03-canvas-editor.html">P3 编辑器 →</a></span>
+</nav>
+
+<div class="screen-frame dark-frame">
+  <div style="position:relative; height:880px; display:flex; flex-direction:column; font-family:Inter,'PingFang SC',sans-serif; background:var(--studio-bg); color:var(--studio-text)" data-screen-label="P2 无限画布落地页">
+    <header class="shell-topbar">
+      <a class="shell-brand" href="#"><span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg></span><span class="brand-name">LumioImageStudio</span></a>
+      <span class="global-stats-pill">全站已生成 <strong>128,462</strong> 次</span>
+      <nav class="shell-nav">
+        <button type="button" class="nav-generate">探索</button>
+        <button type="button" class="nav-canvas is-selected">无限画布<span class="nav-beta">Beta</span></button>
+        <button type="button" disabled>视频创作台<span class="nav-soon">即将上线</span></button>
+        <button type="button">作品集</button><button type="button">提示词库</button><button type="button">教程</button>
+      </nav>
+      <div class="shell-account">
+        <span class="pill quota-pill">免费次数 <strong>3 次</strong></span>
+        <span class="pill balance-pill">余额 <strong>$12.80</strong></span>
+        <button type="button" class="theme-toggle">☾</button>
+        <button type="button" class="account-avatar">C</button>
+      </div>
+      <i class="spot" style="left:calc(50% - 30px); top:44px">1</i>
+    </header>
+
+    <div class="canvas-landing" style="flex:1">
+      <section class="hero" style="padding-top:64px; position:relative">
+        <h1>无限画布</h1>
+        <p class="sub">在<span class="hl-underline">无限画布</span>中生成、连接和重组<span class="hl-block">图片、文字与图形</span>，让创作从单次生成变成连续推演。</p>
+        <div class="hero-ctas">
+          <button type="button" class="btn generate">开始使用 →</button>
+          <button type="button" class="btn teal">打开画布</button>
+        </div>
+        <i class="spot" style="left:calc(50% - 200px); top:210px">2</i>
+        <i class="spot teal" style="left:calc(50% + 130px); top:318px">3</i>
+      </section>
+      <section class="showcase" style="padding-bottom:40px; position:relative">
+        <div class="showcase-head">
+          <div><h2>沉淀每一次好结果</h2><p>收藏稳定出图的提示词、参考风格和结果图片，让下一次创作从已有经验开始。</p></div>
+          <button type="button" class="btn">查看提示词库 →</button>
+        </div>
+        <div class="showcase-grid" style="grid-auto-rows:150px">
+          <a href="#"><img src="../../assets/community-6.jpg" alt=""></img><span class="showcase-caption">银河星空<small>长曝光 · 摄影质感</small></span></a>
+          <a href="#"><img src="../../assets/community-2.jpg" alt=""></img><span class="showcase-caption">流动的丝绸渐变<small>抽象 · 壁纸</small></span></a>
+          <a href="#"><img src="../../assets/case17.jpg" alt=""></img><span class="showcase-caption">成都吃货暴走地图<small>手绘水彩 · 信息图</small></span></a>
+          <a href="#"><img src="../../assets/community-4.jpg" alt=""></img><span class="showcase-caption">彩虹光晕<small>抽象 · 渐变</small></span></a>
+          <a href="#"><img src="../../assets/case14.jpg" alt=""></img><span class="showcase-caption">国风美食图鉴<small>手绘 · 海报</small></span></a>
+        </div>
+        <i class="spot" style="right:40px; top:20px">4</i>
+      </section>
+    </div>
+  </div>
+</div>
+<p class="screen-caption"><span>深色默认态（Canvas 气质签名：点阵网格 + 橙下划线 + 蓝高亮块）· 浅色态点阵透明度降低，其余同 token</span><span>1440×900</span></p>
+
+<div class="spec-body">
+  <h2>页面定位</h2>
+  <p class="lead">画布域的「主页」：合并后 canvas 独立站的 <code>/home</code> 由本页替代，顶栏换统一 Shell。它承担两件事——向新用户讲清无限画布的价值（Hero 叙事是全产品最好的价值表达，原样保留），并把老用户一步送进编辑器。</p>
+
+  <h2>逐控件规格<small>编号对应画面标注</small></h2>
+  <div class="spec-grid">
+    <div class="spec-item teal"><span class="n">1</span><div><b>导航「无限画布」选中态</b><p>本页与 P3 编辑器共用此导航项；选中高亮用 teal-soft（画布域身份色），与探索的 violet 区分。Beta 徽标 teal。</p></div></div>
+    <div class="spec-item"><span class="n">2</span><div><b>Hero（保留既有签名）</b><p>大标题（clamp 56–96px，浅色带 aurora 流光动画）；副文案的<strong>橙色下划线</strong>与<strong>蓝色高亮块</strong>是既有设计语言，保留为签名元素。文案逐字保留。</p></div></div>
+    <div class="spec-item teal"><span class="n">3</span><div><b>双 CTA</b><p>「开始使用 →」violet<span class="go">→ 新用户引导：新建画布 + 首次进入叠加 3 步 coach mark（落节点 → 连线 → AI 助手）</span>；「打开画布」teal<span class="go">→ 我的画布列表（有项目直接进最近项目 P3，无项目等同新建）</span>。</p></div></div>
+    <div class="spec-item"><span class="n">4</span><div><b>「沉淀每一次好结果」导流区</b><p>提示词库精选 12 条（首条 2×2 大卡）；<span class="act">点卡片</span>开大图预览（含提示词），预览内「用它生成」<span class="go">→ P1 并预填 ?prompt=</span>；「查看提示词库 →」<span class="go">→ P4</span>。</p></div></div>
+  </div>
+
+  <h2>四态</h2>
+  <div class="state-row">
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-green)"></i>默认</div><div class="st-body">如上稿。已登录且有画布项目时，Hero 下追加一行「继续：屋顶花园系列 · 4 节点 →」快捷入口。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-faint)"></i>导流区空</div><div class="st-body">提示词库拉取中显示 12 格骨架；失败显示错误 + 重试（不影响 Hero 与 CTA）。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-orange)"></i>加载</div><div class="st-body">整页骨架：Hero 文字即出（静态），仅图墙骨架。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-danger)"></i>移动端 375px</div><div class="st-body">Hero 56px、CTA 纵排全宽、图墙两列；「打开画布」提示「画布编辑建议在桌面端使用」，仍可只读查看项目。</div></div>
+  </div>
+
+  <h2>跳转地图</h2>
+  <div class="jump-map"><table>
+    <tr><th>触点</th><th></th><th>去向</th></tr>
+    <tr><td>开始使用</td><td class="arr">→</td><td>新建画布 <span class="arr">→</span> P3 编辑器（首次带 coach mark）</td></tr>
+    <tr><td>打开画布</td><td class="arr">→</td><td>最近项目 <code>/canvas/:id</code>（P3）；无项目 = 新建</td></tr>
+    <tr><td>导流卡「用它生成」</td><td class="arr">→</td><td>P1 生图工作台 <code>?prompt=</code> 预填</td></tr>
+    <tr><td>查看提示词库</td><td class="arr">→</td><td>P4 提示词库完整页</td></tr>
+  </table></div>
+</div>
+</body>
+</html>

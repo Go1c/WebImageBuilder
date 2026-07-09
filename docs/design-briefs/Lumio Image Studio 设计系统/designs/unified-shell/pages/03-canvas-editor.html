@@ -1,0 +1,211 @@
+<!-- @dsCard group="页面设计" viewport="1400x900" name="P3 · 无限画布编辑器" subtitle="节点画布 / 工具栏 / 检查器 / AI 助手 / 项目抽屉 全规格" -->
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>P3 · 无限画布编辑器 · 页面设计</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="../screens.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+<style>
+.ce-shell { display: grid; grid-template-rows: 48px 1fr; height: 820px; background: var(--studio-bg); color: var(--studio-text); font-family: Inter, "PingFang SC", sans-serif; }
+.ce-topbar { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--studio-line); background: var(--studio-panel-strong); padding: 0 14px; font-size: 13px; }
+.ce-topbar .proj { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ce-topbar .proj input { border: 0; background: transparent; color: var(--studio-text); font-weight: 600; font-size: 13px; width: 130px; outline: none; border-radius: 6px; padding: 3px 6px; }
+.ce-topbar .proj input:hover { background: var(--studio-line); }
+.ce-saved { color: var(--studio-faint); font-size: 11px; }
+.ce-top-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.ce-tbtn { height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--studio-line-strong); border-radius: 8px; padding: 0 10px; background: var(--studio-surface); color: var(--studio-copy); font-size: 12px; }
+.ce-tbtn:disabled { opacity: .4; }
+.ce-tbtn.teal { border-color: var(--lumio-teal-line); background: var(--lumio-teal-soft); color: var(--lumio-teal); font-weight: 600; }
+.ce-stage { position: relative; overflow: hidden; background-color: var(--studio-bg); background-image: var(--dot-grid); background-size: var(--dot-grid-size); }
+.ce-toolbar { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); z-index: 10; display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--studio-line-strong); border-radius: 12px; background: var(--studio-surface); padding: 6px; box-shadow: 0 12px 32px rgba(0,0,0,.35); }
+.ce-tool { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--studio-muted); font-size: 15px; }
+.ce-tool:hover { background: var(--studio-line); color: var(--studio-text); }
+.ce-tool.on { background: var(--lumio-teal-soft); color: var(--lumio-teal); }
+.ce-tool-sep { height: 1px; margin: 2px 4px; background: var(--studio-line); }
+.ce-node { position: absolute; border: 1.5px solid var(--studio-line-strong); border-radius: 14px; background: var(--studio-surface); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.ce-node .nh { display: flex; align-items: center; gap: 6px; padding: 7px 10px; font-size: 11px; color: var(--studio-muted); border-bottom: 1px solid var(--studio-line); }
+.ce-node .nh b { color: var(--studio-text); font-size: 11.5px; font-weight: 600; }
+.ce-node img { display: block; width: 100%; height: calc(100% - 31px); object-fit: cover; }
+.ce-node.text-node { padding-bottom: 8px; }
+.ce-node.text-node .nt { padding: 9px 11px 3px; font-size: 12px; line-height: 18px; color: var(--studio-copy); }
+.ce-node.is-selected { border-color: var(--lumio-teal); box-shadow: 0 0 0 3px var(--lumio-teal-soft), 0 10px 30px rgba(0,0,0,.35); }
+.ce-port { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--lumio-teal); border: 2px solid var(--studio-bg); }
+.ce-node-toolbar { position: absolute; z-index: 12; display: flex; gap: 2px; border: 1px solid var(--studio-line-strong); border-radius: 10px; background: var(--studio-surface); padding: 4px; box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+.ce-node-toolbar button { height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--studio-copy); font-size: 11.5px; padding: 0 9px; white-space: nowrap; }
+.ce-node-toolbar button:hover { background: var(--studio-line); color: var(--studio-text); }
+.ce-node-toolbar button.gen { color: var(--lumio-violet); font-weight: 600; }
+.ce-zoom { position: absolute; left: 14px; bottom: 14px; z-index: 10; display: flex; align-items: center; gap: 2px; border: 1px solid var(--studio-line-strong); border-radius: 10px; background: var(--studio-surface); padding: 3px; font-size: 12px; color: var(--studio-copy); }
+.ce-zoom button { width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: inherit; }
+.ce-zoom button:hover { background: var(--studio-line); }
+.ce-zoom .pct { padding: 0 6px; font-weight: 600; min-width: 44px; text-align: center; }
+.ce-assist { position: absolute; right: 14px; top: 14px; bottom: 14px; z-index: 10; width: 264px; display: flex; flex-direction: column; border: 1px solid var(--studio-line-strong); border-radius: 14px; background: var(--studio-surface); box-shadow: 0 16px 44px rgba(0,0,0,.4); overflow: hidden; }
+.ce-assist .ah { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border-bottom: 1px solid var(--studio-line); font-size: 13px; font-weight: 600; }
+.ce-assist .ah .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lumio-violet); }
+.ce-assist .msgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 18px; }
+.ce-msg { border-radius: 12px; padding: 8px 11px; max-width: 92%; }
+.ce-msg.ai { background: var(--studio-surface-2); color: var(--studio-copy); align-self: flex-start; }
+.ce-msg.me { background: var(--lumio-violet-soft); color: var(--studio-text); align-self: flex-end; }
+.ce-assist .ain { display: flex; gap: 6px; border-top: 1px solid var(--studio-line); padding: 10px; }
+.ce-assist .ain input { flex: 1; min-width: 0; border: 1px solid var(--studio-line-strong); border-radius: 999px; background: transparent; color: var(--studio-copy); font-size: 12px; padding: 7px 12px; outline: none; }
+.ce-assist .ain button { width: 32px; height: 32px; border: 0; border-radius: 999px; background: var(--lumio-violet); color: #fff; }
+.ce-projects { position: absolute; left: 70px; top: 14px; z-index: 11; width: 240px; border: 1px solid var(--studio-line-strong); border-radius: 14px; background: var(--studio-surface); box-shadow: 0 16px 44px rgba(0,0,0,.45); overflow: hidden; }
+.ce-projects .ph { padding: 11px 13px; border-bottom: 1px solid var(--studio-line); display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; }
+.ce-projects .ph button { border: 0; background: var(--lumio-teal-soft); color: var(--lumio-teal); border-radius: 999px; font-size: 11px; font-weight: 600; padding: 4px 9px; }
+.ce-proj-item { display: flex; align-items: center; gap: 9px; padding: 9px 13px; font-size: 12.5px; color: var(--studio-copy); border-bottom: 1px solid var(--studio-line); }
+.ce-proj-item.cur { background: var(--lumio-teal-soft); color: var(--studio-text); font-weight: 600; }
+.ce-proj-item small { margin-left: auto; color: var(--studio-faint); font-size: 10.5px; }
+svg.ce-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+</head>
+<body class="spec-page">
+
+<nav class="spec-topnav">
+  <a href="index.html">页面地图</a><span class="sep">/</span><span class="cur">P3 · 无限画布 · 编辑器</span>
+  <span class="pager"><a href="02-canvas-landing.html">← P2 落地页</a><a href="04-prompts.html">P4 提示词库 →</a></span>
+</nav>
+
+<!-- ═══ 编辑器全貌（深色默认态） ═══ -->
+<div class="screen-frame dark-frame" style="overflow-x:auto">
+  <div class="ce-shell" style="width:1358px" data-screen-label="P3 无限画布编辑器">
+    <!-- 编辑器顶栏 -->
+    <div class="ce-topbar">
+      <span class="brand-mark" style="width:26px; height:26px; border-radius:9px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg>
+      </span>
+      <button type="button" class="ce-tbtn" style="border:0; background:transparent">☰ 我的画布</button>
+      <span class="proj"><input value="屋顶花园系列"></input></span>
+      <span class="ce-saved">已自动保存 · 12 秒前</span>
+      <div class="ce-top-actions">
+        <button type="button" class="ce-tbtn" aria-label="撤销"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-15-6.7L3 13"></path></svg>撤销</button>
+        <button type="button" class="ce-tbtn" disabled aria-label="重做"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 15-6.7L21 13"></path></svg>重做</button>
+        <span class="action-divider"></span>
+        <button type="button" class="ce-tbtn">导出 ZIP</button>
+        <button type="button" class="ce-tbtn teal">✦ AI 助手</button>
+        <button type="button" class="theme-toggle" style="width:30px; height:30px" aria-label="切换主题">☾</button>
+      </div>
+      <i class="spot" style="right:340px; top:13px; position:absolute">1</i>
+      <i class="spot" style="left:56px; top:13px; position:absolute">2</i>
+    </div>
+
+    <!-- 画布区 -->
+    <div class="ce-stage">
+      <!-- 左工具栏 -->
+      <div class="ce-toolbar">
+        <button type="button" class="ce-tool on" title="选择 V"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 3l7.07 16.97 2.51-7.39 7.39-2.51L4 3z"></path></svg></button>
+        <button type="button" class="ce-tool" title="拖动画布 H / 空格"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg></button>
+        <div class="ce-tool-sep"></div>
+        <button type="button" class="ce-tool" title="图片节点 I"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"></path></svg></button>
+        <button type="button" class="ce-tool" title="文本节点 T"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h16v2M9 20h6M12 5v15"></path></svg></button>
+        <button type="button" class="ce-tool" title="音频节点"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></button>
+        <button type="button" class="ce-tool" title="视频节点（即将上线）" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></button>
+        <div class="ce-tool-sep"></div>
+        <button type="button" class="ce-tool" title="连接线 C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8"></path></svg></button>
+      </div>
+      <i class="spot" style="left:64px; top:calc(50% - 90px)">3</i>
+
+      <!-- 项目抽屉（展开态） -->
+      <div class="ce-projects">
+        <div class="ph">我的画布<button type="button">＋ 新建</button></div>
+        <div class="ce-proj-item cur">屋顶花园系列<small>4 节点 · 刚刚</small></div>
+        <div class="ce-proj-item">江南水乡推演<small>9 节点 · 昨天</small></div>
+        <div class="ce-proj-item">品牌视觉探索<small>17 节点 · 3 天前</small></div>
+      </div>
+      <i class="spot teal" style="left:320px; top:22px">4</i>
+
+      <!-- 连接线 -->
+      <svg class="ce-wires">
+        <path d="M 700 300 C 760 300 770 260 830 260" fill="none" stroke="var(--lumio-teal)" stroke-width="2" opacity="0.8"></path>
+        <path d="M 700 330 C 780 330 800 470 862 470" fill="none" stroke="var(--lumio-teal)" stroke-width="2" opacity="0.45" stroke-dasharray="6 5"></path>
+      </svg>
+
+      <!-- 节点：文本（提示词源） -->
+      <div class="ce-node text-node" style="left:470px; top:250px; width:230px">
+        <div class="nh"><b>T 提示词</b><span>· 源节点</span></div>
+        <div class="nt">深空银河核心，璨璨星云与尘埃，长曝光摄影质感</div>
+        <span class="ce-port" style="right:-6px; top:44px"></span>
+      </div>
+
+      <!-- 节点：图片（选中态 + 节点工具条） -->
+      <div class="ce-node is-selected" style="left:830px; top:180px; width:240px; height:200px">
+        <div class="nh"><b>🖼 生成结果</b><span>· gpt-image-2 · 4:3</span></div>
+        <img src="../../assets/community-6.jpg" alt="银河星空生成结果"></img>
+        <span class="ce-port" style="left:-6px; top:76px"></span>
+        <span class="ce-port" style="right:-6px; top:76px"></span>
+      </div>
+      <div class="ce-node-toolbar" style="left:830px; top:140px">
+        <button type="button">裁剪</button><button type="button">拆分</button><button type="button">超分</button>
+        <button type="button">Inpaint</button><button type="button">旋转</button><button type="button">蒙版</button>
+        <button type="button" class="gen">✦ 再生成</button>
+      </div>
+      <i class="spot" style="left:1080px; top:150px">5</i>
+      <i class="spot teal" style="left:1080px; top:250px">6</i>
+
+      <!-- 节点：图片（未选中） -->
+      <div class="ce-node" style="left:862px; top:430px; width:190px; height:160px">
+        <div class="nh"><b>🖼 变体 B</b><span>· 暖色调 · 超分 2×</span></div>
+        <img src="../../assets/community-4.jpg" alt="变体 B"></img>
+        <span class="ce-port" style="left:-6px; top:70px"></span>
+      </div>
+
+      <!-- 缩放控制 -->
+      <div class="ce-zoom">
+        <button type="button" aria-label="缩小">−</button>
+        <span class="pct">80%</span>
+        <button type="button" aria-label="放大">＋</button>
+        <button type="button" title="适配全部节点 ⇧1">⛶</button>
+      </div>
+      <i class="spot" style="left:190px; bottom:20px; top:auto">7</i>
+
+      <!-- AI 助手面板 -->
+      <div class="ce-assist">
+        <div class="ah"><span class="dot"></span>画布 AI 助手<span style="margin-left:auto; color:var(--studio-faint); font-weight:400; font-size:11px">Esc 关闭</span></div>
+        <div class="msgs">
+          <div class="ce-msg me">把选中的星空图做一个暖色调变体</div>
+          <div class="ce-msg ai">好的，我会基于「生成结果」节点新建一个变体节点，提示词追加「暖橙色星云，低色温对比」。生成完成后会自动连线。</div>
+          <div class="ce-msg ai">✦ 变体已开始生成（消耗 1 次）…</div>
+        </div>
+        <div class="ain"><input placeholder="让 AI 操作画布，如：把这两张拼成对比图"></input><button type="button" aria-label="发送">↑</button></div>
+      </div>
+      <i class="spot" style="right:290px; top:22px; left:auto">8</i>
+    </div>
+  </div>
+</div>
+<p class="screen-caption"><span>深色默认态（Canvas 气质：近黑 + 点阵网格 + teal 选中）· 浅色态同组件换 token</span><span>1440×900 · 缩放 80%</span></p>
+
+<!-- ═══ 规格说明 ═══ -->
+<div class="spec-body">
+  <h2>逐控件规格<small>编号对应画面标注</small></h2>
+  <div class="spec-grid">
+    <div class="spec-item"><span class="n">1</span><div><b>编辑器顶栏 · 全局操作</b><p><strong>撤销/重做</strong>：⌘Z / ⇧⌘Z，无可重做时置灰。<strong>导出 ZIP</strong>：<span class="act">点击</span>打包全部节点资源与画布 JSON 下载。<strong>AI 助手</strong>：<span class="act">点击</span>开关右侧面板（teal 高亮 = 开）。主题开关与全站同步。</p></div></div>
+    <div class="spec-item"><span class="n">2</span><div><b>项目名（行内改名）+ 自动保存</b><p><span class="act">点击项目名直接编辑</span>，失焦保存并 toast「已改名」。右侧常驻「已自动保存 · N 秒前」；保存失败时变红「保存失败 · 重试」，<span class="act">点击重试</span>。</p></div></div>
+    <div class="spec-item"><span class="n">3</span><div><b>左工具栏 · 节点创建</b><p>选择 V / 拖动 H（或按住空格）/ 图片 I / 文本 T / 音频 / 视频（置灰「即将上线」）/ 连接线 C。<span class="act">选中工具后在画布点击落节点</span>；图片节点落下即打开「上传 or 从作品集选 or 生成」三选浮层。</p></div></div>
+    <div class="spec-item teal"><span class="n">4</span><div><b>我的画布（项目抽屉）</b><p>收编自 canvas 独立页。<span class="act">顶栏「☰ 我的画布」点击展开</span>；当前项目 teal 高亮；<span class="act">点其他项目</span><span class="go">→ 切换加载该画布（URL /canvas/:id）</span>；「＋ 新建」建空画布并进入改名态。<strong>删除项目走产品级确认弹窗</strong>（列明节点数）。</p></div></div>
+    <div class="spec-item"><span class="n">5</span><div><b>节点工具条（选中时浮现）</b><p>裁剪 / 拆分 / 超分 / Inpaint / 旋转 / 蒙版：<span class="act">点击进入对应编辑模式</span>，结果生成<strong>新节点并自动连线</strong>（保留推演链）。「✦ 再生成」violet（生成域）：基于上游文本节点重新生成，<strong>按钮旁标注「消耗 1 次 · 剩 N 次」</strong>。</p></div></div>
+    <div class="spec-item teal"><span class="n">6</span><div><b>节点与连接（teal = 画布域）</b><p>选中描边 teal + 光晕；两侧圆点为连接口，<span class="act">拖出→吸附到目标口</span>成实线；虚线 = 引用关系。<span class="act">双击图片节点</span>放大预览；<span class="act">右键</span>菜单：复制 / 删除（确认弹窗）/ 保存到作品集 / 下载。</p></div></div>
+    <div class="spec-item"><span class="n">7</span><div><b>缩放与视图</b><p>− / ＋ 步进 10%，<span class="act">滚轮 + ⌘</span>缩放、拖动平移；⛶ 适配全部节点（⇧1）。缩放值持久化到项目。</p></div></div>
+    <div class="spec-item"><span class="n">8</span><div><b>画布 AI 助手</b><p>对话式操作画布：生成变体、拼图、批量整理。AI 的每个动作在消息里<strong>写明消耗与去向</strong>（「消耗 1 次」「已自动连线」）。失败消息带「重试」。Esc 关闭面板。</p></div></div>
+  </div>
+
+  <h2>四态</h2>
+  <div class="state-row">
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-green)"></i>默认</div><div class="st-body">如上稿：节点 + 连线 + 工具。新用户空画布见「空态」。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-faint)"></i>空画布</div><div class="st-body">画布中央价值引导（同落地页语气）：「拖一张图进来，或按 I 落一个图片节点」+ 三个快捷入口：上传 / 从作品集选 / 直接生成。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-orange)"></i>加载</div><div class="st-body">项目切换时画布整体骨架（点阵底 + 节点位灰块）；生成中的节点内嵌进度条（同生图工作台加载态语言）。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-danger)"></i>错误</div><div class="st-body">节点生成失败：节点变红边 + 「生成没有成功 · 未扣额度 · 重试」；项目加载失败：整页错误态 + 重试 + 回「我的画布」。</div></div>
+  </div>
+
+  <h2>跳转地图</h2>
+  <div class="jump-map"><table>
+    <tr><th>从</th><th></th><th>到 / 方式</th></tr>
+    <tr><td>生图工作台「在画布中打开」</td><td class="arr">→</td><td>过渡浮层（新建 / 追加）<span class="arr">→</span> 本页，图片落为新节点并自动选中居中，toast「图片已作为节点加入」</td></tr>
+    <tr><td>本页「我的画布」项目项</td><td class="arr">→</td><td>切换 <code>/canvas/:id</code>（URL 深链，可直接分享给协作者）</td></tr>
+    <tr><td>节点右键「保存到作品集」</td><td class="arr">→</td><td>写入本地作品集，toast + <span class="act">点 toast</span> 跳作品集页</td></tr>
+    <tr><td>顶栏统一导航「探索」</td><td class="arr">→</td><td>生图工作台（P1）；未保存操作无须提示——画布持续自动保存</td></tr>
+  </table></div>
+</div>
+</body>
+</html>

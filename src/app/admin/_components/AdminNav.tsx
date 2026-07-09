@@ -58,7 +58,7 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export function AdminNav({ badges }: { badges?: NavBadges }) {
+export function AdminNav({ badges, onNavigate }: { badges?: NavBadges; onNavigate?: () => void }) {
   const pathname = usePathname() || "/admin";
 
   return (
@@ -72,6 +72,7 @@ export function AdminNav({ badges }: { badges?: NavBadges }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavigate}
                 className={`ad-nav-item${isActive(pathname, item.href) ? " active" : ""}`}
               >
                 {item.icon}

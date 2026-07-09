@@ -1,0 +1,30 @@
+/* Webfonts · JetBrains Mono（开源，SIL OFL）via fontsource CDN */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.19/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.19/files/jetbrains-mono-latin-700-normal.woff2") format("woff2");
+}
+
+/* PingFang SC · Apple 系统字体，无可分发文件：local()-only 声明，
+   macOS/iOS 命中本机字体，其他平台走 --ad-sans 回退栈（微软雅黑 / Noto Sans SC）。 */
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 400;
+  src: local("PingFang SC"), local("PingFangSC-Regular");
+}
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 600;
+  src: local("PingFang SC Semibold"), local("PingFangSC-Semibold");
+}

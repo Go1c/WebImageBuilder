@@ -1,0 +1,150 @@
+/* =====================================================================
+   Lumio 统一工作台 · 合并设计令牌（00-unified-shell §2）
+   浅色 = Studio 气质 / 深色 = Canvas 气质（近黑 + 点阵网格）
+   ===================================================================== */
+:root {
+  /* 品牌三色（主题无关） */
+  --lumio-violet: #8b78f5;
+  --lumio-violet-soft: rgba(139, 120, 245, 0.15);
+  --lumio-violet-line: rgba(139, 120, 245, 0.35);
+  --lumio-teal: #2cd4be;
+  --lumio-teal-strong: #20b9a6;
+  --lumio-teal-soft: rgba(44, 212, 190, 0.12);
+  --lumio-teal-line: rgba(44, 212, 190, 0.32);
+  --lumio-orange: #f3a63a;
+  --lumio-orange-soft: rgba(243, 166, 58, 0.14);
+  --lumio-danger: #f0705e;
+  --lumio-danger-soft: rgba(240, 112, 94, 0.14);
+
+  /* 浅色主题（Studio 气质） */
+  --studio-bg: #fafafa;
+  --studio-bg-soft: #f5f5f5;
+  --studio-surface: #ffffff;
+  --studio-panel: rgba(255, 255, 255, 0.4);
+  --studio-panel-strong: rgba(255, 255, 255, 0.7);
+  --studio-line: rgba(0, 0, 0, 0.05);
+  --studio-line-strong: rgba(0, 0, 0, 0.1);
+  --studio-text: #171717;
+  --studio-copy: #404040;
+  --studio-copy-2: #525252;
+  --studio-muted: #737373;
+  --studio-faint: #a1a1a1;
+  --studio-black: #171717;
+  --studio-purple: #7f22fe;
+  --studio-green: #00bc7d;
+  --studio-success: #047857;
+  --studio-accent-2: #6d28d9;
+  --studio-accent-bg: #f5f3ff;
+  --studio-hairline: #e5e5e5;
+  --studio-hairline-2: #d4d4d4;
+  --studio-surface-2: #f7f7f7;
+  --studio-surface-3: #f2f2f2;
+  --studio-surface-4: #eeeeee;
+  --studio-danger: #ef4444;
+  --studio-danger-text: #b91c1c;
+  --studio-danger-bg: #fff7f7;
+  --studio-amber-bg: #fffbeb;
+  --studio-amber-border: #fef3c6;
+  --studio-amber-text: #bb4d00;
+  --studio-toast-warn-bg: #fff7d6;
+  --studio-toast-warn-text: #3b2a00;
+  --studio-toast-ok-bg: #dcfce7;
+  --studio-toast-ok-text: #14532d;
+  --studio-toast-err-bg: #fee2e2;
+  --studio-toast-err-text: #7f1d1d;
+
+  /* 语义角色 */
+  --ui-accent: var(--studio-purple);
+  --ui-accent-contrast: #ffffff;
+  --ui-generate: var(--studio-purple);
+  --ui-canvas: var(--lumio-teal-strong);
+  --ui-money: var(--studio-green);
+  --ui-radius-control: 12px;
+  --ui-radius-card: 16px;
+
+  /* 深色签名元素：点阵网格（浅色下也可作 canvas 域底纹） */
+  --dot-grid: radial-gradient(rgba(0, 0, 0, 0.13) 1px, transparent 1px); /* @kind other */
+  --dot-grid-size: 16px 16px;
+  --hero-ink: #111827;
+}
+
+[data-theme="dark"] {
+  --studio-bg: #090a0f;
+  --studio-bg-soft: #0c0d13;
+  --studio-surface: #14161f;
+  --studio-panel: rgba(255, 255, 255, 0.03);
+  --studio-panel-strong: rgba(9, 10, 15, 0.78);
+  --studio-line: rgba(255, 255, 255, 0.08);
+  --studio-line-strong: rgba(255, 255, 255, 0.16);
+  --studio-text: #eeeff3;
+  --studio-copy: #c9ccd3;
+  --studio-copy-2: #b4b8c2;
+  --studio-muted: #a6aab5;
+  --studio-faint: #6c7079;
+  --studio-black: #eeeff3;
+  --studio-purple: var(--lumio-violet);
+  --studio-green: var(--lumio-teal);
+  --studio-success: #4fc98c;
+  --studio-accent-2: #b9adfb;
+  --studio-accent-bg: rgba(139, 120, 245, 0.15);
+  --studio-hairline: rgba(255, 255, 255, 0.12);
+  --studio-hairline-2: rgba(255, 255, 255, 0.16);
+  --studio-surface-2: #191c26;
+  --studio-surface-3: #20232e;
+  --studio-surface-4: #20232e;
+  --studio-danger: #f0705e;
+  --studio-danger-text: #f0a99d;
+  --studio-danger-bg: rgba(240, 112, 94, 0.1);
+  --studio-amber-bg: var(--lumio-orange-soft);
+  --studio-amber-border: rgba(243, 166, 58, 0.3);
+  --studio-amber-text: var(--lumio-orange);
+  --studio-toast-warn-bg: rgba(243, 166, 58, 0.16);
+  --studio-toast-warn-text: #f3c98a;
+  --studio-toast-ok-bg: rgba(79, 201, 140, 0.16);
+  --studio-toast-ok-text: #a7e8c2;
+  --studio-toast-err-bg: rgba(240, 112, 94, 0.16);
+  --studio-toast-err-text: #f0b0a8;
+
+  --ui-accent: var(--lumio-teal);
+  --ui-accent-contrast: #052420;
+  --ui-generate: var(--lumio-violet);
+  --ui-canvas: var(--lumio-teal);
+  --ui-money: var(--lumio-teal);
+
+  --dot-grid: radial-gradient(rgba(245, 245, 244, 0.14) 1px, transparent 1px); /* @kind other */
+  --hero-ink: #fafaf9;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background: var(--studio-bg);
+  color: var(--studio-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button, textarea, select, input { font: inherit; }
+button { cursor: pointer; white-space: nowrap; }
+button:disabled { cursor: not-allowed; opacity: 0.58; }
+a { color: var(--studio-text); text-decoration: none; }
+a:hover { color: var(--studio-purple); }
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(127, 34, 254, 0.18);
+  outline-offset: 2px;
+}
+[data-theme="dark"] button:focus-visible, [data-theme="dark"] a:focus-visible,
+[data-theme="dark"] input:focus-visible, [data-theme="dark"] textarea:focus-visible {
+  outline-color: rgba(44, 212, 190, 0.28);
+}
+h1, h2, h3, h4 { text-wrap: balance; }
+p, li, dd, figcaption { text-wrap: pretty; }
+.studio-icon { display: block; flex: 0 0 auto; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}

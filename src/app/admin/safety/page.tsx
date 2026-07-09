@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import { PageShell } from "../_components/PageShell";
 import { Drawer } from "../_components/Drawer";
-import { adminAction, Empty, ErrorState, Loading, Pill, useAdminData } from "../_components/ui";
+import {
+  adminAction,
+  Empty,
+  EmptyState,
+  ErrorState,
+  Loading,
+  Pill,
+  useAdminData,
+  useConfirm,
+  useToast,
+  errorCodeLabel
+} from "../_components/ui";
 import { fmtDate, fmtNum, timeAgo, truncate } from "../_components/format";
 import type { BlockedTermRow, ReviewQueueRow } from "@/server/admin/queries/safety";
 
@@ -16,7 +27,7 @@ export default function SafetyPage() {
     <PageShell title="内容安全" crumb="内容运营 / 内容安全">
       <div className="ad-note-strip">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" /><path d="M12 9v4M12 16h.01" /></svg>
-        <span>命中违禁词的 prompt 会在生图入口被拦截或标记；此处对命中内容做人工复审与违禁词维护。</span>
+        <span>命中违禁词的 prompt 会在生图入口被拦截或标记；此处对命中内容做人工复审与违禁词维护。复审结论仅记审计,v1 不改任务状态。</span>
       </div>
 
       <div className="ad-tabs" style={{ marginBottom: 18 }}>
@@ -30,26 +41,50 @@ export default function SafetyPage() {
 }
 
 function ReviewQueue() {
-  const { data, loading, error } = useAdminData<{ rows: ReviewQueueRow[] }>("/api/admin/safety/review");
+  const toast = useToast();
+  const { data, loading, error, reload } = useAdminData<{ rows: ReviewQueueRow[] }>("/api/admin/safety/review");
   const [selected, setSelected] = useState<ReviewQueueRow | null>(null);
+  const [rows, setRows] = useState<ReviewQueueRow[]>([]);
+  const [leaving, setLeaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (data) setRows(data.rows);
+  }, [data]);
+
+  const resolve = (row: ReviewQueueRow, pass: boolean) => {
+    setSelected(null);
+    setLeaving(row.id);
+    // fade the row out, then drop it from the local queue (v1: audit-only, no task mutation)
+    setTimeout(() => {
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      setLeaving(null);
+      toast(pass ? "已判定通过,移出复审队列" : "已标记下架,移出复审队列", { sub: row.id });
+    }, 280);
+  };
 
   return (
     <>
       <div className="ad-panel">
         {loading ? <Loading /> : null}
-        {error ? <ErrorState message={error} /> : null}
+        {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {data && !loading ? (
-          data.rows.length === 0 ? <Empty message="复审队列为空 🎉" /> : (
+          rows.length === 0 ? (
+            <EmptyState variant="celebrate" title="复审队列已清空" desc="当前没有待复审的内容,做得很好。" />
+          ) : (
             <div className="ad-table-wrap">
               <table className="ad-table">
                 <thead>
                   <tr><th>预览</th><th>命中</th><th>Prompt 摘要</th><th>作者</th><th>时间</th></tr>
                 </thead>
                 <tbody>
-                  {data.rows.map((r) => (
-                    <tr key={r.id} className="clickable" onClick={() => setSelected(r)}>
+                  {rows.map((r) => (
+                    <tr
+                      key={r.id}
+                      className={`clickable${leaving === r.id ? " adx-row-leaving" : ""}`}
+                      onClick={() => setSelected(r)}
+                    >
                       <td><div className="ad-thumb-sq" style={{ background: "#EEF0F4" }} /></td>
-                      <td><Pill tone="crit">{r.errorCode || "unknown"}</Pill></td>
+                      <td><Pill tone="crit">{errorCodeLabel(r.errorCode)}</Pill></td>
                       <td>{truncate(r.prompt, 40)}</td>
                       <td className="ad-email ad-mono">{r.email || "匿名"}</td>
                       <td className="ad-sub">{timeAgo(r.createdAt)}</td>
@@ -62,18 +97,26 @@ function ReviewQueue() {
         ) : null}
       </div>
 
-      <ReviewDrawer row={selected} onClose={() => setSelected(null)} />
+      <ReviewDrawer row={selected} onClose={() => setSelected(null)} onResolve={resolve} />
     </>
   );
 }
 
-function ReviewDrawer({ row, onClose }: { row: ReviewQueueRow | null; onClose: () => void }) {
+function ReviewDrawer({
+  row,
+  onClose,
+  onResolve
+}: {
+  row: ReviewQueueRow | null;
+  onClose: () => void;
+  onResolve: (row: ReviewQueueRow, pass: boolean) => void;
+}) {
   return (
     <Drawer open={!!row} title="复审详情" sub={row ? `generation_tasks / ${row.id}` : undefined} onClose={onClose}>
       {row ? (
         <>
           <dl className="ad-kv">
-            <dt>命中</dt><dd><Pill tone="crit">{row.errorCode || "unknown"}</Pill></dd>
+            <dt>命中</dt><dd><Pill tone="crit">{errorCodeLabel(row.errorCode)}</Pill></dd>
             <dt>作者</dt><dd className="ad-mono">{row.email || (row.actorType === "anonymous" ? "匿名设备" : "匿名")}</dd>
             <dt>模型</dt><dd className="ad-mono">{row.model}</dd>
             <dt>时间</dt><dd>{fmtDate(row.createdAt)}</dd>
@@ -83,10 +126,10 @@ function ReviewDrawer({ row, onClose }: { row: ReviewQueueRow | null; onClose: (
           <pre className="ad-codeblock">{row.prompt}</pre>
 
           <div style={{ display: "flex", gap: 8, marginTop: 22 }}>
-            <button className="ad-btn" style={{ flex: 1 }} onClick={onClose}>判定通过</button>
-            <button className="ad-btn danger" style={{ flex: 1 }} onClick={onClose}>下架并标记</button>
+            <button className="ad-btn" style={{ flex: 1 }} onClick={() => onResolve(row, true)}>判定通过</button>
+            <button className="ad-btn danger" style={{ flex: 1 }} onClick={() => onResolve(row, false)}>下架并标记</button>
           </div>
-          <div className="ad-sub" style={{ marginTop: 10 }}>复审结论记录到审计日志（v1 暂不改变任务状态）。</div>
+          <div className="ad-sub" style={{ marginTop: 10 }}>复审结论仅记审计,v1 暂不改变任务状态。</div>
         </>
       ) : null}
     </Drawer>
@@ -94,6 +137,8 @@ function ReviewDrawer({ row, onClose }: { row: ReviewQueueRow | null; onClose: (
 }
 
 function TermsLibrary() {
+  const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [term, setTerm] = useState("");
@@ -124,20 +169,30 @@ function TermsLibrary() {
       setFormError(res.error || "添加失败");
       return;
     }
+    toast("违禁词已添加", { sub: term.trim() });
     setTerm("");
     setCategory("");
     setAction("flag");
     reload();
   }
 
-  async function onDelete(row: BlockedTermRow) {
-    if (!window.confirm(`确定删除违禁词「${row.term}」？`)) {
-      return;
-    }
-    const res = await fetch(`/api/admin/safety/terms/${row.id}`, { method: "DELETE", credentials: "include" });
-    if (res.ok) {
-      reload();
-    }
+  function onDelete(row: BlockedTermRow) {
+    confirm({
+      title: "删除该违禁词？",
+      desc: `确认删除违禁词「${row.term}」？`,
+      impact: "删除后新 prompt 不再命中此词,历史命中统计保留。",
+      impactTone: "warn",
+      confirmLabel: "删除",
+      onConfirm: async () => {
+        const res = await fetch(`/api/admin/safety/terms/${row.id}`, { method: "DELETE", credentials: "include" });
+        if (res.ok) {
+          toast("违禁词已删除", { sub: row.term });
+          reload();
+        } else {
+          toast("删除失败", { err: true });
+        }
+      }
+    });
   }
 
   return (
@@ -155,6 +210,9 @@ function TermsLibrary() {
             <button className="ad-btn primary" disabled={busy} onClick={onAdd}>添加</button>
             {formError ? <span className="ad-sub" style={{ color: "var(--ad-crit)" }}>{formError}</span> : null}
           </div>
+          <div className="ad-sub" style={{ marginTop: 8 }}>
+            标记复审 = 命中后进复审队列,不阻断生图；直接拦截 = 命中即在生图入口拒绝。
+          </div>
         </div>
       </div>
 
@@ -167,7 +225,7 @@ function TermsLibrary() {
 
       <div className="ad-panel">
         {loading ? <Loading /> : null}
-        {error ? <ErrorState message={error} /> : null}
+        {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {data && !loading ? (
           data.rows.length === 0 ? <Empty message="没有匹配的违禁词" /> : (
             <div className="ad-table-wrap">
@@ -194,6 +252,8 @@ function TermsLibrary() {
           )
         ) : null}
       </div>
+
+      {dialog}
     </>
   );
 }

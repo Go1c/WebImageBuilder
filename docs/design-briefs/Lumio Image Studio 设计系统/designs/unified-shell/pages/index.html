@@ -1,0 +1,76 @@
+<!-- @dsCard group="页面设计" viewport="1200x760" name="P0 · 页面地图" subtitle="全站页面清单与跳转关系 · 各页详稿入口" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>页面地图 · Lumio 统一工作台</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+<style>
+.map-wrap { max-width: 1120px; margin: 0 auto; padding: 40px 24px 80px; font-family: Inter, "PingFang SC", sans-serif; }
+.map-wrap h1 { margin: 0 0 6px; font-size: 26px; }
+.map-wrap > p { color: var(--studio-muted); font-size: 13px; margin: 0 0 28px; max-width: 720px; }
+.map-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.map-card { display: block; border: 1px solid var(--studio-line-strong); border-radius: 14px; background: var(--studio-surface); overflow: hidden; transition: box-shadow .15s, transform .15s; }
+.map-card:hover { box-shadow: 0 16px 40px -18px rgba(0,0,0,.25); transform: translateY(-2px); color: inherit; }
+.map-thumb { height: 120px; display: grid; place-items: center; font-size: 34px; border-bottom: 1px solid var(--studio-line); background: var(--studio-bg-soft); }
+.map-thumb.dark { background: #090a0f; background-image: radial-gradient(rgba(245,245,244,.14) 1px, transparent 1px); background-size: 16px 16px; }
+.map-body { padding: 12px 14px; }
+.map-body b { font-size: 14px; display: block; }
+.map-body p { margin: 4px 0 0; color: var(--studio-muted); font-size: 12px; line-height: 17px; }
+.map-body .url { display: inline-block; margin-top: 8px; font-size: 11px; background: var(--studio-surface-3); border-radius: 6px; padding: 2px 7px; color: var(--studio-copy-2); font-family: ui-monospace, Menlo, monospace; }
+.flow { margin-top: 36px; }
+.flow h2 { font-size: 17px; margin: 0 0 12px; }
+</style>
+</head>
+<body class="spec-page">
+<nav class="spec-topnav">
+  <span class="cur">页面地图 · Lumio 统一工作台</span>
+  <span class="pager"><a href="../index.html">可点击原型（SPA）</a><a href="../../admin/index.html">管理后台原型</a></span>
+</nav>
+<div class="map-wrap" data-screen-label="页面地图">
+  <h1>页面设计详稿</h1>
+  <p>每个页面单独一份设计稿：页面全貌 + 编号标注（每个控件的功能 / 点击行为 / 跳转去向）+ 四态 + 跳转地图。可点击流转请看右上角的 SPA 原型。</p>
+  <div class="map-grid">
+    <a class="map-card" href="01-studio.html">
+      <div class="map-thumb">✦</div>
+      <div class="map-body"><b>P1 · 生图工作台（探索）</b><p>三栏创作：面板全控件 · 结果六操作 · 历史条 · 提示词库嵌入态。全站默认落点。</p><span class="url">/ · ?prompt= ?theme=</span></div>
+    </a>
+    <a class="map-card" href="02-canvas-landing.html">
+      <div class="map-thumb dark" style="color:#fafaf9">◫</div>
+      <div class="map-body"><b>P2 · 无限画布 · 落地页（主页）</b><p>Hero 价值叙事 + 双 CTA + 提示词库导流。替代 canvas /home。</p><span class="url">/canvas</span></div>
+    </a>
+    <a class="map-card" href="03-canvas-editor.html">
+      <div class="map-thumb dark" style="color:#2cd4be">⬡</div>
+      <div class="map-body"><b>P3 · 无限画布 · 编辑器</b><p>节点画布 / 左工具栏 / 节点工具条 / 项目抽屉 / AI 助手 / 缩放。</p><span class="url">/canvas/:id</span></div>
+    </a>
+    <a class="map-card" href="04-prompts.html">
+      <div class="map-thumb">▤</div>
+      <div class="map-body"><b>P4 · 提示词库（完整页）</b><p>五 tab + 搜索 + 详情弹层；「我的素材」管理（导入导出 ZIP）。</p><span class="url">/prompts?tab=&amp;q= · /prompts/:n</span></div>
+    </a>
+    <a class="map-card" href="05-portfolio.html">
+      <div class="map-thumb">▦</div>
+      <div class="map-body"><b>P5 · 作品集</b><p>生成成品管理：查看器 / 多选 / 删除 / 备份 ZIP / 回流生成与画布。</p><span class="url">/portfolio</span></div>
+    </a>
+    <a class="map-card" href="06-share.html">
+      <div class="map-thumb">🔗</div>
+      <div class="map-body"><b>P6 · 分享落地页</b><p>访客第一屏：水印卡 + 我也要生成 CTA + 失效态。移动优先。</p><span class="url">/share/:id</span></div>
+    </a>
+  </div>
+
+  <div class="flow">
+    <h2>核心跳转关系</h2>
+    <div class="jump-map"><table>
+      <tr><th>动线</th><th></th><th>路径</th></tr>
+      <tr><td>创作主线</td><td class="arr">→</td><td>P1 生成 <span class="arr">→</span> 保存 P5 / 打开画布 P3 / 分享出 P6</td></tr>
+      <tr><td>画布主线</td><td class="arr">→</td><td>P2 落地（开始使用 / 打开画布）<span class="arr">→</span> P3 编辑器 <span class="arr">→</span> 节点存回 P5</td></tr>
+      <tr><td>拉新回流</td><td class="arr">→</td><td>P6 访客「我也要生成」<span class="arr">→</span> P1 ?prompt= 预填 <span class="arr">→</span> 免费 3 次 <span class="arr">→</span> 登录/邀请</td></tr>
+      <tr><td>素材回流</td><td class="arr">→</td><td>P4 详情「用它生成」<span class="arr">→</span> P1；P1 右栏 = P4 嵌入态</td></tr>
+      <tr><td>浮层（无独立页）</td><td class="arr">→</td><td>登录 / 邀请有礼 / 被邀请落地（?invite=）/ 教程 / 跨域过渡 / 确认弹窗 —— 规格见 SPA 原型</td></tr>
+    </table></div>
+  </div>
+</div>
+</body>
+</html>

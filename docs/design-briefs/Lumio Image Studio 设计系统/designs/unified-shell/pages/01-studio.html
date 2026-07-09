@@ -1,0 +1,184 @@
+<!-- @dsCard group="页面设计" viewport="1400x980" name="P1 · 生图工作台" subtitle="三栏全控件逐项规格 + 四态 + 结果六操作 + 跳转" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"></meta>
+<meta name="viewport" content="width=device-width, initial-scale=1"></meta>
+<title>P1 · 生图工作台 · 页面设计</title>
+<link rel="stylesheet" href="../tokens.css"></link>
+<link rel="stylesheet" href="../shell.css"></link>
+<link rel="stylesheet" href="../screens.css"></link>
+<link rel="stylesheet" href="spec.css"></link>
+</head>
+<body class="spec-page">
+
+<nav class="spec-topnav">
+  <a href="index.html">页面地图</a><span class="sep">/</span><span class="cur">P1 · 生图工作台（探索 · 默认落点）</span>
+  <span class="pager"><a href="02-canvas-landing.html">P2 无限画布落地 →</a></span>
+</nav>
+
+<div class="screen-frame">
+  <div style="position:relative; height:860px; display:flex; flex-direction:column; font-family:Inter,'PingFang SC',sans-serif" data-screen-label="P1 生图工作台">
+
+    <!-- 统一顶栏 -->
+    <header class="shell-topbar">
+      <a class="shell-brand" href="#"><span class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg></span><span class="brand-name">LumioImageStudio</span></a>
+      <span class="global-stats-pill">全站已生成 <strong>128,462</strong> 次</span>
+      <nav class="shell-nav">
+        <button type="button" class="nav-generate is-selected">探索</button>
+        <button type="button" class="nav-canvas">无限画布<span class="nav-beta">Beta</span></button>
+        <button type="button" disabled>视频创作台<span class="nav-soon">即将上线</span></button>
+        <button type="button">作品集</button>
+        <button type="button">提示词库</button>
+        <button type="button">教程</button>
+      </nav>
+      <div class="shell-account"><span class="pill quota-pill">免费次数 <strong>3 次</strong></span><span class="pill balance-pill">余额 <strong>$12.80</strong></span><button type="button" class="pill invite-pill">邀请有礼</button>
+        <button type="button" class="theme-toggle"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg></button>
+        <button type="button" class="account-avatar">C</button></div>
+      <i class="spot" style="left:calc(50% - 200px); top:44px">1</i>
+      <i class="spot" style="right:180px; top:44px">2</i>
+    </header>
+    <div class="announce-bar" style="position:relative">
+      <span class="announce-tag">公告</span>
+      <p>gpt-image-2 · 4K 档已开放，登录后即可使用账户余额生成。<a href="#">立即体验</a></p>
+      <span class="announce-queue">1 / 2</span>
+      <button type="button" class="announce-close">✕</button>
+      <i class="spot" style="right:70px; top:6px">3</i>
+    </div>
+
+    <!-- 三栏 -->
+    <div class="studio-grid" style="flex:1; min-height:0">
+      <section class="side-panel prompt-panel">
+        <div class="panel-header"><h1>创作面板</h1><p>描述画面，选择模型与画幅</p></div>
+        <div class="panel-scroll">
+          <div style="position:relative">
+            <p class="section-label">提示词</p>
+            <div class="prompt-card">
+              <textarea readonly>深空银河核心，璨璨星云与尘埃，长曝光摄影质感</textarea>
+              <div class="prompt-action-row">
+                <div class="reference-row">
+                  <span class="reference-thumb"><img src="../../assets/community-2.jpg" alt="参考图"></img><button type="button" class="reference-remove">✕</button></span>
+                  <button type="button" class="reference-add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+                </div>
+                <button type="button" class="generate-fab"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button>
+              </div>
+            </div>
+            <p class="quota-hint">本次消耗 <strong>1 次免费额度</strong> · 剩 3 次</p>
+            <i class="spot" style="right:6px; bottom:44px">4</i>
+            <i class="spot" style="left:120px; bottom:44px">5</i>
+          </div>
+          <div><p class="section-label">负面提示词</p><input class="negative-input" placeholder="不想出现的元素，如：模糊、文字、水印"></input></div>
+          <div style="position:relative">
+            <div class="section-label-row"><p class="section-label">模型与张数</p><span>2K/4K 需登录使用余额</span></div>
+            <div class="model-control-grid">
+              <label class="studio-select-control"><span>模型</span><select><option>gpt-image-2</option></select></label>
+              <label class="studio-select-control"><span>张数</span><select><option>1 张</option></select></label>
+            </div>
+            <i class="spot" style="right:6px; top:24px">6</i>
+          </div>
+          <div style="position:relative">
+            <p class="section-label">画幅比例</p>
+            <div class="ratio-grid">
+              <button type="button" class="ratio-button">1:1</button><button type="button" class="ratio-button is-selected">4:3</button><button type="button" class="ratio-button">3:4</button><button type="button" class="ratio-button">16:9</button><button type="button" class="ratio-button">9:16</button>
+            </div>
+            <button type="button" class="custom-resolution-button">自定义分辨率</button>
+            <i class="spot" style="right:-10px; top:58px">7</i>
+          </div>
+          <div style="position:relative">
+            <div class="section-label-row"><p class="section-label">细节强度</p><span>76</span></div>
+            <input type="range" class="detail-slider" value="76" style="--slider-progress:76%"></input>
+            <div class="slider-copy"><span>柔和</span><span class="hq-note">已启用高质量档</span><span>锐利</span></div>
+            <i class="spot" style="right:6px; top:18px">8</i>
+          </div>
+        </div>
+      </section>
+
+      <section class="canvas-area">
+        <div class="canvas-meta">
+          <span class="model-chip">✦ gpt-image-2</span><span class="meta-dot">·</span>
+          <p>深空银河核心，璨璨星云与尘埃，长曝光摄影质感</p><span class="meta-dot">·</span>
+          <span class="meta-note">4:3 · 1536×1152</span>
+        </div>
+        <div class="image-stage"><div class="main-image-frame"><img src="../../assets/community-6.jpg" alt="生成预览" style="max-height:420px"></img></div></div>
+        <div class="canvas-actions" style="position:relative">
+          <p class="spend-note">本次消耗 <strong>1 次免费额度</strong> · 剩 <strong>3</strong> 次</p>
+          <button type="button" class="save-button">保存到作品集</button>
+          <button type="button" class="open-canvas-button">在画布中打开</button>
+          <button type="button" class="share-card-button">分享提示词卡片</button>
+          <span class="action-divider"></span>
+          <button type="button" class="icon-button" data-tooltip="下载"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg></button>
+          <button type="button" class="icon-button" data-tooltip="重新生成"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"></path></svg></button>
+          <button type="button" class="icon-button" data-tooltip="删除"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path></svg></button>
+          <i class="spot" style="left:calc(50% - 260px); top:30px">9</i>
+          <i class="spot teal" style="left:calc(50% - 40px); top:30px">10</i>
+        </div>
+        <div class="canvas-history" style="position:relative">
+          <span>历史</span>
+          <button type="button" class="history-thumb is-active"><img src="../../assets/community-6.jpg" alt=""></img></button>
+          <button type="button" class="history-thumb"><img src="../../assets/community-4.jpg" alt=""></img></button>
+          <button type="button" class="history-thumb"><img src="../../assets/community-2.jpg" alt=""></img></button>
+          <i class="spot" style="left:280px; top:26px">11</i>
+        </div>
+      </section>
+
+      <section class="side-panel library-panel">
+        <div class="panel-header"><h1>提示词库</h1><p>点击卡片，提示词直接套用到左侧</p></div>
+        <div class="library-controls" style="position:relative">
+          <div class="library-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg> <input placeholder="搜索 335 条提示词"></input></div>
+          <div class="library-tabs">
+            <button type="button" class="is-selected">热门</button><button type="button">人物</button><button type="button">场景</button><button type="button">风格</button><button type="button">我的</button>
+            <span class="library-count">335 条</span>
+          </div>
+          <i class="spot" style="right:8px; bottom:8px">12</i>
+        </div>
+        <div class="panel-scroll">
+          <div class="prompt-lib-grid">
+            <button type="button" class="prompt-lib-card"><img src="../../assets/case1.jpg" alt=""></img><span class="t">城市生命系统图谱</span><span class="m">#1 · 场景</span></button>
+            <button type="button" class="prompt-lib-card"><img src="../../assets/case15.jpg" alt=""></img><span class="t">夜市大排档人像海报</span><span class="m">#15 · 人物</span></button>
+            <button type="button" class="prompt-lib-card"><img src="../../assets/case14.jpg" alt=""></img><span class="t">国风美食图鉴</span><span class="m">#14 · 风格</span></button>
+            <button type="button" class="prompt-lib-card"><img src="../../assets/case17.jpg" alt=""></img><span class="t">成都吃货暴走地图</span><span class="m">#17 · 场景</span></button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<p class="screen-caption"><span>浅色态（深色态同组件换 token，中央画布叠点阵网格）</span><span>1440×900 · 三栏 340 | 1fr | 320</span></p>
+
+<div class="spec-body">
+  <h2>逐控件规格<small>编号对应画面标注</small></h2>
+  <div class="spec-grid">
+    <div class="spec-item"><span class="n">1</span><div><b>统一导航（本页 = 探索，violet 高亮）</b><p>六项固定：探索 / 无限画布 / 视频创作台（置灰）/ 作品集 / 提示词库 / 教程（浮层）。<span class="act">点击切页</span>，当前页高亮用域身份色（探索 violet-soft，无限画布 teal-soft）。</p></div></div>
+    <div class="spec-item"><span class="n">2</span><div><b>账户区</b><p>次数 pill（amber，将尽转红）· 余额 pill（green）· 邀请有礼（浮层）· 主题开关 · 头像<span class="act">点击开账号菜单</span>（账户中心 / 偏好配置 / 切主题 / 退出 / 版本号）。未登录时此区 = 免费体验 pill + 黑色「登录」。</p></div></div>
+    <div class="spec-item"><span class="n">3</span><div><b>公告横幅</b><p>数据来自后台公告模块。<span class="act">✕ 关闭当前条</span>→ 显示下一条（右侧 1/2 计数）；全部关完横幅收起，同一公告本设备不再出现。链接<span class="go">→ 深链到目标页</span>。</p></div></div>
+    <div class="spec-item"><span class="n">4</span><div><b>生成按钮（violet FAB）+ 额度提示</b><p><span class="act">点击</span>开始生成：中央进加载态、FAB 置灰。下方常驻「本次消耗 1 次 · 剩 N 次」；<strong>额度耗尽时点击不发请求</strong>，toast 给三出路（登录 / 邀请 / 余额）。⌘⏎ 快捷生成。</p></div></div>
+    <div class="spec-item"><span class="n">5</span><div><b>参考图行</b><p>最多 3 张，48px 缩略图；<span class="act">＋ 上传</span>（拖拽亦可）；<span class="act">悬停出 ✕ 移除</span>。超限时 ＋ 置灰 + tooltip「最多 3 张」。</p></div></div>
+    <div class="spec-item"><span class="n">6</span><div><b>模型与张数</b><p>模型：gpt-image-2 / 2K / 4K / gemini-3.1-flash。<strong>未登录选 2K/4K</strong>：选项可选但选中即弹登录浮层（诚实拦截，不静默失败）。张数 1–4；多张时中央变四宫格。</p></div></div>
+    <div class="spec-item"><span class="n">7</span><div><b>画幅 + 自定义分辨率</b><p>5 档单选（黑底选中）。<span class="act">点「自定义分辨率」</span>展开宽×高输入（256–4096、64 倍数），非法值红框 + 文案，生成按钮不禁用但点击时聚焦错误字段。</p></div></div>
+    <div class="spec-item"><span class="n">8</span><div><b>细节强度滑杆</b><p>0–100，两端语义「柔和 / 锐利」；<strong>≥72 显示「已启用高质量档」</strong>（violet 字），提示词自动追加「细节锐利」。进度条用生成域 violet。</p></div></div>
+    <div class="spec-item"><span class="n">9</span><div><b>结果操作条（六操作）</b><p>保存到作品集（黑，成功 toast「仅保存在本设备」）· 分享提示词卡片（green 渐变，<span class="go">→ 生成短链并跳 P6</span>）· 下载 / 重新生成 / 删除（图标 + tooltip）。<strong>删除走确认弹窗</strong>，列明「不影响已分享卡片」。</p></div></div>
+    <div class="spec-item teal"><span class="n">10</span><div><b>在画布中打开（teal = 跨域去向）</b><p><span class="act">点击</span>→ 过渡浮层：当前图 → 画布节点示意 + 「新建画布项目」/「追加到最近项目」两选项<span class="go">→ P3 编辑器</span>，落点 toast「图片已作为节点加入」。</p></div></div>
+    <div class="spec-item"><span class="n">11</span><div><b>历史条</b><p>本次会话生成记录，56px 缩略图，选中黑描边；<span class="act">点击</span>切换中央大图与参数回填。生成中的位次显示虚线占位。</p></div></div>
+    <div class="spec-item"><span class="n">12</span><div><b>提示词库嵌入态（右栏）</b><p>搜索 + 热门/人物/场景/风格/我的 + 总数徽标。<span class="act">点卡片</span>提示词落入左栏输入框 + toast「已套用」；「我的」tab 带「仅保存在本设备」标注；面板头<span class="go">→ 提示词库完整页 P4</span>。</p></div></div>
+  </div>
+
+  <h2>中央画布四态</h2>
+  <div class="state-row">
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-faint)"></i>空态（价值引导）</div><div class="st-body">虚线框 + 「从一句<u>提示词</u>开始」（橙下划线签名）+ 一句叙事 + 示例提示词按钮（点击填入）。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-orange)"></i>加载</div><div class="st-body">进度条（1K 20–40s 预期文案）+「请勿关闭页面」。多张时四宫格逐格完成。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--studio-green)"></i>成功</div><div class="st-body">大图 + 操作条可用 + 历史条入列 + toast「生成完成」。</div></div>
+    <div class="state-card"><div class="st-head"><i style="background:var(--lumio-danger)"></i>失败</div><div class="st-body">红框态：「生成没有成功 · 上游服务暂时繁忙，<strong>本次未扣除额度</strong>」+ 重试按钮。</div></div>
+  </div>
+
+  <h2>跳转地图</h2>
+  <div class="jump-map"><table>
+    <tr><th>触点</th><th></th><th>去向</th></tr>
+    <tr><td>在画布中打开</td><td class="arr">→</td><td>过渡浮层 <span class="arr">→</span> P3 编辑器（新建/追加）</td></tr>
+    <tr><td>分享提示词卡片</td><td class="arr">→</td><td>生成短链 <code>/share/:id</code> <span class="arr">→</span> P6 分享页预览</td></tr>
+    <tr><td>保存到作品集 toast</td><td class="arr">→</td><td>P5 作品集</td></tr>
+    <tr><td>右栏卡片 / 「我的」管理</td><td class="arr">→</td><td>套用到输入框 / P4 提示词库完整页</td></tr>
+    <tr><td>URL 深链</td><td class="arr">→</td><td><code>?prompt=</code> 预填提示词 · <code>?theme=</code> 主题 · <code>?invite=码</code> 领取浮层</td></tr>
+  </table></div>
+</div>
+</body>
+</html>

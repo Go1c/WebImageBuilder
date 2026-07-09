@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import { PageShell } from "../_components/PageShell";
 import { Drawer } from "../_components/Drawer";
-import { Empty, ErrorState, Loading, Pill, adminAction, useAdminData, type PillTone } from "../_components/ui";
+import {
+  Empty,
+  ErrorState,
+  Loading,
+  Pill,
+  adminAction,
+  useAdminData,
+  useConfirm,
+  useToast,
+  ANNOUNCE_STATUS_LABELS,
+  type PillTone
+} from "../_components/ui";
 import { fmtDate } from "../_components/format";
 import type { AnnouncementRow } from "@/server/admin/queries/announcements";
 
@@ -16,9 +27,11 @@ const PLACEMENT_LABEL: Record<string, string> = {
 
 const STATUS_META: Record<string, { tone: PillTone; label: string }> = {
   active: { tone: "good", label: "生效中" },
-  draft: { tone: "warn", label: "待生效" },
+  draft: { tone: "warn", label: "草稿" },
   ended: { tone: "neutral", label: "已结束" }
 };
+
+const STATE_ORDER = ["draft", "active", "ended"] as const;
 
 type EditorState = Partial<AnnouncementRow> | null;
 
@@ -28,15 +41,28 @@ function toDatePart(iso: string | null): string {
 }
 
 export default function AnnouncementsPage() {
+  const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const { data, loading, error, reload } = useAdminData<{ rows: AnnouncementRow[] }>("/api/admin/announcements");
   const [editor, setEditor] = useState<EditorState>(null);
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("确定删除该公告？此操作不可撤销。")) {
-      return;
-    }
-    await fetch(`/api/admin/announcements/${id}`, { method: "DELETE", credentials: "include" });
-    reload();
+  function handleDelete(id: string, title: string) {
+    confirm({
+      title: "删除该公告？",
+      desc: `确认删除公告「${title}」？此操作不可撤销。`,
+      impact: "删除后前台立即不再展示该公告。",
+      impactTone: "crit",
+      confirmLabel: "删除",
+      onConfirm: async () => {
+        const res = await fetch(`/api/admin/announcements/${id}`, { method: "DELETE", credentials: "include" });
+        if (res.ok) {
+          toast("公告已删除", { sub: id });
+          reload();
+        } else {
+          toast("删除失败", { err: true });
+        }
+      }
+    });
   }
 
   return (
@@ -54,7 +80,7 @@ export default function AnnouncementsPage() {
 
       <div className="ad-panel">
         {loading ? <Loading /> : null}
-        {error ? <ErrorState message={error} /> : null}
+        {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {data && !loading ? (
           data.rows.length === 0 ? <Empty message="暂无公告" /> : (
             <div className="ad-table-wrap">
@@ -74,7 +100,7 @@ export default function AnnouncementsPage() {
                         <td>
                           <div className="ad-row-flex" style={{ gap: 6 }}>
                             <button className="ad-btn sm" onClick={() => setEditor(a)}>编辑</button>
-                            <button className="ad-btn danger sm" onClick={() => handleDelete(a.id)}>删除</button>
+                            <button className="ad-btn danger sm" onClick={() => handleDelete(a.id, a.title)}>删除</button>
                           </div>
                         </td>
                       </tr>
@@ -90,8 +116,9 @@ export default function AnnouncementsPage() {
       <AnnouncementEditor
         state={editor}
         onClose={() => setEditor(null)}
-        onSaved={() => { setEditor(null); reload(); }}
+        onSaved={(created) => { setEditor(null); reload(); toast(created ? "公告已创建" : "公告已保存"); }}
       />
+      {dialog}
     </PageShell>
   );
 }
@@ -123,7 +150,7 @@ function AnnouncementEditor({
 }: {
   state: EditorState;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (created: boolean) => void;
 }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -149,9 +176,17 @@ function AnnouncementEditor({
     setFormError(null);
   }, [state]);
 
+  // end must be strictly after start when both provided
+  const timeInvalid =
+    !!startsAt && !!endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime();
+
   async function handleSave() {
     if (!title.trim()) {
       setFormError("标题不能为空");
+      return;
+    }
+    if (timeInvalid) {
+      setFormError("生效结束时间必须晚于开始时间");
       return;
     }
     setSaving(true);
@@ -186,7 +221,7 @@ function AnnouncementEditor({
 
     setSaving(false);
     if (ok) {
-      onSaved();
+      onSaved(!editingId);
     } else {
       setFormError(errMsg || "保存失败");
     }
@@ -201,17 +236,37 @@ function AnnouncementEditor({
     >
       {state ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* 状态机条 */}
+          <div className="adx-statemachine">
+            {STATE_ORDER.map((s, i) => (
+              <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span className={`st${status === s ? " on" : ""}`}>{ANNOUNCE_STATUS_LABELS[s]}</span>
+                {i < STATE_ORDER.length - 1 ? <span>→</span> : null}
+              </span>
+            ))}
+          </div>
+
+          <label>
             <span className="ad-sub">标题</span>
-            <input className="ad-btn" style={{ cursor: "text", textAlign: "left" }} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="公告标题" />
+            <input className="ad-btn" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="公告标题" />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label>
             <span className="ad-sub">内容</span>
-            <textarea className="ad-btn" style={{ cursor: "text", textAlign: "left", resize: "vertical", fontFamily: "inherit" }} rows={5} value={body} onChange={(e) => setBody(e.target.value)} placeholder="公告内容" />
+            <textarea className="ad-btn" rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="公告内容" />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* 前台预览：所见即所得（复用 .lumio-announce 横幅样式） */}
+          <div className="adx-banner-preview">
+            <div className="cap">前台预览</div>
+            <div className="lumio-announce">
+              <span className="tag">公告</span>
+              <p>{title.trim() || "公告标题将在此处显示…"}</p>
+              <span className="x">✕</span>
+            </div>
+          </div>
+
+          <label>
             <span className="ad-sub">位置</span>
             <select className="ad-chip" value={placement} onChange={(e) => setPlacement(e.target.value)}>
               <option value="home_banner">首页Banner</option>
@@ -221,30 +276,39 @@ function AnnouncementEditor({
             </select>
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label>
             <span className="ad-sub">状态</span>
             <select className="ad-chip" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="draft">待生效</option>
+              <option value="draft">草稿</option>
               <option value="active">生效中</option>
               <option value="ended">已结束</option>
             </select>
           </label>
 
-          <div className="ad-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label>
               <span className="ad-sub">生效开始</span>
-              <input className="ad-btn" style={{ cursor: "text", textAlign: "left" }} type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+              <input className="ad-btn" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>
               <span className="ad-sub">生效结束</span>
-              <input className="ad-btn" style={{ cursor: "text", textAlign: "left" }} type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+              <input
+                className="ad-btn"
+                style={timeInvalid ? { borderColor: "var(--ad-crit)" } : undefined}
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+              />
+              {timeInvalid ? (
+                <span className="ad-sub" style={{ color: "var(--ad-crit)" }}>结束时间必须晚于开始时间</span>
+              ) : null}
             </label>
           </div>
 
-          {formError ? <div className="ad-empty">{formError}</div> : null}
+          {formError ? <div className="ad-sub" style={{ color: "var(--ad-crit)" }}>{formError}</div> : null}
 
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button className="ad-btn primary" style={{ flex: 1 }} disabled={saving} onClick={handleSave}>
+            <button className="ad-btn primary" style={{ flex: 1 }} disabled={saving || timeInvalid} onClick={handleSave}>
               {saving ? "保存中…" : "保存"}
             </button>
             <button className="ad-btn ghost" onClick={onClose}>取消</button>

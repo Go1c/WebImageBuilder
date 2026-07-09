@@ -1,0 +1,7 @@
+/* Lumio 设计原型 · 全局样式入口（仅 @import） */
+@import "fonts.css";
+@import "designs/unified-shell/tokens.css";
+@import "designs/unified-shell/shell.css";
+@import "designs/unified-shell/screens.css";
+@import "designs/admin/admin-base.css";
+@import "designs/admin/admin-components.css";

@@ -199,6 +199,12 @@ const emptySub2ApiSession: Sub2ApiSessionResponse = {
 const urlOnlyReferenceSupportNote =
   "Canvas reuse is sent as a URL reference asset; uploaded files remain the most reliable provider reference path.";
 
+const CANVAS_EMPTY_EXAMPLE_PROMPTS = [
+  "深空银河核心，璀璨星云与尘埃，长曝光摄影质感",
+  "赛博朋克霓虹街道上漫步的白猫，电影感光线",
+  "国风美食图鉴，热气腾腾的火锅，工笔插画风格"
+];
+
 type GenerationCount = 1 | 2 | 3 | 4;
 
 const studioModelOptions: Array<{ key: ModelKey; label: string }> = [
@@ -1231,20 +1237,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     showTip({
       type: "info",
       title: "探索已打开",
-      message: "素材库已切换到热门灵感。"
-    });
-  }
-
-  function handleOpenPortfolio() {
-    setActiveHeaderPanel(null);
-    setActiveLibraryTab("我的");
-    scrollLibraryIntoView();
-    showTip({
-      type: "info",
-      title: "作品集已打开",
-      message: savedPortfolioItems.length
-        ? `本地作品集当前有 ${savedPortfolioItems.length} 个项目。`
-        : "本地作品集暂无项目，保存当前画布后会显示在这里。"
+      message: "提示词库已切换到热门灵感。"
     });
   }
 
@@ -1362,7 +1355,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
       showTip({
         type: "success",
         title: "已保存到作品集",
-        message: "可在素材库的“我的”标签查看。也可以点击绿色的“分享提示词卡片”，把图和提示词一起发给别人。"
+        message: "可在提示词库的“我的”标签查看。也可以点击绿色的“分享提示词卡片”，把图和提示词一起发给别人。"
       });
     } catch (error) {
       showTip(tipFromActionFailure({ kind: "failed", action: "保存到作品集", error }));
@@ -1582,28 +1575,39 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
             </span>
             <span>LumioImageStudio</span>
           </a>
-          <span className="global-stats-pill" title={globalGenerationText}>
+          <span className="global-stats-pill" title={globalStats ? globalGenerationText : undefined}>
             <StudioIcon name="sparkle" size={13} />
-            <span className="global-stats-full">{globalGenerationText}</span>
-            <span className="global-stats-compact">{compactGlobalGenerationText}</span>
+            {globalStats ? (
+              <>
+                <span className="global-stats-full">{globalGenerationText}</span>
+                <span className="global-stats-compact">{compactGlobalGenerationText}</span>
+              </>
+            ) : (
+              <span className="stat-skeleton" />
+            )}
           </span>
         </div>
 
         <nav className="studio-nav" aria-label="主导航">
           <button
-            className={activeLibraryTab === "热门" && !activeHeaderPanel ? "is-selected" : ""}
+            className={
+              activeLibraryTab === "热门" && !activeHeaderPanel
+                ? "nav-generate is-selected"
+                : "nav-generate"
+            }
             type="button"
             onClick={handleOpenExplore}
           >
             探索
           </button>
-          <button
-            className={activeLibraryTab === "我的" && !activeHeaderPanel ? "is-selected" : ""}
-            type="button"
-            onClick={handleOpenPortfolio}
-          >
-            作品集
+          <a className="studio-nav-canvas nav-canvas" href="/canvas">
+            无限画布<span className="studio-nav-beta nav-beta">Beta</span>
+          </a>
+          <button type="button" disabled>
+            视频创作台<span className="nav-soon">即将上线</span>
           </button>
+          <a href="/portfolio">作品集</a>
+          <a href="/prompts">提示词库</a>
           <button
             className={activeHeaderPanel === "tutorials" ? "is-selected" : ""}
             type="button"
@@ -1611,9 +1615,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           >
             教程
           </button>
-          <a className="studio-nav-canvas" href="/canvas">
-            无限画布<span className="studio-nav-beta">Beta</span>
-          </a>
         </nav>
 
         <div className="studio-account">
@@ -1647,6 +1648,16 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           )}
         </div>
       </header>
+
+      {/*
+        统一公告横幅(.announce-bar):设计要求数据来自后台公告模块,支持 ✕ 关闭当前条 →
+        显示下一条(右侧 1/N 计数),同一公告本设备关闭后不再出现(localStorage per-id)。
+        当前后端仅有 requireAdmin 鉴权的 /api/admin/announcements,没有公开(非 admin)的
+        active home_banner 公告接口。按诚实原则不编造公告内容,接口就绪前不渲染横幅。
+        TODO: wire announcements API —— 待 /api/announcements(公开,active + home_banner)上线后,
+        在此拉取、渲染 .announce-bar(.announce-tag 公告 / 文案 / .announce-queue "1 / N" /
+        .announce-close),并接 localStorage per-id dismiss + 队列切换到下一条。
+      */}
 
       {activeHeaderPanel && activeHeaderPanel !== "auth" ? (
         <HeaderContextPanel
@@ -1990,43 +2001,79 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                   .join(" ")}
               >
                 {generationSlots.length === 1 && !visibleCanvasImage ? (
-                  <div className="generated-tile-loading">
-                    <span>{getGenerationSlotStatusLabel(generationSlots[0].status)}</span>
-                    <div
-                      className="tile-loading-progress"
-                      role="progressbar"
-                      aria-valuenow={
-                        generationSlots[0].status === "running"
-                          ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
-                          : 0
-                      }
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className="tile-loading-progress-bar"
-                        style={{
-                          width: `${
-                            generationSlots[0].status === "running"
-                              ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
-                              : 0
-                          }%`
-                        }}
-                      />
+                  generationSlots[0].status === "failed" ? (
+                    <div className="canvas-failed" role="alert">
+                      <p className="canvas-failed-title">
+                        生成没有成功 · 上游服务暂时繁忙，<strong>本次未扣除额度</strong>
+                      </p>
+                      {generationSlots[0].errorMessage ? (
+                        <p className="canvas-failed-detail">{generationSlots[0].errorMessage}</p>
+                      ) : null}
+                      <button
+                        className="canvas-retry-button"
+                        type="button"
+                        onClick={handleRegenerate}
+                      >
+                        <StudioIcon name="refresh" size={14} />
+                        重试一次
+                      </button>
                     </div>
-                    <small>
-                      {generationSlots[0].status === "failed"
-                        ? generationSlots[0].errorMessage || "生成失败"
-                        : generationSlots[0].status === "queued"
+                  ) : (
+                    <div className="generated-tile-loading">
+                      <span>{getGenerationSlotStatusLabel(generationSlots[0].status)}</span>
+                      <div
+                        className="tile-loading-progress"
+                        role="progressbar"
+                        aria-valuenow={
+                          generationSlots[0].status === "running"
+                            ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                            : 0
+                        }
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className="tile-loading-progress-bar"
+                          style={{
+                            width: `${
+                              generationSlots[0].status === "running"
+                                ? estimateGenerationProgress(getGenerationSlotElapsedSeconds(generationSlots[0]))
+                                : 0
+                            }%`
+                          }}
+                        />
+                      </div>
+                      <small>
+                        {generationSlots[0].status === "queued"
                           ? "等待空闲通道"
                           : `${getGenerationSlotElapsedSeconds(generationSlots[0]) || 1}s`}
-                    </small>
-                  </div>
+                      </small>
+                    </div>
+                  )
                 ) : visibleCanvasImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={visibleCanvasImage.url} alt="生成预览" />
-                ) : canvasPlaceholderText ? (
-                  <span>{canvasPlaceholderText}</span>
+                ) : !loading && canvasPlaceholderText ? (
+                  <div className="canvas-empty">
+                    <p className="canvas-empty-title">
+                      从一句<u className="canvas-empty-keyword">提示词</u>开始
+                    </p>
+                    <p className="canvas-empty-hint">
+                      在左侧描述你想要的画面，选好模型与画幅，点亮紫色生成按钮即可出图。
+                    </p>
+                    <div className="canvas-empty-examples">
+                      {CANVAS_EMPTY_EXAMPLE_PROMPTS.map((example) => (
+                        <button
+                          key={example}
+                          className="canvas-empty-example"
+                          type="button"
+                          onClick={() => setPrompt(example)}
+                        >
+                          {example}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
                 {loading && generationSlots.length === 0 ? (
                   <div className="image-loading">
@@ -2176,8 +2223,8 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           </div>
         </section>
 
-        <aside className="library-panel" aria-label="素材库" ref={libraryPanelRef}>
-          <PanelHeader title="素材库" subtitle="点击直接套用提示词" />
+        <aside className="library-panel" aria-label="提示词库" ref={libraryPanelRef}>
+          <PanelHeader title="提示词库" subtitle="点击直接套用提示词" />
 
           <div className="library-controls">
             <label className="library-search">
@@ -2189,7 +2236,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               />
             </label>
 
-            <div className="library-tabs" role="tablist" aria-label="素材分类">
+            <div className="library-tabs" role="tablist" aria-label="提示词分类">
               {libraryTabs.map((tab) => (
                 <button
                   key={tab}
@@ -2262,7 +2309,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                     ))}
                   </div>
                 ) : (
-                  <p className="library-empty">没有匹配的素材</p>
+                  <p className="library-empty">没有匹配的提示词</p>
                 )}
               </section>
             )}

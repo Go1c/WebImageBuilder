@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { PageShell } from "../_components/PageShell";
-import { Empty, ErrorState, Loading, Pill, useAdminData, type PillTone } from "../_components/ui";
-import { timeAgo, truncate } from "../_components/format";
+import { Drawer } from "../_components/Drawer";
+import { CopyValue, Empty, ErrorState, Loading, Pill, useAdminData, type PillTone } from "../_components/ui";
+import { fmtDate, timeAgo, truncate } from "../_components/format";
 import type { AuditCategory, AuditRow } from "@/server/admin/queries/audit";
 
 const FILTERS: { key: AuditCategory; label: string }[] = [
@@ -44,6 +45,7 @@ function detailText(detail: Record<string, unknown> | null): string {
 
 export default function AuditPage() {
   const [category, setCategory] = useState<AuditCategory>("all");
+  const [selected, setSelected] = useState<AuditRow | null>(null);
   const { data, loading, error, reload } = useAdminData<{ rows: AuditRow[] }>(
     `/api/admin/audit?category=${category}`
   );
@@ -75,7 +77,7 @@ export default function AuditPage() {
 
       <div className="ad-panel">
         {loading ? <Loading /> : null}
-        {error ? <ErrorState message={error} /> : null}
+        {error ? <ErrorState message={error} onRetry={reload} /> : null}
         {data && !loading ? (
           data.rows.length === 0 ? (
             <Empty message="该条件下暂无审计记录" />
@@ -87,7 +89,7 @@ export default function AuditPage() {
                 </thead>
                 <tbody>
                   {data.rows.map((r) => (
-                    <tr key={r.id}>
+                    <tr key={r.id} className="clickable" onClick={() => setSelected(r)}>
                       <td className="ad-mono">{r.adminEmail}</td>
                       <td><Pill tone={actionTone(r.action)}>{actionLabel(r.action)}</Pill></td>
                       <td className="ad-mono ad-sub">{r.targetType || "—"}/{r.targetId || "—"}</td>
@@ -101,6 +103,32 @@ export default function AuditPage() {
           )
         ) : null}
       </div>
+
+      <Drawer
+        open={!!selected}
+        title="审计详情"
+        sub={selected ? `audit_logs / ${selected.id}` : undefined}
+        onClose={() => setSelected(null)}
+      >
+        {selected ? (
+          <>
+            <dl className="ad-kv">
+              <dt>管理员</dt><dd className="ad-mono">{selected.adminEmail}</dd>
+              <dt>动作</dt><dd><Pill tone={actionTone(selected.action)}>{actionLabel(selected.action)}</Pill> <span className="ad-mono ad-sub">{selected.action}</span></dd>
+              <dt>目标</dt><dd><CopyValue value={`${selected.targetType || "—"}/${selected.targetId || "—"}`} /></dd>
+              <dt>时间</dt><dd>{fmtDate(selected.createdAt)}</dd>
+            </dl>
+
+            <h4>原始记录 (raw JSON)</h4>
+            <details className="ad-reveal" open>
+              <summary>detail 原文<span className="tag">默认展开</span></summary>
+              <div className="reveal-body">
+                <pre className="ad-codeblock">{JSON.stringify(selected.detail ?? {}, null, 2)}</pre>
+              </div>
+            </details>
+          </>
+        ) : null}
+      </Drawer>
     </PageShell>
   );
 }

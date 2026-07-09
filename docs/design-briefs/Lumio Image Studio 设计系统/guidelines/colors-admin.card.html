@@ -1,0 +1,20 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Admin 调色板" subtitle=".ad-* 分治体系：深色侧栏 + 浅色工作区 + accent 紫" -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"></meta><link rel="stylesheet" href="../styles.css"></link>
+<style>
+.sw-row { display: flex; gap: 10px; padding: 16px; font-family: var(--ad-sans); }
+.sw { flex: 1; border-radius: 10px; padding: 10px 12px; min-height: 96px; display: flex; flex-direction: column; justify-content: flex-end; border: 1px solid var(--ad-border); }
+.sw b { font-size: 12px; font-weight: 600; }
+.sw code { font-size: 10px; opacity: .8; font-family: var(--ad-mono); }
+</style></head>
+<body style="margin:0; background:var(--ad-ground)">
+<div class="sw-row">
+  <div class="sw" style="background:var(--ad-sidebar); color:#C4C8D4; border:0"><b style="color:#fff">侧栏</b><code>--ad-sidebar #16181F</code></div>
+  <div class="sw" style="background:var(--ad-accent); color:#fff; border:0"><b>Accent</b><code>--ad-accent #5B61E8</code></div>
+  <div class="sw" style="background:var(--ad-good-soft); color:var(--ad-good)"><b>Good</b><code>#1E9E63 / soft</code></div>
+  <div class="sw" style="background:var(--ad-warn-soft); color:var(--ad-warn)"><b>Warn</b><code>#C9820A / soft</code></div>
+  <div class="sw" style="background:var(--ad-crit-soft); color:var(--ad-crit)"><b>Crit</b><code>#D9484C / soft</code></div>
+  <div class="sw" style="background:var(--ad-surface); color:var(--ad-ink)"><b>工作区</b><code>#F6F7F9 / #FFF</code></div>
+</div>
+</body></html>
