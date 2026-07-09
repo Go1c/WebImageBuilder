@@ -76,13 +76,13 @@ export const defaultConfig: AiConfig = {
             baseUrl: LUMIO_CANVAS_API_BASE,
             apiKey: "",
             apiFormat: "openai",
-            models: ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "gemini-3.1-flash-image-preview"],
+            models: ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "gemini-3.1-flash-image-preview", "gpt-5.5"],
         },
     ],
     model: "default::gpt-image-2",
     imageModel: "default::gpt-image-2",
     videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-image-2",
+    textModel: "default::gpt-5.5",
     audioModel: "default::gpt-4o-mini-tts",
     audioVoice: "alloy",
     audioFormat: "mp3",
@@ -93,7 +93,7 @@ export const defaultConfig: AiConfig = {
     videoGenerateAudio: "true",
     videoWatermark: "false",
     systemPrompt: "",
-    models: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview"],
+    models: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview", "default::gpt-5.5"],
     imageModels: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview"],
     videoModels: ["default::grok-imagine-video"],
     textModels: ["default::gpt-5.5"],
@@ -218,10 +218,17 @@ export const useConfigStore = create<ConfigStore>()(
                 // Lumio 集成：强制所有渠道走同源画布适配端点（/api/canvas），
                 // 覆盖任何持久化在 localStorage 里的旧 baseUrl，否则老用户的请求会
                 // 继续发去 api.openai.com 而非我们的后端 → 生成永远失败。
-                const channels = normalizeChannels(config).map((channel) => ({
+                const channels = normalizeChannels(config).map((channel, index) => ({
                     ...channel,
                     baseUrl: LUMIO_CANVAS_API_BASE,
                     apiFormat: "openai" as const,
+                    // 追加 gpt-5.5 文本模型：纯追加、不删任何已有模型，因此老画布节点
+                    // 引用的模型不会失效（不触发归一化重渲染），同时保证在线助手有可选
+                    // 文本模型。
+                    models:
+                        index === 0 && !channel.models.includes("gpt-5.5")
+                            ? [...channel.models, "gpt-5.5"]
+                            : channel.models,
                 }));
                 const models = modelOptionsFromChannels(channels);
                 return {
@@ -236,7 +243,8 @@ export const useConfigStore = create<ConfigStore>()(
                         models,
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
                         videoModel: normalizeModelOptionValue(config.videoModel || "grok-imagine-video", channels),
-                        textModel: normalizeModelOptionValue(config.textModel || config.model, channels),
+                        // 在线助手统一用文本模型 gpt-5.5（后端 /responses 也强制它）。
+                        textModel: "default::gpt-5.5",
                         audioModel: normalizeModelOptionValue(config.audioModel || defaultConfig.audioModel, channels),
                         audioVoice: config.audioVoice || defaultConfig.audioVoice,
                         audioFormat: config.audioFormat || defaultConfig.audioFormat,
@@ -249,7 +257,9 @@ export const useConfigStore = create<ConfigStore>()(
                         canvasImageCount: config.canvasImageCount || "3",
                         imageModels: Array.isArray(persistedConfig.imageModels) ? normalizeModelList(config.imageModels, channels) : filterModelsByCapability(models, "image"),
                         videoModels: Array.isArray(persistedConfig.videoModels) ? normalizeModelList(config.videoModels, channels) : filterModelsByCapability(models, "video"),
-                        textModels: Array.isArray(persistedConfig.textModels) ? normalizeModelList(config.textModels, channels) : filterModelsByCapability(models, "text"),
+                        textModels: ((base: string[]) => (base.includes("default::gpt-5.5") ? base : ["default::gpt-5.5", ...base]))(
+                            Array.isArray(persistedConfig.textModels) ? normalizeModelList(config.textModels, channels) : filterModelsByCapability(models, "text")
+                        ),
                         audioModels: Array.isArray(persistedConfig.audioModels) ? normalizeModelList(config.audioModels, channels) : filterModelsByCapability(models, "audio"),
                     },
                 };
