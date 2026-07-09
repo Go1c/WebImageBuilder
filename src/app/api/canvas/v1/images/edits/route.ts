@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { generateImagesForActor } from "@/server/generation/service";
 import { recordUploadedAsset } from "@/server/db/repositories";
-import { uploadBuffer } from "@/server/storage/s3";
+import { downloadStoredAsset, uploadBuffer } from "@/server/storage/s3";
 import { ApiError, jsonError } from "@/server/http";
 import { applyContextCookies, getRequestContext } from "@/server/request-context";
 import {
@@ -82,8 +82,23 @@ export async function POST(request: NextRequest) {
       sub2ApiAccessToken: context.sub2ApiAccessToken
     });
 
-    const urls = extractImageUrls({ images: result.images });
-    const response = NextResponse.json(buildImagesResponse(urls, Math.floor(Date.now() / 1000)));
+    const createdSeconds = Math.floor(Date.now() / 1000);
+    // Same base64 path as generations: return inline b64 to avoid the canvas doing
+    // a cross-origin CDN fetch that Cloudflare's bot challenge blocks (403).
+    let payload: unknown;
+    if (form.get("response_format") === "b64_json") {
+      payload = {
+        created: createdSeconds,
+        data: await Promise.all(
+          result.images.map(async (asset) => ({
+            b64_json: (await downloadStoredAsset(asset.key)).buffer.toString("base64")
+          }))
+        )
+      };
+    } else {
+      payload = buildImagesResponse(extractImageUrls({ images: result.images }), createdSeconds);
+    }
+    const response = NextResponse.json(payload);
     return applyContextCookies(response, context);
   } catch (error) {
     console.error("[api/canvas edits] request failed", error);

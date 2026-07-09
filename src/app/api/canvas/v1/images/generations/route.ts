@@ -1,11 +1,28 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { generateImagesForActor } from "@/server/generation/service";
+import { downloadStoredAsset } from "@/server/storage/s3";
 import { jsonError } from "@/server/http";
 import { applyContextCookies, getRequestContext } from "@/server/request-context";
 import { buildGenerationInput, buildImagesResponse, extractImageUrls } from "@/server/canvas/openaiImageAdapter";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
+
+// Return generated images inline as base64 instead of CDN URLs when the caller
+// asks for `response_format: "b64_json"`. The canvas fetches each result to store
+// it as a node dataURL; a cross-origin browser fetch to cdn.lumio.games is blocked
+// by Cloudflare's bot challenge (403 Cf-Mitigated), so we download the bytes
+// server-side (direct S3, bypassing the CDN/Cloudflare) and hand back base64 —
+// the canvas then never touches the CDN.
+async function buildBase64Response(images: { key: string }[], createdSeconds: number) {
+  const data = await Promise.all(
+    images.map(async (asset) => {
+      const downloaded = await downloadStoredAsset(asset.key);
+      return { b64_json: downloaded.buffer.toString("base64") };
+    })
+  );
+  return { created: createdSeconds, data };
+}
 
 /**
  * OpenAI images 兼容端点 · 无限画布专用
@@ -28,8 +45,12 @@ export async function POST(request: NextRequest) {
       sub2ApiAccessToken: context.sub2ApiAccessToken
     });
 
-    const urls = extractImageUrls({ images: result.images });
-    const response = NextResponse.json(buildImagesResponse(urls, Math.floor(Date.now() / 1000)));
+    const createdSeconds = Math.floor(Date.now() / 1000);
+    const wantsBase64 = body.response_format === "b64_json";
+    const payload = wantsBase64
+      ? await buildBase64Response(result.images, createdSeconds)
+      : buildImagesResponse(extractImageUrls({ images: result.images }), createdSeconds);
+    const response = NextResponse.json(payload);
     return applyContextCookies(response, context);
   } catch (error) {
     console.error("[api/canvas images] request failed", error);
