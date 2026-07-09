@@ -35,7 +35,7 @@ export default function IndexPage() {
     }, [message]);
 
     return (
-        <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.18)_1px,transparent_1px)] dark:text-stone-100">
+        <main className="relative h-full overflow-y-auto bg-background bg-[radial-gradient(rgba(0,0,0,.13)_1px,transparent_1px)] [background-size:16px_16px] text-stone-950 dark:bg-[radial-gradient(rgba(245,245,244,.14)_1px,transparent_1px)] dark:text-stone-100">
             <section className="relative mx-auto min-h-[calc(100vh-4rem)] max-w-7xl overflow-hidden px-6">
                 <div className="pointer-events-none absolute left-[15%] top-24 size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
                 <div className="pointer-events-none absolute right-[23%] top-[48%] size-20 rounded-full border border-dashed border-stone-200 dark:border-stone-800" />
@@ -44,7 +44,7 @@ export default function IndexPage() {
                     <h1 className="ai-title-aurora max-w-5xl text-balance text-5xl font-semibold tracking-normal sm:text-7xl lg:text-8xl">无限画布</h1>
                     <p className="mt-8 max-w-3xl text-balance text-lg leading-8 text-stone-500 dark:text-stone-400">
                         在
-                        <Highlighter action="underline" color="#FF9800">
+                        <Highlighter action="underline" color="#f3a63a">
                             无限画布
                         </Highlighter>
                         中生成、连接和重组
@@ -54,10 +54,21 @@ export default function IndexPage() {
                         ，让创作从单次生成变成连续推演。
                     </p>
                     <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-                        <Button type="primary" size="large" onClick={() => navigate(`/${primaryTool.slug}`)} icon={<ArrowRight className="size-4" />} iconPlacement="end">
+                        <Button
+                            type="primary"
+                            size="large"
+                            onClick={() => navigate(`/${primaryTool.slug}`)}
+                            icon={<ArrowRight className="size-4" />}
+                            iconPlacement="end"
+                            className="!border-transparent !bg-[#8b78f5] !text-white hover:!bg-[#7d6bf0]"
+                        >
                             开始使用
                         </Button>
-                        <Button size="large" onClick={() => navigate("/canvas")}>
+                        <Button
+                            size="large"
+                            onClick={() => navigate("/canvas")}
+                            className="!border-[rgba(44,212,190,0.32)] !bg-[rgba(44,212,190,0.12)] !text-[#20b9a6] hover:!border-[rgba(44,212,190,0.5)] hover:!bg-[rgba(44,212,190,0.18)] hover:!text-[#20b9a6] dark:!text-[#2cd4be]"
+                        >
                             打开画布
                         </Button>
                     </div>

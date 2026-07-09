@@ -11,6 +11,7 @@ import {
   type ReactNode
 } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
+import AppShell from "./AppShell";
 import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { estimateGenerationProgress } from "./generationProgress";
@@ -1567,14 +1568,11 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
   return (
     <main className="studio-app">
-      <header className="studio-topbar">
-        <div className="studio-brand-group">
-          <a className="studio-brand" href="/" aria-label="LumioImageStudio">
-            <span className="studio-brand-mark">
-              <StudioIcon name="sparkle" size={16} />
-            </span>
-            <span>LumioImageStudio</span>
-          </a>
+      <AppShell
+        active="探索"
+        onExplore={handleOpenExplore}
+        onTutorials={() => setActiveHeaderPanel("tutorials")}
+        statsSlot={
           <span className="global-stats-pill" title={globalStats ? globalGenerationText : undefined}>
             <StudioIcon name="sparkle" size={13} />
             {globalStats ? (
@@ -1586,78 +1584,40 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               <span className="stat-skeleton" />
             )}
           </span>
-        </div>
-
-        <nav className="studio-nav" aria-label="主导航">
-          <button
-            className={
-              activeLibraryTab === "热门" && !activeHeaderPanel
-                ? "nav-generate is-selected"
-                : "nav-generate"
-            }
-            type="button"
-            onClick={handleOpenExplore}
-          >
-            探索
-          </button>
-          <a className="studio-nav-canvas nav-canvas" href="/canvas">
-            无限画布<span className="studio-nav-beta nav-beta">Beta</span>
-          </a>
-          <button type="button" disabled>
-            视频创作台<span className="nav-soon">即将上线</span>
-          </button>
-          <a href="/portfolio">作品集</a>
-          <a href="/prompts">提示词库</a>
-          <button
-            className={activeHeaderPanel === "tutorials" ? "is-selected" : ""}
-            type="button"
-            onClick={() => setActiveHeaderPanel("tutorials")}
-          >
-            教程
-          </button>
-        </nav>
-
-        <div className="studio-account">
-          <span className="quota-pill">
-            <StudioIcon name="coin" size={14} />
-            {quotaText}
-          </span>
-          {sub2ApiSession?.authenticated ? (
-            <span className="balance-pill" title="Sub2API 实时余额">
+        }
+        accountSlot={
+          <>
+            <span className="quota-pill">
               <StudioIcon name="coin" size={14} />
-              {sub2ApiBalanceText}
+              {quotaText}
             </span>
-          ) : null}
-          <button className="invite-pill" type="button" onClick={handleOpenInvitePanel}>
-            <StudioIcon name="gift" size={14} />
-            邀请有礼
-          </button>
-          {sub2ApiSession?.authenticated ? (
-            <>
-              <button className="account-email-pill" type="button" onClick={() => void refreshSub2ApiSession()} title={accountLabel}>
-                {accountLabel}
-              </button>
-              <button className="logout-pill" type="button" onClick={() => void handleSub2ApiLogout()}>
-                退出
-              </button>
-            </>
-          ) : (
-            <a className="login-pill" href={loginUrl} onClick={handleLoginClick}>
-              登录
-            </a>
-          )}
-        </div>
-      </header>
-
-      {/*
-        统一公告横幅(.announce-bar):设计要求数据来自后台公告模块,支持 ✕ 关闭当前条 →
-        显示下一条(右侧 1/N 计数),同一公告本设备关闭后不再出现(localStorage per-id)。
-        当前后端仅有 requireAdmin 鉴权的 /api/admin/announcements,没有公开(非 admin)的
-        active home_banner 公告接口。按诚实原则不编造公告内容,接口就绪前不渲染横幅。
-        TODO: wire announcements API —— 待 /api/announcements(公开,active + home_banner)上线后,
-        在此拉取、渲染 .announce-bar(.announce-tag 公告 / 文案 / .announce-queue "1 / N" /
-        .announce-close),并接 localStorage per-id dismiss + 队列切换到下一条。
-      */}
+            {sub2ApiSession?.authenticated ? (
+              <span className="balance-pill" title="Sub2API 实时余额">
+                <StudioIcon name="coin" size={14} />
+                {sub2ApiBalanceText}
+              </span>
+            ) : null}
+            <button className="invite-pill" type="button" onClick={handleOpenInvitePanel}>
+              <StudioIcon name="gift" size={14} />
+              邀请有礼
+            </button>
+            {sub2ApiSession?.authenticated ? (
+              <>
+                <button className="account-email-pill" type="button" onClick={() => void refreshSub2ApiSession()} title={accountLabel}>
+                  {accountLabel}
+                </button>
+                <button className="logout-pill" type="button" onClick={() => void handleSub2ApiLogout()}>
+                  退出
+                </button>
+              </>
+            ) : (
+              <a className="login-pill" href={loginUrl} onClick={handleLoginClick}>
+                登录
+              </a>
+            )}
+          </>
+        }
+      />
 
       {activeHeaderPanel && activeHeaderPanel !== "auth" ? (
         <HeaderContextPanel

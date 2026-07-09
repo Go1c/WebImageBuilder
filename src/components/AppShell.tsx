@@ -1,8 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 export type AppShellActive = "探索" | "无限画布" | "作品集" | "提示词库";
+
+type AppShellProps = {
+  active: AppShellActive;
+  /** The global-stats pill (studio passes its live one; standalone pages omit). */
+  statsSlot?: ReactNode;
+  /** The right-side account area (studio passes its full JSX; pages get the lean default login pill). */
+  accountSlot?: ReactNode;
+  /** If set, 探索 is a <button> calling this (in-workbench behavior); otherwise it links to "/". */
+  onExplore?: () => void;
+  /** If set, 教程 is a <button> calling this (opens the tutorials panel); otherwise it links to "/". */
+  onTutorials?: () => void;
+};
 
 function SparkleMark() {
   return (
@@ -23,102 +35,196 @@ function SparkleMark() {
   );
 }
 
-function CoinMark(): ReactNode {
+/**
+ * Unified top shell shared by the studio workbench and the standalone pages
+ * (探索 / 无限画布 / 作品集 / 提示词库). Renders the exact `.studio-*` topbar DOM the
+ * production ImageStudio used, so existing studio markup / CSS is preserved, plus the
+ * announcement bar wired to the public `/api/announcements` feed.
+ *
+ * Behavior-preserving by design: the studio passes its live stats pill and account
+ * area (with all its session/quota state) via `statsSlot` / `accountSlot`, and its
+ * in-workbench 探索 / 教程 handlers via `onExplore` / `onTutorials`. Standalone pages
+ * omit them and get lean defaults (a plain 登录 pill, and links back to "/").
+ */
+export default function AppShell({ active, statsSlot, accountSlot, onExplore, onTutorials }: AppShellProps) {
+  const isActive = (name: AppShellActive) => active === name;
+
   return (
-    <svg
-      aria-hidden="true"
-      width={14}
-      height={14}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v10M9 9.5h4.2a1.8 1.8 0 010 3.6H9" />
-    </svg>
+    <>
+      <header className="studio-topbar">
+        <div className="studio-brand-group">
+          <a className="studio-brand" href="/" aria-label="LumioImageStudio">
+            <span className="studio-brand-mark">
+              <SparkleMark />
+            </span>
+            <span>LumioImageStudio</span>
+          </a>
+          {statsSlot}
+        </div>
+
+        <nav className="studio-nav" aria-label="主导航">
+          {onExplore ? (
+            <button
+              type="button"
+              className={isActive("探索") ? "nav-generate is-selected" : "nav-generate"}
+              onClick={onExplore}
+            >
+              探索
+            </button>
+          ) : (
+            <a
+              className={isActive("探索") ? "nav-generate is-selected" : "nav-generate"}
+              href="/"
+            >
+              探索
+            </a>
+          )}
+          <a
+            className={
+              isActive("无限画布")
+                ? "studio-nav-canvas nav-canvas is-selected"
+                : "studio-nav-canvas nav-canvas"
+            }
+            href="/canvas"
+          >
+            无限画布<span className="studio-nav-beta nav-beta">Beta</span>
+          </a>
+          <button type="button" disabled>
+            视频创作台<span className="nav-soon">即将上线</span>
+          </button>
+          <a className={isActive("作品集") ? "is-selected" : ""} href="/portfolio">
+            作品集
+          </a>
+          <a className={isActive("提示词库") ? "is-selected" : ""} href="/prompts">
+            提示词库
+          </a>
+          {onTutorials ? (
+            <button type="button" onClick={onTutorials}>
+              教程
+            </button>
+          ) : (
+            <a href="/">教程</a>
+          )}
+        </nav>
+
+        <div className="studio-account">
+          {accountSlot ?? (
+            <a className="login-pill" href="/">
+              登录
+            </a>
+          )}
+        </div>
+      </header>
+
+      <AnnouncementBar />
+    </>
   );
 }
 
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  placement: string;
+  startsAt: string | null;
+  endsAt: string | null;
+};
+
+const announceDismissedStorageKey = "lumio:announce-dismissed";
+
+function readDismissedIds(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(announceDismissedStorageKey);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDismissedIds(ids: string[]): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(announceDismissedStorageKey, JSON.stringify(ids));
+  } catch {
+    // Storage may be unavailable (private mode); dismissals are best-effort only.
+  }
+}
+
 /**
- * Unified top shell for the new standalone pages (P4 提示词库 / P5 作品集).
- * Uses the same `.studio-*` class names the production ImageStudio topbar renders,
- * so these pages inherit the identical shell chrome from globals.css.
- *
- * Kept intentionally lean: no session / quota logic (that lives in ImageStudio).
- * `active` marks the current nav item as selected.
+ * Public announcement banner. Fetches active `home_banner` announcements from the
+ * public `/api/announcements` feed, renders one at a time with an "i / N" queue
+ * indicator, and persists per-id dismissals to localStorage so a closed announcement
+ * never reappears on this device. Fails silently (no banner) on fetch error, and
+ * renders nothing once every row is dismissed.
  */
-export default function AppShell({ active }: { active: AppShellActive }) {
-  const isActive = (name: AppShellActive) => active === name;
-  const navigate = (href: string) => {
-    if (typeof window !== "undefined") {
-      window.location.href = href;
-    }
+function AnnouncementBar() {
+  const [rows, setRows] = useState<AnnouncementRow[]>([]);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+
+  useEffect(() => {
+    setDismissed(readDismissedIds());
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    fetch("/api/announcements", { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
+      .then((payload: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        const fetched = (payload as { rows?: unknown })?.rows;
+        if (Array.isArray(fetched)) {
+          setRows(fetched.filter((row): row is AnnouncementRow => Boolean(row) && typeof row === "object" && typeof (row as AnnouncementRow).id === "string"));
+        }
+      })
+      .catch(() => {
+        // Fail silently: no banner is a valid state.
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
+  const dismissedSet = new Set(dismissed);
+  const visibleRows = rows.filter((row) => !dismissedSet.has(row.id));
+
+  if (visibleRows.length === 0) {
+    return null;
+  }
+
+  const current = visibleRows[0];
+  const text = (current.body || current.title || "").trim();
+  if (!text) {
+    return null;
+  }
+
+  const dismissCurrent = () => {
+    setDismissed((prev) => {
+      const next = prev.includes(current.id) ? prev : [...prev, current.id];
+      writeDismissedIds(next);
+      return next;
+    });
   };
 
   return (
-    <header className="studio-topbar">
-      <div className="studio-brand-group">
-        <a className="studio-brand" href="/" aria-label="LumioImageStudio">
-          <span className="studio-brand-mark">
-            <SparkleMark />
-          </span>
-          <span>LumioImageStudio</span>
-        </a>
-        <span className="global-stats-pill">
-          <SparkleMark />
-          <span>免费体验</span>
-        </span>
-      </div>
-
-      <nav className="studio-nav" aria-label="主导航">
-        <button
-          type="button"
-          className={`nav-generate${isActive("探索") ? " is-selected" : ""}`}
-          onClick={() => navigate("/")}
-        >
-          探索
-        </button>
-        <button
-          type="button"
-          className={`studio-nav-canvas nav-canvas${isActive("无限画布") ? " is-selected" : ""}`}
-          onClick={() => navigate("/canvas")}
-        >
-          无限画布<span className="studio-nav-beta nav-beta">Beta</span>
-        </button>
-        <button type="button" disabled>
-          视频创作台<span className="nav-soon">即将上线</span>
-        </button>
-        <button
-          type="button"
-          className={isActive("作品集") ? "is-selected" : ""}
-          onClick={() => navigate("/portfolio")}
-        >
-          作品集
-        </button>
-        <button
-          type="button"
-          className={isActive("提示词库") ? "is-selected" : ""}
-          onClick={() => navigate("/prompts")}
-        >
-          提示词库
-        </button>
-        <button type="button" onClick={() => navigate("/")}>
-          教程
-        </button>
-      </nav>
-
-      <div className="studio-account">
-        <span className="quota-pill">
-          <CoinMark />
-          免费体验
-        </span>
-        <a className="login-pill" href="/">
-          登录
-        </a>
-      </div>
-    </header>
+    <div className="announce-bar">
+      <span className="announce-tag">公告</span>
+      <p>{text}</p>
+      {visibleRows.length > 1 ? (
+        <span className="announce-queue">1 / {visibleRows.length}</span>
+      ) : null}
+      <button type="button" className="announce-close" onClick={dismissCurrent} aria-label="关闭公告">
+        ✕
+      </button>
+    </div>
   );
 }

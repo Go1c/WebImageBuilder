@@ -97,6 +97,52 @@ export async function listAnnouncements(): Promise<AnnouncementRow[]> {
   }));
 }
 
+export async function listActivePublicAnnouncements(): Promise<AnnouncementRow[]> {
+  if (isLocalPreview()) {
+    const now = Date.now();
+    return MOCK_ANNOUNCEMENTS.filter((a) => {
+      if (a.status !== "active" || a.placement !== "home_banner") {
+        return false;
+      }
+      const startsOk = a.startsAt === null || Date.parse(a.startsAt) <= now;
+      const endsOk = a.endsAt === null || Date.parse(a.endsAt) >= now;
+      return startsOk && endsOk;
+    });
+  }
+
+  const result = await adminQuery<{
+    id: string;
+    title: string;
+    body: string;
+    placement: string;
+    status: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    created_at: string;
+  }>(
+    `
+      select id, title, body, placement, status, starts_at, ends_at, created_at
+      from announcements
+      where status = 'active'
+        and placement = 'home_banner'
+        and (starts_at is null or starts_at <= now())
+        and (ends_at is null or ends_at >= now())
+      order by starts_at desc nulls last, created_at desc
+    `
+  );
+
+  return result.rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    placement: r.placement,
+    status: r.status,
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+    createdAt: r.created_at
+  }));
+}
+
 export async function createAnnouncement(input: AnnouncementInput): Promise<string> {
   if (isLocalPreview()) {
     return `an_${Date.now()}`;
