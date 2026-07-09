@@ -31,12 +31,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/src/server/db/schema.sql ./src/server/db/schema.sql
+# import-materials.mjs reads the bundled prompt library at runtime to seed material_items
+COPY --from=builder --chown=nextjs:nodejs /app/src/components/promptLibrary.ts ./src/components/promptLibrary.ts
 
 USER nextjs
 
 EXPOSE 8080
 
-# Apply the DB schema (idempotent: create/alter ... if not exists) before serving,
-# so schema.sql migrations land automatically on every deploy. If the DB is
-# unreachable the container fails loudly and Zeabur restarts + retries.
-CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
+# On every deploy: (1) apply the DB schema (idempotent) — must succeed or the
+# container fails loudly and Zeabur retries; (2) seed the material library on a
+# fresh DB (idempotent + skips a non-empty table, so it never resurrects admin
+# deletions) — non-fatal, a seed hiccup must not keep the site down; (3) serve.
+CMD ["sh", "-c", "node scripts/migrate.mjs && (node scripts/import-materials.mjs || echo 'materials import skipped') && node server.js"]

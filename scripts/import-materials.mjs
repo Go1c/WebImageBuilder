@@ -47,6 +47,16 @@ let inserted = 0;
 let skipped = 0;
 
 try {
+  // Bootstrap guard: only seed an empty library. This makes it safe to run on
+  // every deploy — once populated, we never re-add materials the admin has since
+  // deleted or re-curated. To force a re-seed, empty the table first.
+  const existing = await pool.query("select count(*)::int as n from material_items");
+  if (existing.rows[0].n > 0) {
+    console.log(`Materials import skipped: table already has ${existing.rows[0].n} rows.`);
+    await pool.end();
+    process.exit(0);
+  }
+
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
     const caseNumber = Number(item.caseNumber) || null;
