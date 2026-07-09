@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useThemeStore } from "@/stores/use-theme-store";
@@ -64,6 +65,84 @@ function ThemeToggle() {
     );
 }
 
+/**
+ * Session shape returned by the MAIN app's same-origin `/api/sub2api/session`
+ * endpoint. The canvas SPA is served under /canvas on the SAME origin as the
+ * Next app (img.lumio.games), and login is cookie-based, so we can read the
+ * live session with a plain same-origin fetch (cookies included by default).
+ */
+interface SessionUser {
+    email: string;
+    username?: string;
+    balance: number;
+}
+
+interface SessionState {
+    authenticated: boolean;
+    user?: SessionUser;
+}
+
+/**
+ * AccountArea — renders the topbar's `.studio-account` right slot, reflecting
+ * the REAL login state read from the main site's session cookie.
+ *
+ * States:
+ * - loading (initial): show the 登录 pill as the safe default — never flash a
+ *   fake logged-in avatar before the session resolves.
+ * - authenticated + user: green 余额 balance pill (only when balance is finite)
+ *   + an avatar <a> linking back to "/" (the main studio, where the full
+ *   account menu lives). No dropdown here by design.
+ * - not authenticated / fetch failed: the 登录 pill.
+ */
+function AccountArea() {
+    // `undefined` = still loading; treat as logged-out default until resolved.
+    const [session, setSession] = useState<SessionState | undefined>(undefined);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch("/api/sub2api/session", { credentials: "same-origin" })
+            .then((res) => (res.ok ? (res.json() as Promise<SessionState>) : null))
+            .then((data) => {
+                if (cancelled) return;
+                // Network/parse issues or a non-authenticated body → treat as logged-out.
+                setSession(data && typeof data.authenticated === "boolean" ? data : { authenticated: false });
+            })
+            .catch(() => {
+                if (!cancelled) setSession({ authenticated: false });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const user = session?.authenticated ? session.user : undefined;
+
+    if (user) {
+        const initial = (user.email.trim().charAt(0) || "L").toUpperCase();
+        const showBalance = typeof user.balance === "number" && Number.isFinite(user.balance);
+        return (
+            <>
+                <ThemeToggle />
+                {showBalance ? <span className="balance-pill">余额 ${user.balance.toFixed(2)}</span> : null}
+                {/* Avatar links back to the MAIN studio "/" (full account menu lives there). */}
+                <a className="account-avatar" href="/" aria-label="账户中心" title={user.email}>
+                    {initial}
+                </a>
+            </>
+        );
+    }
+
+    // Loading default + not-authenticated both render the 登录 pill.
+    return (
+        <>
+            <ThemeToggle />
+            <a className="login-pill" href="/">
+                登录
+            </a>
+        </>
+    );
+}
+
 export function UnifiedTopbar() {
     const { pathname } = useLocation();
     // 无限画布 is "current" whenever we're on any SPA (canvas-app) route.
@@ -106,10 +185,7 @@ export function UnifiedTopbar() {
                 </nav>
 
                 <div className="studio-account">
-                    <ThemeToggle />
-                    <a className="login-pill" href="/">
-                        登录
-                    </a>
+                    <AccountArea />
                 </div>
             </header>
         </div>

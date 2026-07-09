@@ -21,6 +21,7 @@
     --studio-black: #171717;
     --studio-accent-2: #6d28d9;
     --studio-accent-bg: #f5f3ff;
+    --studio-success: #047857;
 
     --lumio-teal: #2cd4be;
     --lumio-teal-strong: #20b9a6;
@@ -42,6 +43,7 @@
     --studio-black: #eeeff3;
     --studio-accent-2: #b9adfb;
     --studio-accent-bg: rgba(139, 120, 245, 0.15);
+    --studio-success: #4fc98c;
 }
 
 .lumio-shell .studio-topbar {
@@ -211,6 +213,46 @@
 
 .dark .lumio-shell .login-pill {
     color: #14161f;
+}
+
+/* Balance pill — mirrors main globals.css `.balance-pill` (green success look).
+   The shared base-pill metrics live inline here since only `.login-pill` (a
+   sibling) carried them into this scoped stylesheet. */
+.lumio-shell .balance-pill {
+    height: 31.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 19.5px;
+    letter-spacing: 0;
+    border: 1px solid rgba(0, 188, 125, 0.22);
+    padding: 0 12px;
+    background: rgba(0, 188, 125, 0.08);
+    color: var(--studio-success);
+    font-weight: 600;
+}
+
+/* Account avatar — mirrors main globals.css `.account-avatar` (violet-soft
+   circle with the uppercased email initial). Links back to the main studio. */
+.lumio-shell .account-avatar {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: 999px;
+    background: var(--lumio-violet-soft);
+    color: var(--studio-accent-2);
+    padding: 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .lumio-shell .theme-toggle {
