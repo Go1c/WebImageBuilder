@@ -2,6 +2,7 @@ export type UpstreamResponseBody<T> = {
   contentType: string;
   json: T | null;
   text: string;
+  requestId?: string;
 };
 
 export type ProviderUpstreamErrorDetail = {
@@ -12,6 +13,7 @@ export type ProviderUpstreamErrorDetail = {
   message?: string;
   rawResponse?: unknown;
   contentType?: string;
+  providerRequestId?: string;
 };
 
 export class UpstreamProviderError extends Error {
@@ -24,20 +26,35 @@ export class UpstreamProviderError extends Error {
   }
 }
 
+function readUpstreamRequestId(response: Response): string | undefined {
+  const headers = response.headers;
+  return (
+    headers.get("x-request-id") ||
+    headers.get("x-goog-request-id") ||
+    headers.get("apim-request-id") ||
+    headers.get("request-id") ||
+    undefined
+  );
+}
+
 export async function readUpstreamResponseBody<T>(response: Response): Promise<UpstreamResponseBody<T>> {
   const text = await response.text();
+  const contentType = response.headers.get("content-type") || "unknown content type";
+  const requestId = readUpstreamRequestId(response);
 
   try {
     return {
-      contentType: response.headers.get("content-type") || "unknown content type",
+      contentType,
       json: text.trim() ? (JSON.parse(text) as T) : null,
-      text
+      text,
+      requestId
     };
   } catch {
     return {
-      contentType: response.headers.get("content-type") || "unknown content type",
+      contentType,
       json: null,
-      text
+      text,
+      requestId
     };
   }
 }

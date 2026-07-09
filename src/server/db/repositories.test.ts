@@ -428,7 +428,7 @@ describe("postgres repository queries", () => {
 
     const [sql, values] = mockedQuery.mock.calls[0];
     expect(sql).toContain("error_message = $2");
-    expect(values).toEqual(["task-1", upstreamError]);
+    expect(values).toEqual(["task-1", upstreamError, null, null]);
   });
 
   it("creates a public share from an owned postgres task result", async () => {

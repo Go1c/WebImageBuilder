@@ -353,6 +353,7 @@ function buildGeminiUpstreamDetail(input: {
     ...(explicitType ? { type: explicitType } : {}),
     ...(cleanMessage ? { message: cleanMessage } : {}),
     ...(rawResponse ? { rawResponse } : {}),
+    ...(input.body.requestId ? { providerRequestId: input.body.requestId } : {}),
     contentType: input.body.contentType
   };
 }

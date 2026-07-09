@@ -257,7 +257,14 @@ describe("generation service", () => {
         }
       }
     });
-    expect(markTaskFailed).toHaveBeenCalledWith("task-1", "status_code=400, 提示词违规 请检查提示词");
+    expect(markTaskFailed).toHaveBeenCalledWith(
+      "task-1",
+      "status_code=400, 提示词违规 请检查提示词",
+      expect.objectContaining({
+        errorCode: "content_policy_violation",
+        upstreamDetail: expect.objectContaining({ statusCode: 400, code: "content_policy_violation" })
+      })
+    );
   });
 
   it("hydrates owned reference asset keys from storage before calling the provider", async () => {
