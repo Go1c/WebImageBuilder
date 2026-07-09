@@ -1,45 +1,19 @@
-# Repository Guidelines
+# LumioAgent Entry
 
-## Project Structure & Module Organization
+Compatibility entrypoint for agent tools. The authoritative spec lives under `.spec/`; this file only points, it defines no rules of its own.
 
-This repository is a Next.js full-stack app for Lumio image generation. Main source code lives in `src/`.
+Read these three in order — they are the always-in-context core (Claude Code force-loads them via `@import` in `CLAUDE.md`; Codex has no `@import`, so read them voluntarily here):
 
-- `src/app/`: App Router pages, layout, global CSS, and API route handlers.
-- `src/components/`: Client UI components, including the image studio workspace.
-- `src/server/`: Server-only code for auth, config, database access, quota logic, providers, storage, and generation orchestration.
-- `src/server/domain/*.test.ts`: Vitest unit tests for core business rules.
-- `src/server/db/schema.sql`: PostgreSQL schema used by the migration script.
-- `scripts/`: Operational scripts such as `migrate.mjs`.
-- `devDoc/`: Planning and implementation documentation.
+1. **`.spec/AGENTS.md`** — 项目介绍 + Agent 调度(中心文档,先读)。
+2. **`.spec/knowledge/README.md`** — 项目知识导航(有哪些知识、在哪)。
+3. **`.spec/rules/system.md`** — 硬性禁令 / 护栏(不许做什么)。
 
-Generated output such as `.next/`, `node_modules/`, coverage, and local env files must stay untracked.
+Beyond the core: 子 Agent 规范在 `.spec/agents/`,技能在 `.spec/skills/`;Codex 的索引 / 执行映射见 `.spec/AGENTS.md`。沉淀 / 同步任何能力 → 用 `spec-steward` 技能。
 
-## Build, Test, and Development Commands
+Rules for all agents:
 
-- `npm install`: Install project dependencies.
-- `npm run dev`: Start the local Next.js development server.
-- `npm run build`: Build and type-check the production app.
-- `npm start`: Run the production build locally.
-- `npm test`: Run the Vitest test suite once.
-- `npm run test:watch`: Run Vitest in watch mode.
-- `npm run db:migrate`: Apply `src/server/db/schema.sql` to `DATABASE_URL`.
+- **Read and follow `.spec/AGENTS.md` first.**
+- Treat this file as a pointer only. Do not add project rules here.
+- Tool-specific entries must point into `.spec/`; they must not define a second source of truth.
 
-## Coding Style & Naming Conventions
-
-Use TypeScript with strict types. Keep server-only logic under `src/server/` and UI logic under `src/components/` or `src/app/`. Use two-space indentation, named exports for shared utilities, and descriptive file names such as `quota.ts`, `repositories.ts`, or `ImageStudio.tsx`.
-
-Keep business rules small and testable. Prefer Zod schemas for request validation and typed return objects for API-facing functions.
-
-## Testing Guidelines
-
-Vitest is the test framework. Place unit tests beside the code they cover using `*.test.ts`. Focus tests on quota calculation, invite rewards, model input normalization, provider adapters, and API edge cases. Run `npm test` before handing off changes, and run `npm run build` when touching routes, React components, or shared types.
-
-## Commit & Pull Request Guidelines
-
-This repository currently has no commit history, so use clear Conventional Commit-style messages going forward, for example `feat: add upload presign route` or `fix: prevent duplicate invite rewards`.
-
-Pull requests should include a short summary, test results, linked issues when available, and screenshots or short recordings for UI changes. Mention required environment variables when a change affects deployment.
-
-## Security & Configuration Tips
-
-Never commit `.env` or real API keys. Use `.env.example` as the template. Keep OpenAI, Gemini, JWT, PostgreSQL, and S3/R2 secrets server-side only. Validate anonymous and logged-in generation paths because they affect cost control.
+Note: Codex relies on voluntarily reading the three core docs after this pointer; Claude Code force-loads them via `@import`. Known asymmetry, acceptable.
