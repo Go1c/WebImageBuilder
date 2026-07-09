@@ -16,6 +16,110 @@
   --studio-amber-bg: #fffbeb;
   --studio-amber-border: #fef3c6;
   --studio-amber-text: #bb4d00;
+
+  /*
+   * Lumio 统一创作中心 · 设计令牌 (UXUE v2)
+   * 品牌语义色，主题无关：状态=青绿，生成=紫，强调=橙，危险=红。
+   * 组件应消费这些语义令牌而非硬编码色值，以便生图/画布逐像素统一。
+   */
+  --lumio-teal: #2cd4be;
+  --lumio-teal-strong: #20b9a6;
+  --lumio-teal-soft: rgba(44, 212, 190, 0.12);
+  --lumio-teal-line: rgba(44, 212, 190, 0.32);
+  --lumio-violet: #8b78f5;
+  --lumio-violet-soft: rgba(139, 120, 245, 0.15);
+  --lumio-violet-line: rgba(139, 120, 245, 0.35);
+  --lumio-orange: #f3a63a;
+  --lumio-orange-soft: rgba(243, 166, 58, 0.14);
+  --lumio-danger: #f0705e;
+  --lumio-danger-soft: rgba(240, 112, 94, 0.14);
+
+  /* 语义角色令牌 · 浅色主题默认值 */
+  --ui-accent: var(--studio-purple);
+  --ui-accent-contrast: #ffffff;
+  --ui-generate: var(--studio-purple);
+  --ui-money: var(--studio-green);
+  --ui-radius-control: 12px;
+  --ui-radius-card: 16px;
+
+  /* 语义扩展令牌 · 浅色值即原硬编码值（浅色像素不变），深色见 [data-theme="dark"] */
+  --studio-copy-2: #525252;
+  --studio-hairline: #e5e5e5;
+  --studio-hairline-2: #d4d4d4;
+  --studio-surface-2: #f7f7f7;
+  --studio-surface-3: #f2f2f2;
+  --studio-surface-4: #eeeeee;
+  --studio-success: #047857;
+  --studio-accent-2: #6d28d9;
+  --studio-accent-bg: #f5f3ff;
+  --studio-danger: #ef4444;
+  --studio-danger-text: #b91c1c;
+  --studio-danger-bg: #fff7f7;
+  --studio-danger-bg-2: #fff1f2;
+  --studio-danger-border-2: #fda4af;
+  --studio-rose: #be123c;
+  --studio-rose-strong: #e11d48;
+  --studio-toast-warn-bg: #fff7d6;
+  --studio-toast-warn-text: #3b2a00;
+  --studio-toast-ok-bg: #dcfce7;
+  --studio-toast-ok-text: #14532d;
+  --studio-toast-err-bg: #fee2e2;
+  --studio-toast-err-text: #7f1d1d;
+}
+
+/*
+ * 深色主题 · 创作中心
+ * 通过重映射 --studio-* 令牌，让现有生图工作台随外壳切换深色，
+ * 与无限画布共用同一套令牌。灰度期间由 feature-flag 在根节点写入
+ * data-theme="dark" 触发；未写入时保持现有浅色，线上零影响。
+ */
+[data-theme="dark"] {
+  --studio-bg: #090a0f;
+  --studio-bg-soft: #0c0d13;
+  --studio-surface: #14161f;
+  --studio-panel: rgba(255, 255, 255, 0.03);
+  --studio-panel-strong: rgba(255, 255, 255, 0.06);
+  --studio-line: rgba(255, 255, 255, 0.08);
+  --studio-line-strong: rgba(255, 255, 255, 0.16);
+  --studio-text: #eeeff3;
+  --studio-copy: #c9ccd3;
+  --studio-muted: #a6aab5;
+  --studio-faint: #6c7079;
+  --studio-black: #eeeff3;
+  --studio-purple: var(--lumio-violet);
+  --studio-green: var(--lumio-teal);
+  --studio-amber-bg: var(--lumio-orange-soft);
+  --studio-amber-border: rgba(243, 166, 58, 0.3);
+  --studio-amber-text: var(--lumio-orange);
+
+  --ui-accent: var(--lumio-teal);
+  --ui-accent-contrast: #052420;
+  --ui-generate: var(--lumio-violet);
+  --ui-money: var(--lumio-teal);
+
+  /* 语义扩展令牌 · 深色对应值 */
+  --studio-copy-2: #b4b8c2;
+  --studio-hairline: rgba(255, 255, 255, 0.12);
+  --studio-hairline-2: rgba(255, 255, 255, 0.16);
+  --studio-surface-2: #191c26;
+  --studio-surface-3: #20232e;
+  --studio-surface-4: #20232e;
+  --studio-success: #4fc98c;
+  --studio-accent-2: #b9adfb;
+  --studio-accent-bg: rgba(139, 120, 245, 0.15);
+  --studio-danger: #f0705e;
+  --studio-danger-text: #f0a99d;
+  --studio-danger-bg: rgba(240, 112, 94, 0.1);
+  --studio-danger-bg-2: rgba(240, 112, 94, 0.12);
+  --studio-danger-border-2: rgba(240, 112, 94, 0.4);
+  --studio-rose: #f0849a;
+  --studio-rose-strong: #f0705e;
+  --studio-toast-warn-bg: rgba(243, 166, 58, 0.16);
+  --studio-toast-warn-text: #f3c98a;
+  --studio-toast-ok-bg: rgba(79, 201, 140, 0.16);
+  --studio-toast-ok-text: #a7e8c2;
+  --studio-toast-err-bg: rgba(240, 112, 94, 0.16);
+  --studio-toast-err-text: #f0b0a8;
 }
 
 * {
@@ -212,7 +316,7 @@ textarea:focus-visible {
   border: 1px solid rgba(124, 58, 237, 0.16);
   padding: 0 12px;
   background: rgba(124, 58, 237, 0.08);
-  color: #6d28d9;
+  color: var(--studio-accent-2);
   font-weight: 600;
 }
 
@@ -249,7 +353,7 @@ textarea:focus-visible {
   border: 1px solid rgba(0, 188, 125, 0.22);
   padding: 0 12px;
   background: rgba(0, 188, 125, 0.08);
-  color: #047857;
+  color: var(--studio-success);
   font-weight: 600;
 }
 
@@ -607,7 +711,7 @@ textarea:focus-visible {
   border: 1px solid var(--studio-line-strong);
   border-radius: 10px;
   background: white;
-  color: #525252;
+  color: var(--studio-copy-2);
   font-size: 12px;
   font-weight: 500;
   line-height: 18px;
@@ -626,7 +730,7 @@ textarea:focus-visible {
   border: 1px solid var(--studio-line-strong);
   border-radius: 10px;
   background: white;
-  color: #525252;
+  color: var(--studio-copy-2);
   font-size: 12px;
   font-weight: 600;
   line-height: 18px;
@@ -663,8 +767,8 @@ textarea:focus-visible {
 }
 
 .custom-size-fields.is-invalid label {
-  border-color: #ef4444;
-  background: #fff7f7;
+  border-color: var(--studio-danger);
+  background: var(--studio-danger-bg);
 }
 
 .custom-size-input {
@@ -697,7 +801,7 @@ textarea:focus-visible {
 }
 
 .custom-size-fields.is-invalid .custom-size-help {
-  color: #b91c1c;
+  color: var(--studio-danger-text);
 }
 
 .detail-slider {
@@ -706,7 +810,7 @@ textarea:focus-visible {
   margin: 2px 0 8px;
   appearance: none;
   background:
-    linear-gradient(90deg, var(--studio-black) 0 var(--slider-progress), #e5e5e5 var(--slider-progress) 100%);
+    linear-gradient(90deg, var(--studio-black) 0 var(--slider-progress), var(--studio-hairline) var(--slider-progress) 100%);
   border-radius: 999px;
   outline: none;
 }
@@ -790,12 +894,12 @@ textarea:focus-visible {
   flex: 0 0 auto;
   border-radius: 999px;
   padding: 0 8px;
-  background: #f5f3ff;
+  background: var(--studio-accent-bg);
   color: var(--studio-purple);
 }
 
 .meta-dot {
-  color: #d4d4d4;
+  color: var(--studio-hairline-2);
 }
 
 .icon-button {
@@ -881,8 +985,8 @@ textarea:focus-visible {
   display: grid;
   place-items: center;
   border-style: solid;
-  border-color: #e5e5e5;
-  background: #f5f5f5;
+  border-color: var(--studio-hairline);
+  background: var(--studio-bg-soft);
   box-shadow: none;
 }
 
@@ -897,7 +1001,7 @@ textarea:focus-visible {
   border: 1px solid var(--studio-line);
   border-radius: 24px;
   padding: 8px;
-  background: #f7f7f7;
+  background: var(--studio-surface-2);
   box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.25);
 }
 
@@ -948,12 +1052,12 @@ textarea:focus-visible {
 }
 
 .generated-image-tile.is-pending {
-  background: #f2f2f2;
+  background: var(--studio-surface-3);
 }
 
 .generated-image-tile.is-failed {
-  background: #fff1f2;
-  border-color: #fda4af;
+  background: var(--studio-danger-bg-2);
+  border-color: var(--studio-danger-border-2);
 }
 
 .generated-image-tile img {
@@ -977,7 +1081,7 @@ textarea:focus-visible {
 }
 
 .generated-tile-loading span {
-  color: #404040;
+  color: var(--studio-copy);
   font-size: 14px;
   font-weight: 700;
 }
@@ -986,7 +1090,7 @@ textarea:focus-visible {
   display: -webkit-box;
   max-width: 100%;
   overflow: hidden;
-  color: #737373;
+  color: var(--studio-muted);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.35;
@@ -996,7 +1100,7 @@ textarea:focus-visible {
 
 .generated-image-tile.is-failed .generated-tile-loading span,
 .generated-image-tile.is-failed .generated-tile-loading small {
-  color: #be123c;
+  color: var(--studio-rose);
 }
 
 .tile-loading-progress {
@@ -1004,7 +1108,7 @@ textarea:focus-visible {
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: #d4d4d4;
+  background: var(--studio-hairline-2);
 }
 
 .tile-loading-progress-bar {
@@ -1015,7 +1119,7 @@ textarea:focus-visible {
 }
 
 .generated-image-tile.is-failed .tile-loading-progress-bar {
-  background: #e11d48;
+  background: var(--studio-rose-strong);
 }
 
 .image-loading {
@@ -1027,7 +1131,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: #525252;
+  color: var(--studio-copy-2);
   font-size: 20px;
   font-weight: 600;
   padding: 24px;
@@ -1037,7 +1141,7 @@ textarea:focus-visible {
 .image-loading p {
   max-width: 280px;
   margin: 0;
-  color: #737373;
+  color: var(--studio-muted);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.55;
@@ -1047,7 +1151,7 @@ textarea:focus-visible {
   width: min(260px, 70%);
   height: 6px;
   border-radius: 999px;
-  background: #e5e5e5;
+  background: var(--studio-hairline);
   overflow: hidden;
 }
 
@@ -1069,7 +1173,7 @@ textarea:focus-visible {
   border-radius: 14px;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.9);
-  color: #525252;
+  color: var(--studio-copy-2);
   text-align: center;
   pointer-events: none;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
@@ -1084,7 +1188,7 @@ textarea:focus-visible {
 
 .generation-loading-note p {
   margin: 1px 0 0;
-  color: #737373;
+  color: var(--studio-muted);
   font-size: 11px;
   font-weight: 500;
   line-height: 16px;
@@ -1156,7 +1260,7 @@ textarea:focus-visible {
   border: 1px solid rgba(0, 188, 125, 0.48);
   border-radius: 999px;
   padding: 0 14px;
-  background: linear-gradient(135deg, #00bc7d, #047857);
+  background: linear-gradient(135deg, var(--studio-green), var(--studio-success));
   color: white;
   font-size: 13px;
   font-weight: 600;
@@ -1418,7 +1522,7 @@ textarea:focus-visible {
 .prompt-library-card img {
   min-width: 0;
   min-height: 0;
-  background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+  background: linear-gradient(135deg, var(--studio-bg-soft) 0%, var(--studio-surface-4) 100%);
   border-radius: 12px 12px 7px 7px;
 }
 
@@ -1545,8 +1649,8 @@ textarea:focus-visible {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   padding: 6px 9px;
-  background: #fff7d6;
-  color: #3b2a00;
+  background: var(--studio-toast-warn-bg);
+  color: var(--studio-toast-warn-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
@@ -1562,13 +1666,13 @@ textarea:focus-visible {
 }
 
 .context-status-line strong.is-signed-in {
-  background: #dcfce7;
-  color: #14532d;
+  background: var(--studio-toast-ok-bg);
+  color: var(--studio-toast-ok-text);
 }
 
 .context-status-line strong.is-signed-out {
-  background: #fee2e2;
-  color: #7f1d1d;
+  background: var(--studio-toast-err-bg);
+  color: var(--studio-toast-err-text);
 }
 
 .invite-copy-row {
@@ -1760,7 +1864,7 @@ textarea:focus-visible {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: contain;
-  background: #f5f5f5;
+  background: var(--studio-bg-soft);
 }
 
 .prompt-share-card-copy {
@@ -1827,11 +1931,11 @@ textarea:focus-visible {
 
 .share-dialog-status.is-copied,
 .share-dialog-status.is-downloaded {
-  color: #047857;
+  color: var(--studio-success);
 }
 
 .share-dialog-status.is-failed {
-  color: #b91c1c;
+  color: var(--studio-danger-text);
 }
 
 .share-page {
@@ -1863,7 +1967,7 @@ textarea:focus-visible {
   min-width: 0;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--studio-bg-soft);
 }
 
 .share-protected-image {
@@ -1941,7 +2045,7 @@ textarea:focus-visible {
   border: 1px solid var(--studio-line);
   border-radius: 8px;
   padding: 14px;
-  background: #fafafa;
+  background: var(--studio-bg);
   color: var(--studio-copy);
   font-size: 15px;
   line-height: 24px;
@@ -1972,11 +2076,11 @@ textarea:focus-visible {
 }
 
 .share-copy-actions .is-copied {
-  color: #047857;
+  color: var(--studio-success);
 }
 
 .share-copy-actions .is-failed {
-  color: #b91c1c;
+  color: var(--studio-danger-text);
 }
 
 .share-copy-toast {
@@ -2265,5 +2369,161 @@ textarea:focus-visible {
     width: 165%;
     font-size: 12px;
     line-height: 18px;
+  }
+}
+
+/* ===========================================================================
+   无限画布工作台 · 创作中心 (/canvas)
+   根节点 data-theme="dark" 使令牌作用域内恒为深色；消费统一设计令牌，
+   与生图工作台同源同构。节点图引擎（React Flow）后续接入。
+   =========================================================================== */
+.canvas-workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  background: var(--studio-bg);
+  color: var(--studio-text);
+}
+
+.cw-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--studio-line);
+}
+
+.cw-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.cw-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--studio-muted);
+  padding: 8px 13px;
+  border-radius: var(--ui-radius-control);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+
+a.cw-tab:hover {
+  color: var(--studio-text);
+}
+
+.cw-tab.is-active {
+  color: var(--studio-text);
+  font-weight: 600;
+  background: var(--studio-panel-strong);
+  border-color: var(--studio-line);
+}
+
+.cw-tab.is-disabled {
+  color: var(--studio-faint);
+  cursor: not-allowed;
+}
+
+.cw-newtab {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--studio-text);
+  padding: 8px 14px;
+  border-radius: var(--ui-radius-control);
+  border: 1px solid var(--studio-line-strong);
+  background: var(--studio-panel);
+  white-space: nowrap;
+}
+
+.cw-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1.1px, transparent 0) 0 0 / 24px 24px,
+    var(--studio-bg-soft);
+}
+
+.cw-empty {
+  max-width: 40em;
+}
+
+.cw-wordmark {
+  font-size: clamp(52px, 12vw, 120px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin: 0;
+  background: linear-gradient(180deg, #ffffff, #f2f3f6 42%, #8b9099);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cw-tagline {
+  font-size: clamp(15px, 2.2vw, 19px);
+  color: var(--studio-muted);
+  margin: 28px auto 0;
+  max-width: 30em;
+  line-height: 1.6;
+}
+
+.cw-underline {
+  color: var(--studio-text);
+  font-weight: 600;
+  border-bottom: 2px solid var(--lumio-orange);
+  padding-bottom: 1px;
+}
+
+.cw-hl {
+  color: var(--studio-text);
+  background: rgba(122, 134, 160, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+.cw-ctas {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cw-btn {
+  font-size: 14.5px;
+  padding: 11px 20px;
+  border-radius: var(--ui-radius-control);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.cw-btn-primary {
+  background: #f4f5f7;
+  color: #0c0d12;
+  box-shadow: 0 6px 20px -8px rgba(255, 255, 255, 0.28);
+}
+
+.cw-btn-ghost {
+  background: var(--studio-panel);
+  color: var(--studio-text);
+  border-color: var(--studio-line-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-workbench * {
+    transition: none !important;
   }
 }
