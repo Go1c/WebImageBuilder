@@ -63,7 +63,7 @@ export async function listMaterials(params: { category?: string; status?: "all" 
     let rows = MOCK_MATERIALS.slice();
     if (params.category) rows = rows.filter((r) => r.category === params.category);
     if (status !== "all") rows = rows.filter((r) => r.status === status);
-    return rows.sort((a, b) => a.sortOrder - b.sortOrder || b.createdAt.localeCompare(a.createdAt));
+    return rows.sort((a, b) => b.sortOrder - a.sortOrder || b.createdAt.localeCompare(a.createdAt));
   }
 
   const conditions: string[] = [];
@@ -80,7 +80,7 @@ export async function listMaterials(params: { category?: string; status?: "all" 
       select id, title, category, prompt, image_url, sort_order, status, created_at
       from material_items
       ${where}
-      order by sort_order asc, created_at desc
+      order by sort_order desc, created_at desc
     `,
     args
   );
@@ -91,7 +91,7 @@ export async function listMaterials(params: { category?: string; status?: "all" 
     category: r.category,
     prompt: r.prompt,
     imageUrl: r.image_url,
-    sortOrder: r.sort_order,
+    sortOrder: Number(r.sort_order),
     status: r.status,
     createdAt: r.created_at
   }));
@@ -113,6 +113,7 @@ export async function createMaterial(input: {
   category: string;
   prompt: string;
   imageUrl: string;
+  sortOrder?: number;
   storageKey?: string | null;
   mimeType?: string | null;
   createdBy?: string | null;
@@ -121,13 +122,15 @@ export async function createMaterial(input: {
     return `m_${Date.now()}`;
   }
 
+  // Default 0 so peers tie on sort_order and fall back to newest-first (created_at desc).
+  const sortOrder = Number.isFinite(input.sortOrder) ? Number(input.sortOrder) : 0;
   const result = await adminQuery<{ id: string }>(
     `
       insert into material_items (title, category, prompt, image_url, storage_key, image_mime_type, sort_order, created_by)
-      values ($1, $2, $3, $4, $5, $6, (select coalesce(max(sort_order), 0) + 1 from material_items), $7)
+      values ($1, $2, $3, $4, $5, $6, $7, $8)
       returning id
     `,
-    [input.title, input.category, input.prompt, input.imageUrl, input.storageKey ?? null, input.mimeType ?? null, input.createdBy ?? null]
+    [input.title, input.category, input.prompt, input.imageUrl, input.storageKey ?? null, input.mimeType ?? null, sortOrder, input.createdBy ?? null]
   );
   return result.rows[0].id;
 }
@@ -172,9 +175,10 @@ export async function reorderMaterials(ids: string[]): Promise<boolean> {
     return true;
   }
 
+  // Desc primary sort: top card gets the highest value so "drag to top" = "show first".
   await transaction(async (client) => {
     for (let index = 0; index < ids.length; index += 1) {
-      await client.query(`update material_items set sort_order = $1, updated_at = now() where id = $2`, [index, ids[index]]);
+      await client.query(`update material_items set sort_order = $1, updated_at = now() where id = $2`, [ids.length - index, ids[index]]);
     }
   });
   return true;
@@ -184,7 +188,7 @@ export async function listPublicMaterials(): Promise<PublicMaterial[]> {
   if (isLocalPreview()) {
     return MOCK_MATERIALS
       .filter((r) => r.status === "active")
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .sort((a, b) => b.sortOrder - a.sortOrder || b.createdAt.localeCompare(a.createdAt))
       .map((r) => ({ id: r.id, title: r.title, category: r.category, prompt: r.prompt, imageUrl: r.imageUrl, caseNumber: r.sortOrder }));
   }
 
@@ -193,8 +197,43 @@ export async function listPublicMaterials(): Promise<PublicMaterial[]> {
       select id, title, category, prompt, image_url, coalesce(legacy_case_number, sort_order) as case_number
       from material_items
       where status = 'active'
-      order by sort_order asc
+      order by sort_order desc, created_at desc
     `
   );
   return result.rows.map((r) => ({ id: r.id, title: r.title, category: r.category, prompt: r.prompt, imageUrl: r.image_url, caseNumber: Number(r.case_number ?? 0) }));
+}
+
+/**
+ * Record a user click on a material and, if it is the actor's first click on
+ * this material today, bump its weighted sort_order by 0.1 (popularity lift).
+ * Returns whether the click counted (false = already counted today / unknown id).
+ */
+export async function recordMaterialClick(id: string, actorKey: string): Promise<boolean> {
+  if (isLocalPreview()) {
+    return false;
+  }
+
+  return transaction(async (client) => {
+    // Guard first: unknown/hidden ids return false rather than hitting an FK error.
+    const exists = await client.query(`select 1 from material_items where id = $1 and status = 'active'`, [id]);
+    if ((exists.rowCount ?? 0) === 0) {
+      return false;
+    }
+    const dedup = await client.query(
+      `insert into material_clicks (material_id, actor_key, click_day)
+       values ($1, $2, current_date)
+       on conflict (material_id, actor_key, click_day) do nothing`,
+      [id, actorKey]
+    );
+    if ((dedup.rowCount ?? 0) === 0) {
+      return false; // already counted for this actor today
+    }
+    const bump = await client.query(
+      `update material_items
+         set sort_order = sort_order + 0.1, click_count = click_count + 1, updated_at = now()
+       where id = $1`,
+      [id]
+    );
+    return (bump.rowCount ?? 0) > 0;
+  });
 }

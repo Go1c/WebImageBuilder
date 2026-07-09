@@ -23,15 +23,17 @@ type EditorState = {
   prompt: string;
   imageUrl: string;
   sortOrder: number;
+  storageKey: string | null;
+  mimeType: string | null;
 };
 
-const EMPTY_EDITOR: EditorState = { id: null, title: "", category: "", prompt: "", imageUrl: "", sortOrder: 0 };
+const EMPTY_EDITOR: EditorState = { id: null, title: "", category: "", prompt: "", imageUrl: "", sortOrder: 0, storageKey: null, mimeType: null };
 
-/** Accept http(s) URLs (optionally data: for pasted previews). */
+/** Accept http(s) URLs, site-relative /paths (seeded assets), or data: URIs. */
 function isValidImageUrl(url: string): boolean {
   const v = url.trim();
   if (!v) return true; // empty is allowed (falls back to gradient placeholder)
-  return /^https?:\/\/.+/i.test(v) || /^data:image\//i.test(v);
+  return /^https?:\/\/.+/i.test(v) || /^\/[^/].*/.test(v) || /^data:image\//i.test(v);
 }
 
 export default function MaterialsPage() {
@@ -42,6 +44,7 @@ export default function MaterialsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [urlError, setUrlError] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // local ordering + drag state, seeded from server data
   const [rows, setRows] = useState<MaterialRow[]>([]);
@@ -64,7 +67,31 @@ export default function MaterialsPage() {
   const openEdit = (m: MaterialRow) => {
     setSaveError(null);
     setUrlError(false);
-    setEditor({ id: m.id, title: m.title, category: m.category, prompt: m.prompt, imageUrl: m.imageUrl, sortOrder: m.sortOrder });
+    setEditor({ id: m.id, title: m.title, category: m.category, prompt: m.prompt, imageUrl: m.imageUrl, sortOrder: m.sortOrder, storageKey: null, mimeType: null });
+  };
+
+  // Upload a PNG/JPG/WEBP attachment; server transcodes it to S3 and returns a public URL.
+  const uploadImage = async (file: File) => {
+    if (!editor) return;
+    setSaveError(null);
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/admin/materials/upload", { method: "POST", credentials: "include", body: form });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && typeof body.url === "string") {
+        setUrlError(false);
+        setEditor((prev) => (prev ? { ...prev, imageUrl: body.url, storageKey: body.key ?? null, mimeType: body.mimeType ?? null } : prev));
+        toast("图片已上传");
+      } else {
+        setSaveError(body?.error?.message || "图片上传失败");
+      }
+    } catch {
+      setSaveError("图片上传失败");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const toggleHidden = (m: MaterialRow) => {
@@ -128,7 +155,9 @@ export default function MaterialsPage() {
       category: editor.category.trim(),
       prompt: editor.prompt,
       imageUrl: editor.imageUrl.trim(),
-      sortOrder: editor.sortOrder
+      sortOrder: editor.sortOrder,
+      ...(editor.storageKey ? { storageKey: editor.storageKey } : {}),
+      ...(editor.mimeType ? { mimeType: editor.mimeType } : {})
     };
 
     let ok = false;
@@ -280,22 +309,37 @@ export default function MaterialsPage() {
               <textarea className="ad-btn" rows={5} value={editor.prompt} onChange={(e) => setEditor({ ...editor, prompt: e.target.value })} placeholder="填写生成该素材的提示词" />
             </label>
             <label>
-              <span className="ad-sub">图片URL</span>
+              <span className="ad-sub">上传图片</span>
+              <input
+                className="ad-btn"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadImage(f);
+                  e.target.value = ""; // allow re-selecting the same file
+                }}
+              />
+              <span className="ad-sub">{uploading ? "上传中…" : "选择 PNG / JPG / WEBP,自动转存 S3"}</span>
+            </label>
+            <label>
+              <span className="ad-sub">或粘贴图片 URL（选填）</span>
               <input
                 className="ad-btn"
                 style={urlError ? { borderColor: "var(--ad-crit)" } : undefined}
                 value={editor.imageUrl}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setEditor({ ...editor, imageUrl: v });
+                  setEditor({ ...editor, imageUrl: v, storageKey: null, mimeType: null });
                   setUrlError(!isValidImageUrl(v));
                 }}
                 placeholder="https://..."
               />
               {urlError ? (
-                <span className="ad-sub" style={{ color: "var(--ad-crit)" }}>请填写 http(s):// 开头的有效图片链接</span>
+                <span className="ad-sub" style={{ color: "var(--ad-crit)" }}>请填写 http(s):// 或 / 开头的有效图片链接</span>
               ) : (
-                <span className="ad-sub">可粘贴已托管的图片/S3公开URL；直传上传为后续增强</span>
+                <span className="ad-sub">已上传图片会自动填入此处；也可直接粘贴已托管的图片/S3公开URL</span>
               )}
             </label>
 
@@ -327,6 +371,7 @@ export default function MaterialsPage() {
               <input
                 className="ad-btn"
                 type="number"
+                step="0.1"
                 value={editor.sortOrder}
                 onChange={(e) => setEditor({ ...editor, sortOrder: Number(e.target.value) || 0 })}
               />

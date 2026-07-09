@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (typeof body.category === "string") patch.category = body.category.trim();
     if (typeof body.prompt === "string") patch.prompt = body.prompt;
     if (typeof body.imageUrl === "string") patch.imageUrl = body.imageUrl.trim();
-    if (typeof body.sortOrder === "number" && Number.isFinite(body.sortOrder)) patch.sortOrder = Math.trunc(body.sortOrder);
+    if (typeof body.sortOrder === "number" && Number.isFinite(body.sortOrder)) patch.sortOrder = body.sortOrder;
     if (body.status === "active" || body.status === "hidden") patch.status = body.status;
 
     const ok = await updateMaterial(id, patch);

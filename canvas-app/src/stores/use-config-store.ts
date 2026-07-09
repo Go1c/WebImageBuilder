@@ -300,11 +300,12 @@ export function modelOptionName(value: string) {
     return decodeChannelModel(value)?.model || value;
 }
 
-export function modelOptionLabel(config: AiConfig, value: string) {
+export function modelOptionLabel(_config: AiConfig, value: string) {
+    // Unified product: the canvas uses the hosted Lumio backend's model list as
+    // the single source of truth, so model options read as clean names
+    // ("gpt-image-2") with no channel suffix — matching the main studio picker.
     const decoded = decodeChannelModel(value);
-    if (!decoded) return value;
-    const channel = config.channels.find((item) => item.id === decoded.channelId);
-    return channel ? `${decoded.model}（${channel.name}）` : decoded.model;
+    return decoded ? decoded.model : value;
 }
 
 export function modelOptionsFromChannels(channels: ModelChannel[]) {

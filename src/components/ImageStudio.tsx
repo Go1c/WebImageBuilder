@@ -273,6 +273,14 @@ class GenerationPollTimeoutError extends Error {
   }
 }
 
+const MATERIAL_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Fire-and-forget click report; each counted click lifts the material's sort weight (+0.1). */
+function reportMaterialClick(id: string): void {
+  if (!MATERIAL_ID_RE.test(id)) return; // static fallback ids (case-N) are not DB-backed
+  void fetch(`/api/materials/${id}/click`, { method: "POST", credentials: "include" }).catch(() => {});
+}
+
 function wait(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -1176,6 +1184,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   }
 
   function handleApplyPromptLibraryItem(item: PromptLibraryItem) {
+    reportMaterialClick(item.id);
     setPrompt(item.prompt);
     setGenerationSlots([]);
     setImages([]);

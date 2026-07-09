@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
       category: typeof body.category === "string" ? body.category.trim() : "",
       prompt: typeof body.prompt === "string" ? body.prompt : "",
       imageUrl,
+      sortOrder: typeof body.sortOrder === "number" && Number.isFinite(body.sortOrder) ? body.sortOrder : undefined,
       storageKey: typeof body.storageKey === "string" ? body.storageKey : null,
       mimeType: typeof body.mimeType === "string" ? body.mimeType : null,
       createdBy: admin.email
