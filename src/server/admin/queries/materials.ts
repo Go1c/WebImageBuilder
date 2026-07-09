@@ -80,7 +80,7 @@ export async function listMaterials(params: { category?: string; status?: "all" 
       select id, title, category, prompt, image_url, sort_order, status, created_at
       from material_items
       ${where}
-      order by sort_order desc, created_at desc
+      order by (sort_order + click_count * 0.1) desc, created_at desc
     `,
     args
   );
@@ -197,7 +197,7 @@ export async function listPublicMaterials(): Promise<PublicMaterial[]> {
       select id, title, category, prompt, image_url, coalesce(legacy_case_number, sort_order) as case_number
       from material_items
       where status = 'active'
-      order by sort_order desc, created_at desc
+      order by (sort_order + click_count * 0.1) desc, created_at desc
     `
   );
   return result.rows.map((r) => ({ id: r.id, title: r.title, category: r.category, prompt: r.prompt, imageUrl: r.image_url, caseNumber: Number(r.case_number ?? 0) }));
@@ -228,10 +228,10 @@ export async function recordMaterialClick(id: string, actorKey: string): Promise
     if ((dedup.rowCount ?? 0) === 0) {
       return false; // already counted for this actor today
     }
+    // Only bump click_count; the effective sort weight (sort_order + click_count*0.1)
+    // is computed at query time, so manual drag/sort_order edits never wipe click heat.
     const bump = await client.query(
-      `update material_items
-         set sort_order = sort_order + 0.1, click_count = click_count + 1, updated_at = now()
-       where id = $1`,
+      `update material_items set click_count = click_count + 1, updated_at = now() where id = $1`,
       [id]
     );
     return (bump.rowCount ?? 0) > 0;

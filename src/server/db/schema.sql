@@ -210,15 +210,17 @@ create table if not exists material_items (
   updated_at timestamptz not null default now()
 );
 
--- sort_order carries fractional click weight (+0.1 per click); widen from integer
+-- sort_order is the admin-set manual weight (drag / 排序值 field); numeric so it
+-- can hold fractional manual values. Effective ranking = sort_order + click_count*0.1.
 alter table material_items
   alter column sort_order type numeric(12,2) using sort_order::numeric(12,2);
 
--- raw click tally, kept separate from the weighted sort_order for admin visibility
+-- click tally; each click adds 0.1 to the effective rank (computed at query time,
+-- so manual reorders never wipe accumulated click heat)
 alter table material_items
   add column if not exists click_count integer not null default 0;
 
--- click de-dup ledger: one weighted click per actor per material per day
+-- click de-dup ledger: one counted click per actor per material per day
 create table if not exists material_clicks (
   material_id uuid not null references material_items(id) on delete cascade,
   actor_key text not null,
@@ -227,7 +229,7 @@ create table if not exists material_clicks (
   primary key (material_id, actor_key, click_day)
 );
 
--- desc primary sort (higher sort_order first), newest as tiebreak
+-- desc primary sort (higher weight first), newest as tiebreak
 drop index if exists material_items_sort_idx;
 create index if not exists material_items_sort_idx
   on material_items(status, sort_order desc, created_at desc);

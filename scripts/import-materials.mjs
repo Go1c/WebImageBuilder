@@ -18,11 +18,12 @@ if (!databaseUrl) {
 const sourcePath = path.join(process.cwd(), "src", "components", "promptLibrary.ts");
 const source = await fs.readFile(sourcePath, "utf8");
 
-// Extract the array literal between the first "[" after the export and its
-// closing "]" (right before "satisfies"). The items use JSON-quoted keys.
+// Extract the array literal between the first "[" after the export and the
+// closing "]" right before "satisfies". Must NOT use lastIndexOf("]") — the
+// trailing `satisfies PromptLibraryItem[]` type annotation ends with "]" too.
 const startMarker = source.indexOf("promptLibraryItems");
 const arrayStart = source.indexOf("[", startMarker);
-const arrayEnd = source.lastIndexOf("]");
+const arrayEnd = source.indexOf("] satisfies", arrayStart);
 if (arrayStart === -1 || arrayEnd === -1 || arrayEnd <= arrayStart) {
   console.error("Could not locate promptLibraryItems array");
   process.exit(1);
@@ -46,8 +47,12 @@ let inserted = 0;
 let skipped = 0;
 
 try {
-  for (const item of items) {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
     const caseNumber = Number(item.caseNumber) || null;
+    // Ranking is desc, so give earlier items the higher sort_order to preserve
+    // the original library order (case1 first). The array is already case-ordered.
+    const sortOrder = items.length - index;
     const result = await pool.query(
       `
         insert into material_items (title, category, prompt, image_url, legacy_case_number, sort_order, status, created_by)
@@ -62,7 +67,7 @@ try {
         item.prompt || "",
         item.image || "",
         caseNumber,
-        caseNumber || 0
+        sortOrder
       ]
     );
     if (result.rowCount > 0) {
