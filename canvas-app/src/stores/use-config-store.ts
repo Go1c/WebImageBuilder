@@ -207,15 +207,23 @@ export const useConfigStore = create<ConfigStore>()(
                 const persistedWebdav = (persistedState.webdav || {}) as Partial<WebdavSyncConfig>;
                 const config = { ...defaultConfig, ...persistedConfig };
                 if (!Array.isArray(persistedConfig.channels)) config.channels = [];
-                const channels = normalizeChannels(config);
+                // Lumio 集成：强制所有渠道走同源画布适配端点（/api/canvas），
+                // 覆盖任何持久化在 localStorage 里的旧 baseUrl，否则老用户的请求会
+                // 继续发去 api.openai.com 而非我们的后端 → 生成永远失败。
+                const channels = normalizeChannels(config).map((channel) => ({
+                    ...channel,
+                    baseUrl: LUMIO_CANVAS_API_BASE,
+                    apiFormat: "openai" as const,
+                }));
                 const models = modelOptionsFromChannels(channels);
                 return {
                     ...current,
                     webdav: { ...defaultWebdavSyncConfig, ...persistedWebdav },
                     config: {
                         ...config,
+                        baseUrl: LUMIO_CANVAS_API_BASE,
                         channelMode: "local",
-                        apiFormat: normalizeApiFormat(config.apiFormat),
+                        apiFormat: "openai",
                         channels,
                         models,
                         imageModel: normalizeModelOptionValue(config.imageModel || config.model, channels),
