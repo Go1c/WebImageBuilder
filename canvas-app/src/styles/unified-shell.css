@@ -1,0 +1,254 @@
+/* ===========================================================================
+   Unified Shell topbar — visual copy of the main Lumio Next site's `.studio-*`
+   topbar (src/app/globals.css). Applied ONLY to the canvas-app's non-editor
+   pages so the SPA reads as the same product as the main studio.
+
+   SCOPING: every rule is nested under `.lumio-shell` so these tokens/styles can
+   never leak into or restyle the canvas editor (which has its own Tailwind/
+   shadcn theme). The `--studio-*` / `--lumio-*` vars are declared on
+   `.lumio-shell` itself, not on :root, for the same reason. Values are the
+   concrete light/dark values copied from the main globals.css.
+   =========================================================================== */
+
+.lumio-shell {
+    /* Brand / semantic tokens (light defaults, mirroring main globals.css) */
+    --studio-surface: #ffffff;
+    --studio-panel-strong: rgba(255, 255, 255, 0.7);
+    --studio-line: rgba(0, 0, 0, 0.05);
+    --studio-line-strong: rgba(0, 0, 0, 0.1);
+    --studio-text: #171717;
+    --studio-muted: #737373;
+    --studio-black: #171717;
+    --studio-accent-2: #6d28d9;
+    --studio-accent-bg: #f5f3ff;
+
+    --lumio-teal: #2cd4be;
+    --lumio-teal-strong: #20b9a6;
+    --lumio-teal-soft: rgba(44, 212, 190, 0.12);
+    --lumio-teal-line: rgba(44, 212, 190, 0.32);
+    --lumio-violet: #8b78f5;
+    --lumio-violet-soft: rgba(139, 120, 245, 0.15);
+    --lumio-violet-line: rgba(139, 120, 245, 0.35);
+}
+
+/* Dark theme: the SPA toggles `.dark` on <html>; scope dark overrides to it. */
+.dark .lumio-shell {
+    --studio-surface: #14161f;
+    --studio-panel-strong: rgba(9, 10, 15, 0.78);
+    --studio-line: rgba(255, 255, 255, 0.08);
+    --studio-line-strong: rgba(255, 255, 255, 0.16);
+    --studio-text: #eeeff3;
+    --studio-muted: #a6aab5;
+    --studio-black: #eeeff3;
+    --studio-accent-2: #b9adfb;
+    --studio-accent-bg: rgba(139, 120, 245, 0.15);
+}
+
+.lumio-shell .studio-topbar {
+    position: relative;
+    z-index: 4;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid var(--studio-line);
+    padding: 0 24px;
+    background: var(--studio-panel-strong);
+    backdrop-filter: blur(10px);
+}
+
+.lumio-shell .studio-brand,
+.lumio-shell .studio-brand-group,
+.lumio-shell .studio-account,
+.lumio-shell .studio-nav {
+    display: flex;
+    align-items: center;
+}
+
+.lumio-shell .studio-brand {
+    min-width: 168px;
+    gap: 8px;
+    color: var(--studio-text);
+    font-size: 16px;
+    line-height: 24px;
+    letter-spacing: 0;
+    white-space: nowrap;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.lumio-shell .studio-brand-group {
+    min-width: 0;
+    gap: 12px;
+}
+
+.lumio-shell .studio-brand-mark {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgb(97, 95, 255) 0%, rgb(173, 70, 255) 50%, rgb(246, 51, 154) 100%);
+    color: white;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.1),
+        0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.lumio-shell .studio-nav {
+    margin: 0 auto;
+    min-width: 0;
+    height: 36px;
+    gap: 2px;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.lumio-shell .studio-nav a,
+.lumio-shell .studio-nav button {
+    height: 36px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0 13px;
+    background: transparent;
+    color: var(--studio-muted);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 24px;
+    letter-spacing: 0;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.lumio-shell .studio-nav a:hover,
+.lumio-shell .studio-nav button:hover:not(:disabled) {
+    background: var(--studio-line);
+    color: var(--studio-text);
+}
+
+.lumio-shell .studio-nav a.is-selected,
+.lumio-shell .studio-nav button.is-selected {
+    background: var(--studio-line-strong);
+    color: var(--studio-text);
+}
+
+.dark .lumio-shell .studio-nav a.is-selected,
+.dark .lumio-shell .studio-nav button.is-selected {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.lumio-shell .studio-nav .nav-generate.is-selected {
+    background: var(--lumio-violet-soft);
+    color: var(--studio-accent-2);
+}
+
+.lumio-shell .studio-nav .nav-canvas.is-selected {
+    background: var(--lumio-teal-soft);
+    color: var(--lumio-teal-strong);
+}
+
+.dark .lumio-shell .studio-nav .nav-canvas.is-selected {
+    color: var(--lumio-teal);
+}
+
+.lumio-shell .studio-nav button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.lumio-shell .nav-beta {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    padding: 3px 6px;
+    background: var(--lumio-teal-soft);
+    color: var(--lumio-teal-strong);
+}
+
+.lumio-shell .nav-soon {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 999px;
+    padding: 3px 6px;
+    background: var(--studio-line);
+    color: var(--studio-muted);
+}
+
+.lumio-shell .studio-account {
+    height: 33.5px;
+    gap: 8px;
+}
+
+.lumio-shell .login-pill {
+    height: 31.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: 13px;
+    line-height: 19.5px;
+    letter-spacing: 0;
+    width: 58px;
+    border: 0;
+    background: var(--studio-black);
+    color: #ffffff;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.dark .lumio-shell .login-pill {
+    color: #14161f;
+}
+
+.lumio-shell .theme-toggle {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid var(--studio-line-strong);
+    border-radius: 999px;
+    background: var(--studio-surface);
+    color: var(--studio-text);
+    padding: 0;
+    cursor: pointer;
+}
+
+/* ---- Responsive: match main site's mobile collapse behaviour ---- */
+@media (max-width: 760px) {
+    .lumio-shell .studio-topbar {
+        gap: 12px;
+        padding: 0 14px;
+    }
+
+    .lumio-shell .studio-brand {
+        min-width: 0;
+    }
+
+    .lumio-shell .studio-brand span:last-child {
+        display: none;
+    }
+
+    .lumio-shell .studio-nav {
+        overflow-x: auto;
+        justify-content: flex-start;
+        scrollbar-width: none;
+    }
+
+    .lumio-shell .studio-nav::-webkit-scrollbar {
+        display: none;
+    }
+}

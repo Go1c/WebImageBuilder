@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "antd/dist/reset.css";
 import "./styles/globals.css";
+import "./styles/unified-shell.css";
 import { RouterProvider } from "react-router-dom";
 
 import { AppProviders } from "@/components/layout/app-providers";
