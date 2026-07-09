@@ -9,7 +9,8 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate": "node scripts/migrate.mjs",
+    "materials:import": "node scripts/import-materials.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "latest",

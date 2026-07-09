@@ -166,3 +166,91 @@ create table if not exists invites (
 );
 
 create index if not exists invites_inviter_idx on invites(inviter_user_id, created_at desc);
+
+-- ============================================================
+-- Admin backend additions
+-- ============================================================
+
+-- Persist structured upstream error detail + request correlation id on tasks
+alter table generation_tasks
+  add column if not exists request_id text;
+
+alter table generation_tasks
+  add column if not exists error_code text;
+
+alter table generation_tasks
+  add column if not exists upstream_detail jsonb;
+
+create index if not exists generation_tasks_failed_idx
+  on generation_tasks(status, created_at desc)
+  where status = 'failed';
+
+-- Allow admins to take shares down (soft state)
+alter table prompt_shares
+  drop constraint if exists prompt_shares_status_check;
+
+alter table prompt_shares
+  add constraint prompt_shares_status_check
+  check (status in ('active', 'reported', 'removed'));
+
+-- Material library (replaces static promptLibrary.ts, admin-managed)
+create table if not exists material_items (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  category text not null default '',
+  prompt text not null default '',
+  storage_key text,
+  image_url text not null,
+  image_mime_type text,
+  legacy_case_number integer,
+  sort_order integer not null default 0,
+  status text not null default 'active' check (status in ('active', 'hidden')),
+  created_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists material_items_sort_idx
+  on material_items(status, sort_order asc, created_at desc);
+
+-- Content-safety blocked terms
+create table if not exists blocked_terms (
+  id uuid primary key default gen_random_uuid(),
+  term text not null unique,
+  category text not null default '',
+  action text not null default 'flag' check (action in ('flag', 'block')),
+  hit_count integer not null default 0,
+  created_by text,
+  created_at timestamptz not null default now()
+);
+
+-- Marketing announcements / banners
+create table if not exists announcements (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null default '',
+  placement text not null default 'home_banner',
+  status text not null default 'draft' check (status in ('draft', 'active', 'ended')),
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists announcements_status_idx
+  on announcements(status, starts_at desc);
+
+-- Admin action audit trail
+create table if not exists admin_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  admin_email text not null,
+  action text not null,
+  target_type text,
+  target_id text,
+  detail jsonb not null default '{}',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists admin_audit_logs_created_idx
+  on admin_audit_logs(created_at desc);

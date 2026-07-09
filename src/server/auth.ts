@@ -26,14 +26,24 @@ export async function getAuthenticatedUser(
     return null;
   }
 
+  return verifyJwtToken(token);
+}
+
+/**
+ * Verify a raw JWT and return the authenticated user, or null when the token is
+ * missing/invalid or no verification key is configured. Shared by the
+ * NextRequest-based guard and server-component (next/headers) auth.
+ */
+export async function verifyJwtToken(token: string): Promise<AuthenticatedUser | null> {
   const config = getAppConfig();
-  const key = config.jwtPublicKey
-    ? await importSPKI(config.jwtPublicKey.replace(/\\n/g, "\n"), "RS256")
-    : new TextEncoder().encode(config.jwtSecret || "");
 
   if (!config.jwtPublicKey && !config.jwtSecret) {
     return null;
   }
+
+  const key = config.jwtPublicKey
+    ? await importSPKI(config.jwtPublicKey.replace(/\\n/g, "\n"), "RS256")
+    : new TextEncoder().encode(config.jwtSecret || "");
 
   let verified: { payload: JWTPayload };
   try {

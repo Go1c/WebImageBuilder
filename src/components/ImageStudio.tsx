@@ -32,7 +32,8 @@ import {
   type PromptStylePresetKey
 } from "./promptEnhancers";
 import { getPromptLibraryImageLoading } from "./promptLibraryImages";
-import { promptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
+import { promptLibraryItems as staticPromptLibraryItems, type PromptLibraryItem } from "./promptLibrary";
+import { fetchPromptLibrary } from "./promptLibrarySource";
 import {
   createIndexedDbPortfolioAssetStore,
   loadSavedPortfolioItems,
@@ -567,6 +568,21 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     return `${quota.quota.remaining} 次`;
   }, [quota]);
 
+  // Prefer the admin-managed material library (DB via /api/materials); fall back
+  // to the bundled static library on any failure or empty DB so the gallery is
+  // never blank. Starts with the static list for instant first paint.
+  const [promptLibraryItems, setPromptLibraryItems] = useState<PromptLibraryItem[]>(staticPromptLibraryItems);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPromptLibrary(controller.signal).then((items) => {
+      if (items.length > 0) {
+        setPromptLibraryItems(items);
+      }
+    });
+    return () => controller.abort();
+  }, []);
+
   const filteredPromptLibraryItems = useMemo(() => {
     const query = librarySearch.trim().toLowerCase();
 
@@ -581,7 +597,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
 
       return `${item.title} ${item.category} ${item.prompt}`.toLowerCase().includes(query);
     });
-  }, [activeLibraryTab, librarySearch]);
+  }, [promptLibraryItems, activeLibraryTab, librarySearch]);
 
   useEffect(() => {
     if (!tip) {

@@ -332,6 +332,7 @@ async function countDeviceTrialUsage(deviceId: string, ipHash: string): Promise<
 export async function createTask(input: {
   actor: Actor;
   generation: NormalizedGenerationInput;
+  requestId?: string;
 }): Promise<string> {
   const id = randomUUID();
   if (shouldUseLocalRepository()) {
@@ -354,9 +355,9 @@ export async function createTask(input: {
     `
       insert into generation_tasks (
         id, actor_type, user_id, anonymous_device_id, session_id, ip_hash, device_fingerprint,
-        mode, model_key, provider, provider_model, prompt, params, status, result_count
+        mode, model_key, provider, provider_model, prompt, params, status, result_count, request_id
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'running', $14)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'running', $14, $15)
     `,
     [
       id,
@@ -379,7 +380,8 @@ export async function createTask(input: {
         references: input.generation.referenceAssets,
         mask: input.generation.maskAsset
       }),
-      input.generation.count
+      input.generation.count,
+      input.requestId ?? null
     ]
   );
 
@@ -471,7 +473,16 @@ export async function markTaskSucceeded(input: {
   });
 }
 
-export async function markTaskFailed(taskId: string, message: string): Promise<void> {
+export type TaskFailureDetail = {
+  errorCode?: string | null;
+  upstreamDetail?: unknown;
+};
+
+export async function markTaskFailed(
+  taskId: string,
+  message: string,
+  detail: TaskFailureDetail = {}
+): Promise<void> {
   if (shouldUseLocalRepository()) {
     const task = getLocalRepository().tasks.find((item) => item.id === taskId);
     if (task) {
@@ -485,10 +496,19 @@ export async function markTaskFailed(taskId: string, message: string): Promise<v
   await query(
     `
       update generation_tasks
-      set status = 'failed', error_message = $2, updated_at = now()
+      set status = 'failed',
+          error_message = $2,
+          error_code = $3,
+          upstream_detail = $4,
+          updated_at = now()
       where id = $1
     `,
-    [taskId, message]
+    [
+      taskId,
+      message,
+      detail.errorCode ?? null,
+      detail.upstreamDetail === undefined ? null : JSON.stringify(detail.upstreamDetail)
+    ]
   );
 }
 

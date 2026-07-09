@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { ApiError } from "../http";
 import {
   canUseAnonymousQuota,
@@ -45,6 +46,7 @@ type ActiveFunding = Exclude<GenerationFundingDecision, { kind: "blocked" }>;
 
 type PreparedGeneration = {
   taskId: string;
+  requestId: string;
   generation: NormalizedGenerationInput;
   funding: ActiveFunding;
   quotaState: DbQuotaState;
@@ -122,9 +124,10 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
     );
   }
 
-  const taskId = await createTask({ actor: input.actor, generation });
+  const requestId = `req_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+  const taskId = await createTask({ actor: input.actor, generation, requestId });
 
-  return { taskId, generation, funding, quotaState, sub2ApiApiKey };
+  return { taskId, requestId, generation, funding, quotaState, sub2ApiApiKey };
 }
 
 // Runs the slow part (provider call + upload + persistence). Persists failures
@@ -187,12 +190,13 @@ async function executeGenerationTask(
           : getQuotaSnapshot(quotaState)
     };
   } catch (error) {
-    await markTaskFailed(taskId, error instanceof Error ? error.message : "Generation failed");
-    if (error instanceof ApiError) {
-      throw error;
-    }
+    const message = error instanceof Error ? error.message : "Generation failed";
 
     if (error instanceof UpstreamProviderError) {
+      await markTaskFailed(taskId, message, {
+        errorCode: error.upstream.code ?? "provider_error",
+        upstreamDetail: error.upstream
+      });
       throw new ApiError(
         getProviderErrorHttpStatus(error.upstream),
         "provider_error",
@@ -201,11 +205,13 @@ async function executeGenerationTask(
       );
     }
 
-    throw new ApiError(
-      502,
-      "provider_error",
-      error instanceof Error ? error.message : "Generation failed"
-    );
+    if (error instanceof ApiError) {
+      await markTaskFailed(taskId, message, { errorCode: error.code, upstreamDetail: error.upstream });
+      throw error;
+    }
+
+    await markTaskFailed(taskId, message, { errorCode: "internal_error" });
+    throw new ApiError(502, "provider_error", message);
   }
 }
 

@@ -8,6 +8,7 @@ export type AppConfig = {
   openaiApiKey?: string;
   openaiBaseUrl: string;
   geminiApiKey?: string;
+  adminEmails: string[];
   s3: {
     endpoint?: string;
     region: string;
@@ -31,6 +32,7 @@ export function getAppConfig(env = process.env): AppConfig {
     openaiApiKey: env.OPENAI_API_KEY,
     openaiBaseUrl: normalizeBaseUrl(env.OPENAI_BASE_URL || "https://api.openai.com"),
     geminiApiKey: env.GEMINI_API_KEY,
+    adminEmails: parseEmailList(env.ADMIN_EMAILS),
     s3: {
       endpoint: env.S3_ENDPOINT,
       region: env.S3_REGION || "auto",
@@ -52,4 +54,15 @@ export function requireEnv(value: string | undefined, name: string): string {
 
 function normalizeBaseUrl(value: string): string {
   return value.replace(/\/+$/, "");
+}
+
+function parseEmailList(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
 }

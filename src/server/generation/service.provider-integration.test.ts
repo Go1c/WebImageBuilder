@@ -65,7 +65,11 @@ describe("generation service provider integration", () => {
     });
     expect(markTaskFailed).toHaveBeenCalledWith(
       "task-provider-path",
-      expect.stringContaining("status_code=502, 提示词违规")
+      expect.stringContaining("status_code=502, 提示词违规"),
+      expect.objectContaining({
+        errorCode: "prompt_violation",
+        upstreamDetail: expect.objectContaining({ code: "prompt_violation" })
+      })
     );
   });
 
