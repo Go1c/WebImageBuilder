@@ -262,6 +262,15 @@ create table if not exists announcements (
 create index if not exists announcements_status_idx
   on announcements(status, starts_at desc);
 
+-- Key-value app settings (admin-tunable). Used by the asset retention policy:
+--   reference_retention_days / result_retention_days (integer days; 0/absent = disabled)
+create table if not exists app_settings (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+
 -- Admin action audit trail
 create table if not exists admin_audit_logs (
   id uuid primary key default gen_random_uuid(),

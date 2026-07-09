@@ -48,6 +48,12 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/cost", label: "成本看板", icon: icon(<><path d="M4 19V5M4 19h16M8 15l3.5-4 3 2.5L20 7" /></>) },
       { href: "/admin/audit", label: "审计日志", icon: icon(<><path d="M9 5h6M9 5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2M9 5V4a1 1 0 011-1h4a1 1 0 011 1v1M9.5 11l1.5 1.5L14 9.5M9.5 16h5" /></>) }
     ]
+  },
+  {
+    label: "系统设置",
+    items: [
+      { href: "/admin/settings", label: "存储与清理", icon: icon(<><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></>) }
+    ]
   }
 ];
 
