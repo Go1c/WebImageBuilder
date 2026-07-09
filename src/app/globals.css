@@ -268,30 +268,31 @@ textarea:focus-visible {
 }
 
 .studio-nav {
-  position: absolute;
-  left: 50%;
-  top: 9.5px;
-  transform: translateX(-50%);
-  width: 192px;
+  margin: 0 auto;
+  min-width: 0;
   height: 36px;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
+  overflow: hidden;
 }
 
 .studio-nav a,
 .studio-nav button {
   height: 36px;
-  display: grid;
-  place-items: center;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 0;
   border-radius: 999px;
-  padding: 0 12px;
+  padding: 0 13px;
   background: transparent;
   color: var(--studio-muted);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 24px;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .studio-nav a:hover,
@@ -300,22 +301,23 @@ textarea:focus-visible {
   color: var(--studio-text);
 }
 
+.studio-nav a.is-selected,
 .studio-nav button.is-selected {
   background: var(--studio-line-strong);
   color: var(--studio-text);
 }
 
-.studio-nav button.nav-generate.is-selected {
+.studio-nav .nav-generate.is-selected {
   background: var(--lumio-violet-soft);
   color: var(--studio-purple);
 }
 
-.studio-nav button.nav-canvas.is-selected {
+.studio-nav .nav-canvas.is-selected {
   background: var(--lumio-teal-soft);
   color: var(--lumio-teal-strong);
 }
 
-[data-theme="dark"] .studio-nav button.nav-canvas.is-selected {
+[data-theme="dark"] .studio-nav .nav-canvas.is-selected {
   color: var(--lumio-teal);
 }
 
@@ -2267,7 +2269,11 @@ textarea:focus-visible {
     position: static;
     order: 3;
     width: 100%;
+    margin: 0;
     transform: none;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
   }
 
   .studio-account {
@@ -2689,6 +2695,7 @@ a.cw-tab:hover {
 [data-theme="dark"] .studio-tip {
   background: rgba(20, 22, 31, 0.94);
 }
+[data-theme="dark"] .studio-nav a.is-selected,
 [data-theme="dark"] .studio-nav button.is-selected {
   background: rgba(255, 255, 255, 0.08);
 }

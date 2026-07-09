@@ -11,7 +11,7 @@ import {
   type ReactNode
 } from "react";
 import type { GenerationMode, ModelKey } from "@/server/domain/models";
-import AppShell from "./AppShell";
+import AppShell, { AccountMenu, ThemeToggle } from "./AppShell";
 import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
 import { estimateGenerationProgress } from "./generationProgress";
@@ -1588,12 +1588,12 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         accountSlot={
           <>
             <span className="quota-pill">
-              <StudioIcon name="coin" size={14} />
+              <span className="pill-label">免费次数</span>
               {quotaText}
             </span>
             {sub2ApiSession?.authenticated ? (
               <span className="balance-pill" title="Sub2API 实时余额">
-                <StudioIcon name="coin" size={14} />
+                <span className="pill-label">余额</span>
                 {sub2ApiBalanceText}
               </span>
             ) : null}
@@ -1601,15 +1601,13 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
               <StudioIcon name="gift" size={14} />
               邀请有礼
             </button>
+            <ThemeToggle />
             {sub2ApiSession?.authenticated ? (
-              <>
-                <button className="account-email-pill" type="button" onClick={() => void refreshSub2ApiSession()} title={accountLabel}>
-                  {accountLabel}
-                </button>
-                <button className="logout-pill" type="button" onClick={() => void handleSub2ApiLogout()}>
-                  退出
-                </button>
-              </>
+              <AccountMenu
+                email={accountLabel}
+                accountCenterUrl={lumioAccountUrl}
+                onLogout={() => void handleSub2ApiLogout()}
+              />
             ) : (
               <a className="login-pill" href={loginUrl} onClick={handleLoginClick}>
                 登录

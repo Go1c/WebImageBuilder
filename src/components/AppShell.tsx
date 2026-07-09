@@ -109,15 +109,144 @@ export default function AppShell({ active, statsSlot, accountSlot, onExplore, on
 
         <div className="studio-account">
           {accountSlot ?? (
-            <a className="login-pill" href="/">
-              登录
-            </a>
+            <>
+              <ThemeToggle />
+              <a className="login-pill" href="/">
+                登录
+              </a>
+            </>
           )}
         </div>
       </header>
 
       <AnnouncementBar />
     </>
+  );
+}
+
+/**
+ * Sun/moon theme toggle matching the design shell. Flips `<html data-theme>` and
+ * persists to `localStorage["lumio-theme"]` (same key the layout bootstrap reads),
+ * so the choice survives reloads without a dark-mode flash.
+ */
+export function ThemeToggle() {
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    setDark(document.documentElement.getAttribute("data-theme") === "dark");
+  }, []);
+
+  const toggle = () => {
+    const next = !dark;
+    setDark(next);
+    try {
+      if (next) {
+        document.documentElement.setAttribute("data-theme", "dark");
+        window.localStorage.setItem("lumio-theme", "dark");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+        window.localStorage.setItem("lumio-theme", "light");
+      }
+    } catch {
+      // localStorage may be unavailable (private mode); the in-page toggle still applies.
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={toggle}
+      aria-label={dark ? "切换到浅色主题" : "切换到深色主题"}
+      title={dark ? "浅色主题" : "深色主题"}
+    >
+      {dark ? (
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ) : (
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Avatar button + dropdown account menu matching the design shell. Self-contained
+ * open state (closes on outside-click / Esc) so the host doesn't need to thread it.
+ * Replaces the old email-pill + 退出 pair for logged-in users.
+ */
+export function AccountMenu({
+  email,
+  accountCenterUrl,
+  onLogout
+}: {
+  email: string;
+  accountCenterUrl: string;
+  onLogout: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const initial = (email.trim()[0] || "L").toUpperCase();
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onDocClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && target.closest(".account-menu-wrap")) {
+        return;
+      }
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <span className="account-menu-wrap" style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        className="account-avatar"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="账户菜单"
+      >
+        {initial}
+      </button>
+      <div className={open ? "account-menu open" : "account-menu"} role="menu">
+        <div className="menu-mail" title={email}>
+          {email}
+        </div>
+        <a href={accountCenterUrl} target="_blank" rel="noreferrer" role="menuitem">
+          账户中心
+        </a>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onLogout();
+          }}
+        >
+          退出登录
+        </button>
+        <div className="menu-version">Lumio Image Studio</div>
+      </div>
+    </span>
   );
 }
 
