@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import copyToClipboard from "copy-to-clipboard";
-import { Bot, Copy, Cpu, History, PanelRightClose, Plus, Settings2, Trash2, X } from "lucide-react";
+import { Bot, Copy, Cpu, History, PanelRightClose, Plus, Trash2, X } from "lucide-react";
 import { Button, Modal, Segmented, Switch, Tooltip } from "antd";
 import { motion } from "motion/react";
 
@@ -17,7 +17,6 @@ import { DiaTextReveal } from "@/components/ui/dia-text-reveal";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { CanvasPromptLibrary } from "./canvas-prompt-library";
 import { AgentChatComposer, AgentChatMessage, AgentPanelTabs, AgentWorkingMessage, type CanvasAgentChatMessage } from "./canvas-agent-chat-ui";
-import { CanvasLocalAgentPanel } from "./canvas-local-agent-panel";
 import { NODE_DEFAULT_SIZE } from "@/constant/canvas";
 import { CanvasNodeType, type CanvasAssistantMessage, type CanvasAssistantReference, type CanvasAssistantSession, type CanvasNodeData } from "@/types/canvas";
 import { useCanvasAgentStore } from "@/stores/canvas/use-canvas-agent-store";
@@ -113,7 +112,7 @@ const ONLINE_AGENT_TOOLS: ResponseFunctionTool[] = [
     toolDefinition("canvas_set_viewport", "调整画布视口。", { viewport: VIEWPORT_SCHEMA }, ["viewport"]),
     toolDefinition("canvas_run_generation", "触发指定节点生成，通常用于配置节点或文本/图片/视频/音频节点。", { nodeId: { type: "string" }, mode: GENERATION_MODE_SCHEMA, prompt: { type: "string" } }, ["nodeId"]),
 ];
-type OnlineAgentTab = "setup" | "chat" | "history" | "log";
+type OnlineAgentTab = "chat" | "history" | "log";
 type OnlineAgentLog = { id: string; time: string; title: string; data?: unknown };
 type OnlineAgentLogContext = { model: string; running: boolean; confirmTools: boolean; messages: number; nodes: number; connections: number };
 type OnlineLoopContext = { step: number };
@@ -138,7 +137,7 @@ type CanvasAssistantPanelProps = {
     onCollapse: () => void;
 };
 
-export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onApplyOps, canUndoOps, onUndoOps, onPasteImage, autoConnectLocal, closing, onCollapse }: CanvasAssistantPanelProps) {
+export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, sessions, activeSessionId, onSelectNodeIds, onSessionsChange, onApplyOps, onPasteImage, closing, onCollapse }: CanvasAssistantPanelProps) {
     const theme = canvasThemes[useThemeStore((state) => state.theme)];
     const user = useUserStore((state) => state.user);
     const effectiveConfig = useEffectiveConfig();
@@ -478,7 +477,6 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                 value={view}
                 theme={theme}
                 items={[
-                    { value: "setup", label: "连接配置", icon: <Settings2 className="size-3.5" /> },
                     { value: "chat", label: "对话" },
                     { value: "history", label: "历史", icon: <History className="size-3.5" />, count: historySessions.length },
                     { value: "log", label: "日志", count: onlineLogs.length },
@@ -505,17 +503,11 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                                 }}
                             />
                         </Tooltip>
-                        <Tooltip title="配置">
-                            <Button type="text" shape="circle" className="!h-8 !w-8 !min-w-8" style={iconButtonStyle} icon={<Settings2 className="size-4" />} onClick={() => openConfigDialog(false)} />
-                        </Tooltip>
                     </>
                 }
             />
 
-            {view === "setup" ? (
-                <OnlineAgentSetupView theme={theme} activeModel={activeModel} onOpenConfig={() => openConfigDialog(true)} />
-            ) : (
-                <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
                     {view === "history" ? (
                         <AssistantHistory
                             sessions={historySessions}
@@ -548,7 +540,6 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                         </div>
                     )}
                 </div>
-            )}
 
             {view === "chat" ? (
                 <>
@@ -649,14 +640,7 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
                         </Tooltip>
                     </div>
                 </header>
-                <CanvasLocalAgentPanel
-                    embedded
-                    snapshot={snapshot}
-                    canUndoOps={canUndoOps}
-                    onApplyOps={onApplyOps}
-                    onUndoOps={onUndoOps}
-                    autoConnect={autoConnectLocal}
-                />
+                {onlineContent}
             </motion.aside>
         </motion.div>
     );
@@ -760,34 +744,6 @@ function AssistantHistory({
                     网站 Agent 的对话记录会显示在这里
                 </div>
             ) : null}
-        </div>
-    );
-}
-
-function OnlineAgentSetupView({ theme, activeModel, onOpenConfig }: { theme: (typeof canvasThemes)[keyof typeof canvasThemes]; activeModel: string; onOpenConfig: () => void }) {
-    return (
-        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-            <div className="space-y-4">
-                <div>
-                    <div className="text-base font-semibold leading-6">连接配置</div>
-                    <div className="mt-1 text-xs leading-5" style={{ color: theme.node.muted }}>
-                        网站 Agent 直接使用当前网页配置的文本模型和 API。
-                    </div>
-                </div>
-                <div className="rounded-lg border p-3" style={{ borderColor: theme.node.stroke }}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium leading-5">文本模型</div>
-                            <div className="mt-1 truncate text-xs leading-5" style={{ color: theme.node.muted }}>
-                                {activeModel || "未配置模型"}
-                            </div>
-                        </div>
-                        <Button className="!h-8 !px-3" type="primary" icon={<Settings2 className="size-4" />} onClick={onOpenConfig}>
-                            配置
-                        </Button>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

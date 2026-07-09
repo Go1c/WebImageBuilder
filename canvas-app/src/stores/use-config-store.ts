@@ -76,13 +76,13 @@ export const defaultConfig: AiConfig = {
             baseUrl: LUMIO_CANVAS_API_BASE,
             apiKey: "",
             apiFormat: "openai",
-            models: ["gpt-image-2", "grok-imagine-video", "gpt-5.5", "gpt-4o-mini-tts"],
+            models: ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "gemini-3.1-flash-image-preview"],
         },
     ],
     model: "default::gpt-image-2",
     imageModel: "default::gpt-image-2",
     videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-5.5",
+    textModel: "default::gpt-image-2",
     audioModel: "default::gpt-4o-mini-tts",
     audioVoice: "alloy",
     audioFormat: "mp3",
@@ -93,8 +93,8 @@ export const defaultConfig: AiConfig = {
     videoGenerateAudio: "true",
     videoWatermark: "false",
     systemPrompt: "",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
-    imageModels: ["default::gpt-image-2"],
+    models: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview"],
+    imageModels: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview"],
     videoModels: ["default::grok-imagine-video"],
     textModels: ["default::gpt-5.5"],
     audioModels: ["default::gpt-4o-mini-tts"],
@@ -168,7 +168,15 @@ function modelListKey(capability: ModelCapability) {
 
 function isAiConfigReady(config: AiConfig, model: string) {
     const channel = resolveModelChannel(config, model);
-    return Boolean(model.trim() && channel.baseUrl.trim() && channel.apiKey.trim());
+    const baseUrl = channel.baseUrl.trim();
+    // Lumio 集成：同源画布后端（/api/canvas）走 session/cookie 鉴权，不需要用户填 apiKey，
+    // 因此该端点下只要有 model + baseUrl 即视为就绪，实现零配置生成。其它自建渠道仍要求 apiKey。
+    if (isLumioCanvasBaseUrl(baseUrl)) return Boolean(model.trim() && baseUrl);
+    return Boolean(model.trim() && baseUrl && channel.apiKey.trim());
+}
+
+function isLumioCanvasBaseUrl(baseUrl: string) {
+    return baseUrl === LUMIO_CANVAS_API_BASE || baseUrl.replace(/\/+$/, "") === LUMIO_CANVAS_API_BASE.replace(/\/+$/, "");
 }
 
 export const useConfigStore = create<ConfigStore>()(

@@ -7,11 +7,12 @@ import { UnifiedTopbar } from "@/components/layout/unified-topbar";
 
 export default function UserLayout({ children }: { children: ReactNode }) {
     const { pathname } = useLocation();
-    // Editor routes (`/canvas`, `/canvas/:id`) stay full-screen and keep their
-    // own chrome (AppTopNav / in-editor back affordance) untouched. Every other
-    // route gets the unified topbar so the SPA reads as the same product as the
-    // main Lumio studio.
-    const isEditor = pathname === "/canvas" || pathname.startsWith("/canvas/");
+    // Only the full-screen canvas editor (`/canvas/:id`) keeps its own chrome
+    // (AppTopNav header is hidden there; the editor has its own overlay). Every
+    // other route — including the `/canvas` project list — gets the unified
+    // topbar so the SPA reads as the same product as the main Lumio studio and
+    // never shows the fork's own navigation.
+    const isEditor = /^\/canvas\/[^/]+/.test(pathname);
 
     return (
         <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
