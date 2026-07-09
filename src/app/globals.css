@@ -46,7 +46,7 @@
   /* 深色签名元素：点阵网格（浅色下也可作 canvas 域底纹） */
   --dot-grid: radial-gradient(rgba(0, 0, 0, 0.13) 1px, transparent 1px);
   --dot-grid-size: 16px 16px;
-  --hero-ink: #111827;
+  --studio-hero-ink: #111827;
 
   /* 语义扩展令牌 · 浅色值即原硬编码值（浅色像素不变），深色见 [data-theme="dark"] */
   --studio-copy-2: #525252;
@@ -105,7 +105,7 @@
   --ui-money: var(--lumio-teal);
 
   --dot-grid: radial-gradient(rgba(245, 245, 244, 0.14) 1px, transparent 1px);
-  --hero-ink: #fafaf9;
+  --studio-hero-ink: #fafaf9;
 
   /* 语义扩展令牌 · 深色对应值 */
   --studio-copy-2: #b4b8c2;
@@ -3022,7 +3022,7 @@ a.cw-tab:hover {
   font-size: 88px;
   line-height: 1;
   font-weight: 650;
-  color: var(--hero-ink);
+  color: var(--studio-hero-ink);
   letter-spacing: -0.02em;
 }
 
@@ -3081,7 +3081,7 @@ a.cw-tab:hover {
   font-size: clamp(56px, 9vw, 96px);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--hero-ink);
+  color: var(--studio-hero-ink);
 }
 
 .hero .sub {
@@ -3613,7 +3613,7 @@ a.cw-tab:hover {
   margin: 0 0 8px;
   font-size: 22px;
   font-weight: 600;
-  color: var(--hero-ink);
+  color: var(--studio-hero-ink);
 }
 .canvas-empty-keyword {
   position: relative;
