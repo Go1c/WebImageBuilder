@@ -36,4 +36,7 @@ USER nextjs
 
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+# Apply the DB schema (idempotent: create/alter ... if not exists) before serving,
+# so schema.sql migrations land automatically on every deploy. If the DB is
+# unreachable the container fails loudly and Zeabur restarts + retries.
+CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
