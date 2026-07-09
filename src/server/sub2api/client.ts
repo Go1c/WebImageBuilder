@@ -130,6 +130,29 @@ export async function getSub2ApiGenerationApiKey(
   return imageKey.key;
 }
 
+/**
+ * Chat/text key for the canvas online assistant (/responses). The user's Lumio
+ * "模型广场" holds keys grouped by platform; for chat we want an active OpenAI-
+ * platform key from a NON-image group (the image group is 生图专用). Falls back to
+ * any active OpenAI key. Returns undefined if none — caller can fall back to the
+ * platform key.
+ */
+export async function getSub2ApiChatApiKey(
+  accessToken: string,
+  baseUrl?: string
+): Promise<string | undefined> {
+  let keys: Sub2ApiPaginatedResponse<Sub2ApiApiKey>;
+  try {
+    keys = await listSub2ApiKeys(accessToken, baseUrl);
+  } catch {
+    return undefined;
+  }
+  const openaiKeys = (keys.items || []).filter((item) => isActiveProviderKey(item, "openai"));
+  const chatKey =
+    openaiKeys.find((item) => !isImageGroupName(item.group?.name)) || openaiKeys[0];
+  return chatKey?.key || undefined;
+}
+
 function selectGenerationKeyForProvider(
   keys: Sub2ApiApiKey[],
   provider: Sub2ApiGenerationProvider
