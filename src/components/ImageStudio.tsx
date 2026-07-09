@@ -1595,6 +1595,9 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
           >
             教程
           </button>
+          <a className="studio-nav-canvas" href="/canvas">
+            无限画布<span className="studio-nav-beta">Beta</span>
+          </a>
         </nav>
 
         <div className="studio-account">
@@ -2043,6 +2046,35 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
             >
               <StudioIcon name="check" size={14} />
               保存到作品集
+            </button>
+            <button
+              className={canvasImage ? "open-in-canvas-button" : "open-in-canvas-button is-disabled"}
+              type="button"
+              aria-disabled={!canvasImage}
+              title="在画布中打开"
+              data-tooltip="在画布中打开"
+              onClick={() => {
+                try {
+                  if (canvasImage?.url) {
+                    window.localStorage.setItem(
+                      "lumio:canvas-handoff",
+                      JSON.stringify({
+                        url: canvasImage.url,
+                        prompt,
+                        model,
+                        size: activeSize?.size,
+                        createdAt: Date.now()
+                      })
+                    );
+                  }
+                } catch {
+                  /* localStorage unavailable — open the canvas anyway */
+                }
+                window.location.href = "/canvas";
+              }}
+            >
+              <StudioIcon name="imagePlus" size={14} />
+              在画布中打开
             </button>
             <button
               className={actionStates.share.enabled ? "share-card-button" : "share-card-button is-disabled"}

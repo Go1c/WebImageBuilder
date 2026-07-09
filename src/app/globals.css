@@ -2527,3 +2527,74 @@ a.cw-tab:hover {
     transition: none !important;
   }
 }
+
+/* ===========================================================================
+   创作中心入口 · 生图站顶栏「无限画布」tab + 「在画布中打开」语境桥
+   青绿呼应画布身份，把两个工作台在视觉上连起来。
+   =========================================================================== */
+.studio-nav-canvas {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--lumio-teal-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  transition: background 0.14s ease;
+}
+.studio-nav-canvas:hover {
+  background: var(--lumio-teal-soft);
+}
+.studio-nav-beta {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--lumio-teal-soft);
+  color: var(--lumio-teal-strong);
+  border: 1px solid var(--lumio-teal-line);
+}
+
+.open-in-canvas-button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--lumio-teal-line);
+  border-radius: 999px;
+  background: var(--lumio-teal-soft);
+  color: var(--lumio-teal-strong);
+  font-size: 14px;
+  font-weight: 600;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+.open-in-canvas-button:hover {
+  border-color: var(--lumio-teal);
+}
+.open-in-canvas-button.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===========================================================================
+   深色作用域 · rgba 细调
+   浅色假设的白色玻璃面板 / 黑色选中遮罩在深色下会发白或消失；此处按选择器
+   覆盖为深色等价物。仅在 [data-theme="dark"] 生效，浅色主题完全不受影响。
+   =========================================================================== */
+[data-theme="dark"] .generation-loading-note,
+[data-theme="dark"] .canvas-history,
+[data-theme="dark"] .header-context-panel,
+[data-theme="dark"] .studio-tip {
+  background: rgba(20, 22, 31, 0.94);
+}
+[data-theme="dark"] .studio-nav button.is-selected {
+  background: rgba(255, 255, 255, 0.08);
+}
