@@ -12,8 +12,13 @@ describe("canvas OpenAI image adapter", () => {
   it("maps supported and provider model names, defaulting safely", () => {
     expect(resolveModelKey("gpt-image-2")).toBe("gpt-image-2");
     expect(resolveModelKey("gpt-image-2-4k")).toBe("gpt-image-2-4k");
-    expect(resolveModelKey("something-unknown")).toBe("gpt-image-2");
-    expect(resolveModelKey(undefined)).toBe("gpt-image-2");
+    expect(resolveModelKey("gpt-image-2.5")).toBe("gpt-image-2.5");
+    expect(resolveModelKey("gemini-3.1-flash-image")).toBe("gemini-3.1-flash-image");
+    expect(resolveModelKey("gemini-3.1-flash-image-preview")).toBe("gemini-3.1-flash-image-preview");
+    expect(resolveModelKey("grok-imagine-image-quality")).toBe("grok-imagine-image-quality");
+    expect(resolveModelKey("grok-imagine")).toBe("grok-imagine");
+    expect(resolveModelKey("something-unknown")).toBe("gpt-image-2.5");
+    expect(resolveModelKey(undefined)).toBe("gpt-image-2.5");
   });
 
   it("parses sizes and derives the resolution tier", () => {

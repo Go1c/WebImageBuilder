@@ -7,6 +7,7 @@ export type AppConfig = {
   localMode: boolean;
   openaiApiKey?: string;
   openaiBaseUrl: string;
+  grokApiKey?: string;
   geminiApiKey?: string;
   adminEmails: string[];
   s3: {
@@ -31,6 +32,7 @@ export function getAppConfig(env = process.env): AppConfig {
     localMode: env.LUMIO_LOCAL_MODE === "true",
     openaiApiKey: env.OPENAI_API_KEY,
     openaiBaseUrl: normalizeBaseUrl(env.OPENAI_BASE_URL || "https://api.openai.com"),
+    grokApiKey: env.GROK_API_KEY,
     geminiApiKey: env.GEMINI_API_KEY,
     adminEmails: parseEmailList(env.ADMIN_EMAILS),
     s3: {

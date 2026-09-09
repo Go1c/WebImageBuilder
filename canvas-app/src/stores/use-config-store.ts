@@ -64,6 +64,21 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const LUMIO_CANVAS_API_BASE =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_CANVAS_API_BASE) || "/api/canvas";
 
+const DEFAULT_IMAGE_MODEL_IDS = [
+    "gpt-image-2.5",
+    "gpt-image-2",
+    "gpt-image-2-2k",
+    "gpt-image-2-4k",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-image",
+    "grok-imagine-image-quality",
+    "grok-imagine-image",
+    "grok-imagine",
+];
+const DEFAULT_CHANNEL_MODELS = [...DEFAULT_IMAGE_MODEL_IDS, "gpt-5.5"];
+const DEFAULT_IMAGE_MODEL_OPTIONS = DEFAULT_IMAGE_MODEL_IDS.map((model) => `default::${model}`);
+
 export const defaultConfig: AiConfig = {
     channelMode: "local",
     baseUrl: LUMIO_CANVAS_API_BASE,
@@ -76,11 +91,11 @@ export const defaultConfig: AiConfig = {
             baseUrl: LUMIO_CANVAS_API_BASE,
             apiKey: "",
             apiFormat: "openai",
-            models: ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "gemini-3.1-flash-image-preview", "gpt-5.5"],
+            models: [...DEFAULT_CHANNEL_MODELS],
         },
     ],
-    model: "default::gpt-image-2",
-    imageModel: "default::gpt-image-2",
+    model: "default::gpt-image-2.5",
+    imageModel: "default::gpt-image-2.5",
     videoModel: "default::grok-imagine-video",
     textModel: "default::gpt-5.5",
     audioModel: "default::gpt-4o-mini-tts",
@@ -93,8 +108,8 @@ export const defaultConfig: AiConfig = {
     videoGenerateAudio: "true",
     videoWatermark: "false",
     systemPrompt: "",
-    models: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview", "default::gpt-5.5"],
-    imageModels: ["default::gpt-image-2", "default::gpt-image-2-2k", "default::gpt-image-2-4k", "default::gemini-3.1-flash-image-preview"],
+    models: [...DEFAULT_IMAGE_MODEL_OPTIONS, "default::gpt-5.5"],
+    imageModels: [...DEFAULT_IMAGE_MODEL_OPTIONS],
     videoModels: ["default::grok-imagine-video"],
     textModels: ["default::gpt-5.5"],
     audioModels: ["default::gpt-4o-mini-tts"],
@@ -133,7 +148,7 @@ function isVideoModelName(model: string) {
 
 function isImageModelName(model: string) {
     const value = modelOptionName(model).toLowerCase();
-    return !isVideoModelName(model) && !isAudioModelName(model) && (value.includes("seedream") || value.includes("gpt-image") || value.includes("image") || value.includes("dall-e") || value.includes("dalle") || value.includes("imagen") || value.includes("flux") || value.includes("sdxl") || value.includes("stable-diffusion") || value.includes("midjourney"));
+    return !isVideoModelName(model) && !isAudioModelName(model) && (value.includes("seedream") || value.includes("gpt-image") || value.includes("image") || value.includes("dall-e") || value.includes("dalle") || value.includes("imagen") || value.includes("flux") || value.includes("sdxl") || value.includes("stable-diffusion") || value.includes("midjourney") || value.includes("grok-imagine"));
 }
 
 function isAudioModelName(model: string) {
@@ -222,13 +237,10 @@ export const useConfigStore = create<ConfigStore>()(
                     ...channel,
                     baseUrl: LUMIO_CANVAS_API_BASE,
                     apiFormat: "openai" as const,
-                    // 追加 gpt-5.5 文本模型：纯追加、不删任何已有模型，因此老画布节点
-                    // 引用的模型不会失效（不触发归一化重渲染），同时保证在线助手有可选
-                    // 文本模型。
-                    models:
-                        index === 0 && !channel.models.includes("gpt-5.5")
-                            ? [...channel.models, "gpt-5.5"]
-                            : channel.models,
+                    models: uniqueRawModels([
+                        ...channel.models,
+                        ...(index === 0 ? DEFAULT_CHANNEL_MODELS : []),
+                    ]),
                 }));
                 const models = modelOptionsFromChannels(channels);
                 return {
@@ -255,7 +267,12 @@ export const useConfigStore = create<ConfigStore>()(
                         videoGenerateAudio: config.videoGenerateAudio || "true",
                         videoWatermark: config.videoWatermark || "false",
                         canvasImageCount: config.canvasImageCount || "3",
-                        imageModels: Array.isArray(persistedConfig.imageModels) ? normalizeModelList(config.imageModels, channels) : filterModelsByCapability(models, "image"),
+                        imageModels: uniqueModelOptions([
+                            ...(Array.isArray(persistedConfig.imageModels)
+                                ? normalizeModelList(config.imageModels, channels)
+                                : filterModelsByCapability(models, "image")),
+                            ...DEFAULT_IMAGE_MODEL_OPTIONS,
+                        ]),
                         videoModels: Array.isArray(persistedConfig.videoModels) ? normalizeModelList(config.videoModels, channels) : filterModelsByCapability(models, "video"),
                         textModels: ((base: string[]) => (base.includes("default::gpt-5.5") ? base : ["default::gpt-5.5", ...base]))(
                             Array.isArray(persistedConfig.textModels) ? normalizeModelList(config.textModels, channels) : filterModelsByCapability(models, "text")

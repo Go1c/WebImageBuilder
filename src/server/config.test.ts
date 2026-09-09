@@ -9,6 +9,17 @@ describe("app config", () => {
     });
 
     expect(config.openaiBaseUrl).toBe("https://api.lumio.games");
+    expect(config.grokApiKey).toBeUndefined();
+  });
+
+  it("reads an optional Grok image API key separately from OpenAI", () => {
+    const config = getAppConfig({
+      OPENAI_API_KEY: "openai-key",
+      GROK_API_KEY: "grok-key"
+    });
+
+    expect(config.openaiApiKey).toBe("openai-key");
+    expect(config.grokApiKey).toBe("grok-key");
   });
 
   it("keeps local fallback mode opt-in", () => {

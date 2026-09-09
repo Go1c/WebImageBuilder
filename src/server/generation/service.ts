@@ -21,6 +21,7 @@ import {
 } from "../db/repositories";
 import { getImageProvider } from "../providers";
 import { GeminiImageProvider } from "../providers/gemini";
+import { GrokImageProvider } from "../providers/grok";
 import { OpenAIImageProvider } from "../providers/openai";
 import { UpstreamProviderError, type ProviderUpstreamErrorDetail } from "../providers/upstream";
 import { downloadStoredAsset, uploadBuffer, type StoredAsset } from "../storage/s3";
@@ -89,7 +90,7 @@ async function prepareGeneration(input: GenerationActorInput): Promise<PreparedG
   const funding = chooseGenerationFunding({
     quotaState,
     allowSub2ApiFallback:
-      input.actor.type === "user" && ["openai", "gemini"].includes(generation.provider),
+      input.actor.type === "user" && ["openai", "gemini", "grok"].includes(generation.provider),
     allowSiteFunding:
       generation.resolution === "1K" &&
       !(input.actor.type === "user" && generation.provider === "gemini"),
@@ -321,6 +322,13 @@ async function generateWithSub2ApiAccount(input: {
 
   if (input.generation.provider === "gemini") {
     return new GeminiImageProvider({
+      apiKey,
+      baseUrl: getAppConfig().lumioApiBaseUrl
+    }).generate(input.generation);
+  }
+
+  if (input.generation.provider === "grok") {
+    return new GrokImageProvider({
       apiKey,
       baseUrl: getAppConfig().lumioApiBaseUrl
     }).generate(input.generation);

@@ -88,7 +88,9 @@ export class GeminiImageProvider implements ImageProvider {
     }
 
     const apiKey = this.options.apiKey || requireEnv(getAppConfig().geminiApiKey, "GEMINI_API_KEY");
-    const gatewayBaseUrl = this.options.baseUrl;
+    const config = getAppConfig();
+    const gatewayBaseUrl =
+      this.options.baseUrl || (apiKey.startsWith("sk-") ? config.lumioApiBaseUrl : undefined);
     const url = gatewayBaseUrl
       ? `${gatewayBaseUrl.replace(/\/+$/, "")}/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`
       : `https://generativelanguage.googleapis.com/v1beta/models/${input.providerModel}:streamGenerateContent?alt=sse`;

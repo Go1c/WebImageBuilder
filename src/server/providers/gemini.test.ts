@@ -261,6 +261,45 @@ describe("Gemini image provider", () => {
     expect(String(fetchMock.mock.calls[0][0])).not.toContain("key=user-sub2api-gemini-key");
   });
 
+  it("routes Lumio sk- Gemini keys through the Lumio gateway by default", async () => {
+    process.env = {
+      ...originalEnv,
+      GEMINI_API_KEY: "sk-lumio-gemini",
+      LUMIO_API_BASE_URL: "https://api.lumio.games/"
+    };
+
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: "image/png",
+                    data: Buffer.from("image").toString("base64")
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new GeminiImageProvider().generate(buildInput());
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lumio.games/v1beta/models/gemini-2.5-flash-image:streamGenerateContent?alt=sse",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer sk-lumio-gemini"
+        })
+      })
+    );
+  });
+
   it("parses Gemini SSE image events", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(

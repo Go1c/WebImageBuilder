@@ -10,7 +10,15 @@ import {
   type MouseEvent,
   type ReactNode
 } from "react";
-import type { GenerationMode, ModelKey } from "@/server/domain/models";
+import {
+  clampResolutionForModel,
+  DEFAULT_IMAGE_MODEL,
+  getModelOption,
+  listModelOptionsByGroup,
+  nextStudioModelForResolutionChange,
+  type GenerationMode,
+  type ModelKey
+} from "@/server/domain/models";
 import AppShell, { AccountMenu, ThemeToggle } from "./AppShell";
 import { readApiErrorDetail, readApiJson, type ApiErrorDetail } from "./apiErrors";
 import { buildGenerationRequestPreview } from "./generationRequestPreview";
@@ -208,19 +216,9 @@ const CANVAS_EMPTY_EXAMPLE_PROMPTS = [
 
 type GenerationCount = 1 | 2 | 3 | 4;
 
-const studioModelOptions: Array<{ key: ModelKey; label: string }> = [
-  { key: "gpt-image-2", label: "gpt-image-2" },
-  { key: "gpt-image-2-2k", label: "gpt-image-2-2k" },
-  { key: "gpt-image-2-4k", label: "gpt-image-2-4k" },
-  { key: "gemini-3.1-flash-image-preview", label: "gemini-3.1-flash-image-preview" }
-];
+const studioModelGroups = listModelOptionsByGroup();
 
 const generationCountOptions: GenerationCount[] = [1, 2, 3, 4];
-const image2ModelByResolution: Record<ImageResolutionTier, ModelKey> = {
-  "1K": "gpt-image-2",
-  "2K": "gpt-image-2-2k",
-  "4K": "gpt-image-2-4k"
-};
 
 const ratioOptions: Array<{ label: AspectRatioLabel }> = [
   { label: "1:1" },
@@ -432,7 +430,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const libraryPanelRef = useRef<HTMLElement | null>(null);
   const generationRunIdRef = useRef(0);
   const [mode, setMode] = useState<GenerationMode>("text-to-image");
-  const [model, setModel] = useState<ModelKey>("gpt-image-2");
+  const [model, setModel] = useState<ModelKey>(DEFAULT_IMAGE_MODEL);
   const [generationCount, setGenerationCount] = useState<GenerationCount>(1);
   const [prompt, setPrompt] = useState(initialPrompt);
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -547,8 +545,7 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
   const historyThumbs = useMemo(() => {
     return buildCanvasHistoryThumbs({ images, history, canvasPrompt, currentTaskId });
   }, [canvasPrompt, currentTaskId, history, images]);
-  const currentModelLabel =
-    studioModelOptions.find((option) => option.key === model)?.label || model;
+  const currentModelLabel = getModelOption(model).label;
   const canvasMeta = useMemo(
     () => {
       if (selectedGenerationSlot) {
@@ -1109,16 +1106,41 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
     });
   }
 
+  function handleModelChange(nextModel: ModelKey) {
+    const clampedResolution = clampResolutionForModel(nextModel, imageResolution);
+    if (clampedResolution !== imageResolution) {
+      setUseCustomResolution(false);
+      setImageResolution(clampedResolution);
+      showTip({
+        type: "warning",
+        title: "已切换为 2K",
+        message: "Grok 图像模型最高支持 2K，已为你把分辨率从 4K 调整为 2K。"
+      });
+    }
+
+    setModel(nextModel);
+  }
+
   function handleResolutionChange(nextResolution: ImageResolutionTier) {
     const recommendedRatio = getRecommendedRatioForResolution(nextResolution);
+    const clampedResolution = clampResolutionForModel(model, nextResolution);
     const unsupportedReason = getUnsupportedGenerationSizeReason({
       ratio: ratioLabel,
-      resolution: nextResolution
+      resolution: clampedResolution
     });
 
     setUseCustomResolution(false);
-    setImageResolution(nextResolution);
-    setModel(getPreferredImage2ModelForResolution(nextResolution));
+    setImageResolution(clampedResolution);
+    setModel(nextStudioModelForResolutionChange(model, clampedResolution));
+
+    if (clampedResolution !== nextResolution) {
+      showTip({
+        type: "warning",
+        title: "已切换为 2K",
+        message: "Grok 图像模型最高支持 2K，已为你把分辨率从 4K 调整为 2K。"
+      });
+      return;
+    }
 
     if (recommendedRatio && unsupportedReason) {
       setRatioLabel(recommendedRatio);
@@ -1128,13 +1150,6 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
         message: `${unsupportedReason} 已为你切换到推荐的 ${recommendedRatio}。`
       });
     }
-  }
-
-  function getPreferredImage2ModelForResolution(resolution: ImageResolutionTier): ModelKey {
-    const preferredModel = image2ModelByResolution[resolution];
-    return studioModelOptions.some((option) => option.key === preferredModel)
-      ? preferredModel
-      : "gpt-image-2";
   }
 
   function handleRatioChange(option: (typeof ratioOptions)[number]) {
@@ -1683,7 +1698,11 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                       aria-label="图片分辨率"
                     >
                       {imageResolutionOptions.map((option) => (
-                        <option key={option} value={option}>
+                        <option
+                          key={option}
+                          value={option}
+                          disabled={getModelOption(model).provider === "grok" && option === "4K"}
+                        >
                           {option}
                         </option>
                       ))}
@@ -1719,13 +1738,17 @@ export function ImageStudio({ initialPrompt = "" }: { initialPrompt?: string } =
                   <span>模型</span>
                   <select
                     value={model}
-                    onChange={(event) => setModel(event.currentTarget.value as ModelKey)}
+                    onChange={(event) => handleModelChange(event.currentTarget.value as ModelKey)}
                     aria-label="选择生成模型"
                   >
-                    {studioModelOptions.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.label}
-                      </option>
+                    {studioModelGroups.map((group) => (
+                      <optgroup key={group.group} label={group.group}>
+                        {group.models.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </label>

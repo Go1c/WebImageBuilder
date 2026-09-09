@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Cpu } from "lucide-react";
 
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { modelOptionLabel, modelOptionName, selectableModelsByCapability, type AiConfig, type ModelCapability } from "@/stores/use-config-store";
 
@@ -66,10 +66,15 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
                 onMouseDown={(event) => event.stopPropagation()}
             >
                 {options.length ? (
-                    options.map((model) => (
-                        <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
-                            <ModelLabel config={config} model={model} />
-                        </SelectItem>
+                    groupModelsForPicker(options).map((group) => (
+                        <SelectGroup key={group.group}>
+                            <SelectLabel>{group.group}</SelectLabel>
+                            {group.models.map((model) => (
+                                <SelectItem key={model} value={model} textValue={modelOptionLabel(config, model)}>
+                                    <ModelLabel config={config} model={model} />
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
                     ))
                 ) : (
                     <SelectItem value="__empty__" disabled>
@@ -85,6 +90,26 @@ function emptyModelLabel(config: AiConfig, capability?: ModelCapability) {
     const label = capability === "image" ? "生图" : capability === "video" ? "视频" : capability === "text" ? "文本" : capability === "audio" ? "音频" : "";
     if (capability && config.models.length) return "请先在上方配置可选模型";
     return config.models.length ? `暂无匹配的${label}模型` : "请先到配置里添加渠道和模型";
+}
+
+type PickerGroup = "GPT" | "Gemini" | "Grok" | "其他";
+
+function groupModelsForPicker(models: string[]): Array<{ group: PickerGroup; models: string[] }> {
+    const order: PickerGroup[] = ["GPT", "Gemini", "Grok", "其他"];
+    return order
+        .map((group) => ({
+            group,
+            models: models.filter((model) => modelPickerGroup(model) === group),
+        }))
+        .filter((entry) => entry.models.length > 0);
+}
+
+function modelPickerGroup(model: string): PickerGroup {
+    const name = modelOptionName(model).toLowerCase();
+    if (name.includes("gpt") || name.includes("openai") || name.includes("dall-e") || name.includes("dalle")) return "GPT";
+    if (name.includes("gemini") || name.includes("imagen")) return "Gemini";
+    if (name.includes("grok")) return "Grok";
+    return "其他";
 }
 
 function ModelLabel({ config, model }: { config: AiConfig; model: string }) {

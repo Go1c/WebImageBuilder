@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampResolutionForModel,
+  DEFAULT_IMAGE_MODEL,
   getGenerationTimeoutMs,
   getGenerationModeCapabilities,
+  getGrokBillingSize,
   getModelOption,
+  listModelOptionsByGroup,
+  nextStudioModelForResolutionChange,
   normalizeGenerationInput
 } from "./models";
 
@@ -32,6 +37,76 @@ describe("model and generation request rules", () => {
       provider: "gemini",
       providerModel: "gemini-3.1-flash-image-preview"
     });
+
+    expect(getModelOption("gpt-image-2.5")).toMatchObject({
+      key: "gpt-image-2.5",
+      group: "GPT",
+      provider: "openai",
+      providerModel: "gpt-image-2.5"
+    });
+
+    expect(getModelOption("gemini-3-pro-image")).toMatchObject({
+      key: "gemini-3-pro-image",
+      group: "Gemini",
+      provider: "gemini"
+    });
+
+    expect(getModelOption("gemini-3.1-flash-image")).toMatchObject({
+      key: "gemini-3.1-flash-image",
+      group: "Gemini",
+      provider: "gemini"
+    });
+
+    expect(getModelOption("grok-imagine-image-quality")).toMatchObject({
+      key: "grok-imagine-image-quality",
+      group: "Grok",
+      provider: "grok",
+      providerModel: "grok-imagine-image-quality"
+    });
+
+    expect(getModelOption("grok-imagine-image")).toMatchObject({
+      provider: "grok",
+      group: "Grok"
+    });
+
+    expect(getModelOption("grok-imagine")).toMatchObject({
+      provider: "grok",
+      group: "Grok"
+    });
+  });
+
+  it("groups selectable models as GPT, Gemini, then Grok", () => {
+    const groups = listModelOptionsByGroup();
+
+    expect(groups.map((entry) => entry.group)).toEqual(["GPT", "Gemini", "Grok"]);
+    expect(DEFAULT_IMAGE_MODEL).toBe("gpt-image-2.5");
+    expect(groups[0].models.map((model) => model.key)).toEqual([
+      "gpt-image-2.5",
+      "gpt-image-2",
+      "gpt-image-2-2k",
+      "gpt-image-2-4k"
+    ]);
+    expect(groups[1].models.map((model) => model.key)).toEqual([
+      "gemini-3.1-flash-image-preview",
+      "gemini-3-pro-image",
+      "gemini-3.1-flash-image"
+    ]);
+    expect(groups[2].models.map((model) => model.key)).toEqual([
+      "grok-imagine-image-quality",
+      "grok-imagine-image",
+      "grok-imagine"
+    ]);
+  });
+
+  it("rejects unknown generation models", () => {
+    expect(() =>
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "grok-imagine-edit",
+        size: "1024x1024"
+      })
+    ).toThrow();
   });
 
   it("requires reference images for image editing modes", () => {
@@ -199,6 +274,37 @@ describe("model and generation request rules", () => {
     );
     expect(() => normalizeGenerationInput({ ...baseInput, size: "2880x3840" })).toThrow(
       "2448x3264"
+    );
+  });
+
+  it("does not apply GPT Image 2 pixel limits to Grok models", () => {
+    expect(
+      normalizeGenerationInput({
+        prompt: "A red robot",
+        mode: "text-to-image",
+        model: "grok-imagine-image-quality",
+        size: "576x1024",
+        resolution: "1K"
+      }).provider
+    ).toBe("grok");
+  });
+
+  it("maps Grok billing size to 1K or 2K and clamps 4K", () => {
+    expect(getGrokBillingSize("1K")).toBe("1K");
+    expect(getGrokBillingSize("2K")).toBe("2K");
+    expect(getGrokBillingSize("4K")).toBe("2K");
+    expect(clampResolutionForModel("grok-imagine-image", "4K")).toBe("2K");
+    expect(clampResolutionForModel("gpt-image-2", "4K")).toBe("4K");
+    expect(clampResolutionForModel("gemini-3-pro-image", "4K")).toBe("4K");
+  });
+
+  it("only remaps GPT Image 2 family models when the studio resolution changes", () => {
+    expect(nextStudioModelForResolutionChange("gpt-image-2", "2K")).toBe("gpt-image-2-2k");
+    expect(nextStudioModelForResolutionChange("gpt-image-2-4k", "1K")).toBe("gpt-image-2");
+    expect(nextStudioModelForResolutionChange("gpt-image-2.5", "4K")).toBe("gpt-image-2.5");
+    expect(nextStudioModelForResolutionChange("gemini-3-pro-image", "2K")).toBe("gemini-3-pro-image");
+    expect(nextStudioModelForResolutionChange("grok-imagine-image-quality", "2K")).toBe(
+      "grok-imagine-image-quality"
     );
   });
 
