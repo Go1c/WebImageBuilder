@@ -164,6 +164,82 @@ describe("Sub2API client", () => {
     ).resolves.toBe("gemini-image-key");
   });
 
+  it("prefers an active Grok or xAI image key and falls back to OpenAI image keys", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          code: 0,
+          message: "success",
+          data: {
+            items: [
+              {
+                id: 1,
+                key: "sk-openai-image",
+                name: "Image key",
+                status: "active",
+                group: { id: 12, name: "Image-2（生图专用）", platform: "openai" }
+              },
+              {
+                id: 2,
+                key: "sk-grok-image",
+                name: "Grok key",
+                status: "active",
+                group: { id: 13, name: "Grok Imagine", platform: "xai" }
+              }
+            ],
+            total: 2,
+            page: 1,
+            page_size: 100,
+            pages: 1
+          }
+        })
+      )
+    );
+
+    await expect(
+      getSub2ApiGenerationApiKey("access", "grok", "https://api.example.com/api/v1")
+    ).resolves.toBe("sk-grok-image");
+  });
+
+  it("falls back to the OpenAI image group key when no Grok platform key exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          code: 0,
+          message: "success",
+          data: {
+            items: [
+              {
+                id: 1,
+                key: "sk-openai-chat",
+                name: "Chat key",
+                status: "active",
+                group: { id: 11, name: "OpenAI Chat", platform: "openai" }
+              },
+              {
+                id: 2,
+                key: "sk-openai-image",
+                name: "Image key",
+                status: "active",
+                group: { id: 12, name: "Image-2（生图专用）", platform: "openai" }
+              }
+            ],
+            total: 2,
+            page: 1,
+            page_size: 100,
+            pages: 1
+          }
+        })
+      )
+    );
+
+    await expect(
+      getSub2ApiGenerationApiKey("access", "grok", "https://api.example.com/api/v1")
+    ).resolves.toBe("sk-openai-image");
+  });
+
   it("raises a Gemini setup error when no active Gemini image group key exists", async () => {
     vi.stubGlobal(
       "fetch",

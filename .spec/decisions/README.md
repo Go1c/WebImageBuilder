@@ -29,3 +29,4 @@
 | 编号 | 决策 | 状态 |
 |------|------|------|
 | [0001](0001-material-ranking-split.md) | 素材排序 = 手工权重 sort_order + 点击热度 click_count×0.1(分列存储) | 生效 |
+| [0002](0002-grok-json-images-api.md) | Grok 图像走 Lumio JSON `/v1/images/*`，不把 grok-imagine-edit 做成可选模型 | 生效 |

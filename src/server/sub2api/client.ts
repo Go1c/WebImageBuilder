@@ -95,7 +95,7 @@ export async function listSub2ApiKeys(
   );
 }
 
-export type Sub2ApiGenerationProvider = "openai" | "gemini";
+export type Sub2ApiGenerationProvider = "openai" | "gemini" | "grok";
 
 export async function getSub2ApiImageApiKey(accessToken: string, baseUrl?: string): Promise<string> {
   return getSub2ApiGenerationApiKey(accessToken, "openai", baseUrl);
@@ -157,6 +157,19 @@ function selectGenerationKeyForProvider(
   keys: Sub2ApiApiKey[],
   provider: Sub2ApiGenerationProvider
 ): Sub2ApiApiKey | undefined {
+  if (provider === "grok") {
+    return (
+      keys.find((item) => isActiveGrokPlatformKey(item) && isGrokGroupName(item.group?.name)) ||
+      keys.find((item) => isActiveGrokPlatformKey(item) && isImageGroupName(item.group?.name)) ||
+      keys.find((item) => isActiveGrokPlatformKey(item)) ||
+      keys.find(
+        (item) =>
+          item.status === "active" && Boolean(item.key) && isGrokGroupName(item.group?.name)
+      ) ||
+      keys.find((item) => isActiveProviderKey(item, "openai") && isImageGroupName(item.group?.name))
+    );
+  }
+
   if (provider === "openai") {
     return keys.find((item) => isActiveProviderKey(item, provider) && isImageGroupName(item.group?.name));
   }
@@ -173,9 +186,19 @@ function isActiveProviderKey(item: Sub2ApiApiKey, provider: Sub2ApiGenerationPro
   return item.status === "active" && Boolean(item.key) && platform === provider;
 }
 
+function isActiveGrokPlatformKey(item: Sub2ApiApiKey): boolean {
+  const platform = item.group?.platform?.trim().toLowerCase();
+  return item.status === "active" && Boolean(item.key) && (platform === "grok" || platform === "xai");
+}
+
 function isImageGroupName(name: string | undefined): boolean {
   const groupName = name?.trim().toLowerCase() || "";
   return groupName.includes("image") || groupName.includes("生图");
+}
+
+function isGrokGroupName(name: string | undefined): boolean {
+  const groupName = name?.trim().toLowerCase() || "";
+  return groupName.includes("grok") || groupName.includes("imagine");
 }
 
 function missingSub2ApiImageKeyError(provider: Sub2ApiGenerationProvider): ApiError {
@@ -186,11 +209,17 @@ function missingSub2ApiImageKeyError(provider: Sub2ApiGenerationProvider): ApiEr
           group: "Gemini（生图专用）",
           keyword: "gemini 或 image"
         }
-      : {
-          platform: "OpenAI",
-          group: "Image-2（生图专用）",
-          keyword: "image"
-        };
+      : provider === "grok"
+        ? {
+            platform: "Grok / xAI",
+            group: "Grok Imagine 或 Image-2（生图专用）",
+            keyword: "grok、imagine 或 image"
+          }
+        : {
+            platform: "OpenAI",
+            group: "Image-2（生图专用）",
+            keyword: "image"
+          };
 
   return new ApiError(
     402,

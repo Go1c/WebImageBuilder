@@ -8,10 +8,13 @@
  * 那 797 行的 image.ts。纯函数，便于单测。
  */
 
-import type { ImageResolutionTier, ModelKey } from "@/server/domain/models";
+import {
+  DEFAULT_IMAGE_MODEL,
+  modelKeys,
+  type ImageResolutionTier,
+  type ModelKey
+} from "@/server/domain/models";
 
-const MODEL_KEYS: ModelKey[] = ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k", "gemini-3.1-flash-image-preview"];
-const DEFAULT_MODEL: ModelKey = "gpt-image-2";
 const DEFAULT_SIZE = "1024x1024" as const;
 
 export type OpenAiImageRequest = {
@@ -37,16 +40,11 @@ export type CanvasGenerationInput = {
 export function resolveModelKey(model: unknown): ModelKey {
   if (typeof model === "string") {
     const trimmed = model.trim();
-    if ((MODEL_KEYS as string[]).includes(trimmed)) {
+    if ((modelKeys as string[]).includes(trimmed)) {
       return trimmed as ModelKey;
     }
-    // Accept the underlying provider model names too (e.g. "gpt-image-2-2k").
-    const byProvider = MODEL_KEYS.find((key) => key === trimmed || trimmed.startsWith(key));
-    if (byProvider) {
-      return byProvider;
-    }
   }
-  return DEFAULT_MODEL;
+  return DEFAULT_IMAGE_MODEL;
 }
 
 /** Validate an OpenAI "WxH" size string, falling back to a square kilo image. */

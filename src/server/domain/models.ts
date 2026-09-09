@@ -1,21 +1,35 @@
 import { z } from "zod";
 
-export type Provider = "openai" | "gemini";
+export type Provider = "openai" | "gemini" | "grok";
+export type ModelGroup = "GPT" | "Gemini" | "Grok";
 export type ModelKey =
   | "gpt-image-2"
   | "gpt-image-2-2k"
   | "gpt-image-2-4k"
-  | "gemini-3.1-flash-image-preview";
+  | "gpt-image-2.5"
+  | "gemini-3.1-flash-image-preview"
+  | "gemini-3-pro-image"
+  | "gemini-3.1-flash-image"
+  | "grok-imagine-image-quality"
+  | "grok-imagine-image"
+  | "grok-imagine";
 export type GenerationMode = "text-to-image" | "image-to-image" | "inpaint" | "variation";
 export type ReleasePhase = "v1" | "v1.1";
 export type ImageResolutionTier = "1K" | "2K" | "4K";
+export type GrokBillingSize = "1K" | "2K";
 
 export type ModelOption = {
   key: ModelKey;
   label: string;
+  group: ModelGroup;
   provider: Provider;
   providerModel: string;
   description: string;
+};
+
+export type ModelGroupOption = {
+  group: ModelGroup;
+  models: ModelOption[];
 };
 
 export type GenerationModeCapability = {
@@ -47,10 +61,29 @@ export type NormalizedGenerationInput = {
   sessionId?: string;
 };
 
+const modelGroupOrder: ModelGroup[] = ["GPT", "Gemini", "Grok"];
+
+const gptImage2ResolutionFamily: Record<ImageResolutionTier, ModelKey> = {
+  "1K": "gpt-image-2",
+  "2K": "gpt-image-2-2k",
+  "4K": "gpt-image-2-4k"
+};
+
+export const DEFAULT_IMAGE_MODEL: ModelKey = "gpt-image-2.5";
+
 const modelOptions: Record<ModelKey, ModelOption> = {
+  "gpt-image-2.5": {
+    key: "gpt-image-2.5",
+    label: "gpt-image-2.5",
+    group: "GPT",
+    provider: "openai",
+    providerModel: "gpt-image-2.5",
+    description: "适合高质量文生图、参考图和编辑。"
+  },
   "gpt-image-2": {
     key: "gpt-image-2",
     label: "gpt-image-2",
+    group: "GPT",
     provider: "openai",
     providerModel: "gpt-image-2",
     description: "适合 1K 高质量文生图、参考图和编辑。"
@@ -58,6 +91,7 @@ const modelOptions: Record<ModelKey, ModelOption> = {
   "gpt-image-2-2k": {
     key: "gpt-image-2-2k",
     label: "gpt-image-2-2k",
+    group: "GPT",
     provider: "openai",
     providerModel: "gpt-image-2-2k",
     description: "适合 2K 高质量文生图、参考图和编辑。"
@@ -65,6 +99,7 @@ const modelOptions: Record<ModelKey, ModelOption> = {
   "gpt-image-2-4k": {
     key: "gpt-image-2-4k",
     label: "gpt-image-2-4k",
+    group: "GPT",
     provider: "openai",
     providerModel: "gpt-image-2-4k",
     description: "适合 4K 高质量文生图、参考图和编辑。"
@@ -72,9 +107,50 @@ const modelOptions: Record<ModelKey, ModelOption> = {
   "gemini-3.1-flash-image-preview": {
     key: "gemini-3.1-flash-image-preview",
     label: "gemini-3.1-flash-image-preview",
+    group: "Gemini",
     provider: "gemini",
     providerModel: "gemini-3.1-flash-image-preview",
     description: "适合快速创意探索和多模态参考图编辑。"
+  },
+  "gemini-3-pro-image": {
+    key: "gemini-3-pro-image",
+    label: "gemini-3-pro-image",
+    group: "Gemini",
+    provider: "gemini",
+    providerModel: "gemini-3-pro-image",
+    description: "适合高质量多模态文生图和参考图编辑。"
+  },
+  "gemini-3.1-flash-image": {
+    key: "gemini-3.1-flash-image",
+    label: "gemini-3.1-flash-image",
+    group: "Gemini",
+    provider: "gemini",
+    providerModel: "gemini-3.1-flash-image",
+    description: "适合快速创意探索和多模态参考图编辑。"
+  },
+  "grok-imagine-image-quality": {
+    key: "grok-imagine-image-quality",
+    label: "grok-imagine-image-quality",
+    group: "Grok",
+    provider: "grok",
+    providerModel: "grok-imagine-image-quality",
+    description: "推荐的高质量 Grok 文生图与参考图编辑。"
+  },
+  "grok-imagine-image": {
+    key: "grok-imagine-image",
+    label: "grok-imagine-image",
+    group: "Grok",
+    provider: "grok",
+    providerModel: "grok-imagine-image",
+    description: "更快更便宜的 Grok 文生图。"
+  },
+  "grok-imagine": {
+    key: "grok-imagine",
+    label: "grok-imagine",
+    group: "Grok",
+    provider: "grok",
+    providerModel: "grok-imagine",
+    description: "Grok Imagine 通用别名，由网关映射到合适的图像模型。"
   }
 };
 
@@ -123,10 +199,16 @@ const generationInputSchema = z.object({
   prompt: z.string().trim().min(1).max(4000),
   mode: z.enum(["text-to-image", "image-to-image", "inpaint", "variation"]),
   model: z.enum([
+    "gpt-image-2.5",
     "gpt-image-2",
     "gpt-image-2-2k",
     "gpt-image-2-4k",
-    "gemini-3.1-flash-image-preview"
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-image",
+    "grok-imagine-image-quality",
+    "grok-imagine-image",
+    "grok-imagine"
   ]),
   size: generationSizeSchema.default("1024x1024"),
   resolution: z.enum(["1K", "2K", "4K"]).default("1K"),
@@ -153,6 +235,13 @@ export function listModelOptions(): ModelOption[] {
   return modelKeys.map((key) => getModelOption(key));
 }
 
+export function listModelOptionsByGroup(): ModelGroupOption[] {
+  return modelGroupOrder.map((group) => ({
+    group,
+    models: listModelOptions().filter((model) => model.group === group)
+  }));
+}
+
 export function getGenerationModeCapabilities(mode: GenerationMode): GenerationModeCapability {
   return modeCapabilities[mode];
 }
@@ -163,6 +252,32 @@ export function listGenerationModeCapabilities(): GenerationModeCapability[] {
 
 export function getGenerationTimeoutMs(resolution: ImageResolutionTier): number {
   return resolution === "1K" ? 250_000 : 240_000;
+}
+
+export function getGrokBillingSize(resolution: ImageResolutionTier): GrokBillingSize {
+  return resolution === "1K" ? "1K" : "2K";
+}
+
+export function clampResolutionForModel(
+  model: ModelKey,
+  resolution: ImageResolutionTier
+): ImageResolutionTier {
+  return getModelOption(model).provider === "grok" ? getGrokBillingSize(resolution) : resolution;
+}
+
+export function isGptImage2ResolutionFamily(model: ModelKey): boolean {
+  return (Object.values(gptImage2ResolutionFamily) as ModelKey[]).includes(model);
+}
+
+export function nextStudioModelForResolutionChange(
+  model: ModelKey,
+  resolution: ImageResolutionTier
+): ModelKey {
+  if (!isGptImage2ResolutionFamily(model)) {
+    return model;
+  }
+
+  return gptImage2ResolutionFamily[resolution];
 }
 
 export function normalizeGenerationInput(input: unknown): NormalizedGenerationInput {
@@ -187,6 +302,7 @@ export function normalizeGenerationInput(input: unknown): NormalizedGenerationIn
     ...parsed,
     prompt: parsed.prompt.trim(),
     size,
+    resolution: clampResolutionForModel(parsed.model, parsed.resolution),
     provider: model.provider,
     providerModel: getProviderModelForResolution(model, parsed.resolution),
     count: parsed.count
