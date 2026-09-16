@@ -64,6 +64,8 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 const LUMIO_CANVAS_API_BASE =
     (typeof import.meta !== "undefined" && import.meta.env?.VITE_CANVAS_API_BASE) || "/api/canvas";
 
+// Must stay identical to src/server/domain/models.ts `modelKeys`.
+// Hosted SPA is public/canvas — rebuild it after changing this list.
 const DEFAULT_IMAGE_MODEL_IDS = [
     "gpt-image-2.5",
     "gpt-image-2",
