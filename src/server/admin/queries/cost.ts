@@ -3,7 +3,9 @@ import { adminQuery, isLocalPreview } from "../db";
 // Rough per-image price estimates (USD). Clearly an estimate — real billing
 // comes from the provider invoice. Used to turn task counts into $ figures.
 const PRICE: Record<string, number> = {
-  "gpt-image-2": 0.04,
+  "gpt-image-2.5": 0.04,
+  "gpt-image-2.5-2k": 0.08,
+  "gpt-image-2.5-4k": 0.16,
   "gemini-2.5-flash-image": 0.03
 };
 const DEFAULT_PRICE = 0.03;
@@ -45,7 +47,7 @@ export async function getCostDashboard(params: { days?: number }): Promise<CostD
       retryLoss: 104,
       daily,
       byProvider: [
-        { name: "OpenAI · gpt-image-2", cost: 2268, pct: 70 },
+        { name: "OpenAI · gpt-image-2.5", cost: 2268, pct: 70 },
         { name: "Google · Gemini", cost: 842, pct: 26 },
         { name: "存储 · S3/R2", cost: 130, pct: 4 }
       ],
@@ -116,7 +118,7 @@ export async function getCostDashboard(params: { days?: number }): Promise<CostD
 
   // --- byProvider (with a rough synthetic storage line) ---
   const providerLabels: Record<string, string> = {
-    openai: "OpenAI · gpt-image-2",
+    openai: "OpenAI · gpt-image-2.5",
     google: "Google · Gemini"
   };
   const storageCost = round2(estCost * 0.04);

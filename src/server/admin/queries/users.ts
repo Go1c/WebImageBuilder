@@ -119,8 +119,8 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail | null>
       deviceCount: 2,
       ipCount: 1,
       recentTasks: [
-        { id: "t_a1", status: "succeeded", model: "gpt-image-2", provider: "openai", prompt: "极简北欧客厅渲染", errorCode: null, createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
-        { id: "t_a2", status: "succeeded", model: "gpt-image-2", provider: "openai", prompt: "高级美食摄影", errorCode: null, createdAt: new Date(Date.now() - 18 * 60000).toISOString() },
+        { id: "t_a1", status: "succeeded", model: "gpt-image-2.5", provider: "openai", prompt: "极简北欧客厅渲染", errorCode: null, createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
+        { id: "t_a2", status: "succeeded", model: "gpt-image-2.5", provider: "openai", prompt: "高级美食摄影", errorCode: null, createdAt: new Date(Date.now() - 18 * 60000).toISOString() },
         { id: "t_a3", status: "failed", model: "gemini-2.5-flash-image", provider: "google", prompt: "赛博霓虹街景", errorCode: "provider_error", createdAt: new Date(Date.now() - 42 * 60000).toISOString() }
       ],
       devices: [{ fingerprint: "fp_2c9a1", ipHash: "120.24.x.x", lastSeen: new Date(Date.now() - 5 * 60000).toISOString() }]

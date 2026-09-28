@@ -55,7 +55,7 @@ describe("generation service", () => {
         rawInput: {
           prompt: "simple test image",
           mode: "text-to-image",
-          model: "gpt-image-2",
+          model: "gpt-image-2.5",
           size: "1024x1024",
           resolution: "1K",
           quality: "standard",
@@ -81,7 +81,7 @@ describe("generation service", () => {
         rawInput: {
           prompt: "simple test image",
           mode: "text-to-image",
-          model: "gpt-image-2",
+          model: "gpt-image-2.5",
           size: "3840x3840",
           resolution: "4K",
           quality: "standard",
@@ -230,7 +230,7 @@ describe("generation service", () => {
         rawInput: {
           prompt: "simple test image",
           mode: "text-to-image",
-          model: "gpt-image-2",
+          model: "gpt-image-2.5",
           size: "1024x1024",
           resolution: "1K",
           quality: "standard",
@@ -311,7 +311,7 @@ describe("generation service", () => {
       rawInput: {
         prompt: "use this reference",
         mode: "image-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "1024x1024",
         resolution: "1K",
         quality: "standard",
@@ -397,7 +397,7 @@ describe("generation service", () => {
           rawInput: {
             prompt: "simple test image",
             mode: "text-to-image",
-            model: "gpt-image-2",
+            model: "gpt-image-2.5",
             size: "1024x1024",
             resolution: "1K",
             quality: "standard",

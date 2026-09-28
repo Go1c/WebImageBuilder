@@ -3,10 +3,9 @@ import { z } from "zod";
 export type Provider = "openai" | "gemini" | "grok";
 export type ModelGroup = "GPT" | "Gemini" | "Grok";
 export type ModelKey =
-  | "gpt-image-2"
-  | "gpt-image-2-2k"
-  | "gpt-image-2-4k"
   | "gpt-image-2.5"
+  | "gpt-image-2.5-2k"
+  | "gpt-image-2.5-4k"
   | "gemini-3.1-flash-image-preview"
   | "gemini-3-pro-image"
   | "gemini-3.1-flash-image"
@@ -63,10 +62,10 @@ export type NormalizedGenerationInput = {
 
 const modelGroupOrder: ModelGroup[] = ["GPT", "Gemini", "Grok"];
 
-const gptImage2ResolutionFamily: Record<ImageResolutionTier, ModelKey> = {
-  "1K": "gpt-image-2",
-  "2K": "gpt-image-2-2k",
-  "4K": "gpt-image-2-4k"
+const gptImage25ResolutionFamily: Record<ImageResolutionTier, ModelKey> = {
+  "1K": "gpt-image-2.5",
+  "2K": "gpt-image-2.5-2k",
+  "4K": "gpt-image-2.5-4k"
 };
 
 export const DEFAULT_IMAGE_MODEL: ModelKey = "gpt-image-2.5";
@@ -78,30 +77,22 @@ const modelOptions: Record<ModelKey, ModelOption> = {
     group: "GPT",
     provider: "openai",
     providerModel: "gpt-image-2.5",
-    description: "适合高质量文生图、参考图和编辑。"
-  },
-  "gpt-image-2": {
-    key: "gpt-image-2",
-    label: "gpt-image-2",
-    group: "GPT",
-    provider: "openai",
-    providerModel: "gpt-image-2",
     description: "适合 1K 高质量文生图、参考图和编辑。"
   },
-  "gpt-image-2-2k": {
-    key: "gpt-image-2-2k",
-    label: "gpt-image-2-2k",
+  "gpt-image-2.5-2k": {
+    key: "gpt-image-2.5-2k",
+    label: "gpt-image-2.5-2k",
     group: "GPT",
     provider: "openai",
-    providerModel: "gpt-image-2-2k",
+    providerModel: "gpt-image-2.5-2k",
     description: "适合 2K 高质量文生图、参考图和编辑。"
   },
-  "gpt-image-2-4k": {
-    key: "gpt-image-2-4k",
-    label: "gpt-image-2-4k",
+  "gpt-image-2.5-4k": {
+    key: "gpt-image-2.5-4k",
+    label: "gpt-image-2.5-4k",
     group: "GPT",
     provider: "openai",
-    providerModel: "gpt-image-2-4k",
+    providerModel: "gpt-image-2.5-4k",
     description: "适合 4K 高质量文生图、参考图和编辑。"
   },
   "gemini-3.1-flash-image-preview": {
@@ -200,9 +191,8 @@ const generationInputSchema = z.object({
   mode: z.enum(["text-to-image", "image-to-image", "inpaint", "variation"]),
   model: z.enum([
     "gpt-image-2.5",
-    "gpt-image-2",
-    "gpt-image-2-2k",
-    "gpt-image-2-4k",
+    "gpt-image-2.5-2k",
+    "gpt-image-2.5-4k",
     "gemini-3.1-flash-image-preview",
     "gemini-3-pro-image",
     "gemini-3.1-flash-image",
@@ -266,7 +256,7 @@ export function clampResolutionForModel(
 }
 
 export function isGptImage2ResolutionFamily(model: ModelKey): boolean {
-  return (Object.values(gptImage2ResolutionFamily) as ModelKey[]).includes(model);
+  return (Object.values(gptImage25ResolutionFamily) as ModelKey[]).includes(model);
 }
 
 export function nextStudioModelForResolutionChange(
@@ -277,7 +267,7 @@ export function nextStudioModelForResolutionChange(
     return model;
   }
 
-  return gptImage2ResolutionFamily[resolution];
+  return gptImage25ResolutionFamily[resolution];
 }
 
 export function normalizeGenerationInput(input: unknown): NormalizedGenerationInput {

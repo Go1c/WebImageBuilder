@@ -36,7 +36,7 @@ const QUOTA_CODES = ["quota_exhausted", "rate_limited", "upstream_rate_limited",
 
 function mockRow(partial: Partial<AdminErrorRow> & { id: string }): AdminErrorRow {
   return {
-    email: null, actorType: "user", userId: null, model: "gpt-image-2", provider: "openai",
+    email: null, actorType: "user", userId: null, model: "gpt-image-2.5", provider: "openai",
     errorCode: null, errorMessage: null, requestId: null, upstream: null, params: { size: "1024x1024", n: 1 },
     prompt: "a serene mountain lake at dawn, mist, cinematic", createdAt: new Date().toISOString(), ...partial
   };

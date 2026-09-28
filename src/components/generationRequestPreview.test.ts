@@ -7,7 +7,7 @@ describe("generation request preview", () => {
     expect(
       buildGenerationRequestPreview({
         prompt: "  测试直播封面  ",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         mode: "text-to-image",
         size: "1024x1024",
         quality: "standard",
@@ -26,7 +26,7 @@ describe("generation request preview", () => {
             providerSupportNotes: []
           },
           request: {
-            model: "gpt-image-2",
+            model: "gpt-image-2.5",
             mode: "text-to-image",
             size: "1024x1024",
             quality: "standard",
@@ -52,7 +52,7 @@ describe("generation request preview", () => {
           label: "水彩插画"
         },
         negativePrompt: "  模糊，低清晰度  ",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         mode: "text-to-image",
         size: "1024x1024",
         quality: "standard",

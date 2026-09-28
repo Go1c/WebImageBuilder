@@ -131,7 +131,7 @@ async function catchGenerationError(): Promise<ApiError> {
       rawInput: {
         prompt: "simple test image",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "1024x1024",
         resolution: "1K",
         quality: "standard",

@@ -10,9 +10,11 @@ import {
 
 describe("canvas OpenAI image adapter", () => {
   it("maps supported and provider model names, defaulting safely", () => {
-    expect(resolveModelKey("gpt-image-2")).toBe("gpt-image-2");
-    expect(resolveModelKey("gpt-image-2-4k")).toBe("gpt-image-2-4k");
+    expect(resolveModelKey("gpt-image-2")).toBe("gpt-image-2.5");
+    expect(resolveModelKey("gpt-image-2-4k")).toBe("gpt-image-2.5");
     expect(resolveModelKey("gpt-image-2.5")).toBe("gpt-image-2.5");
+    expect(resolveModelKey("gpt-image-2.5-2k")).toBe("gpt-image-2.5-2k");
+    expect(resolveModelKey("gpt-image-2.5-4k")).toBe("gpt-image-2.5-4k");
     expect(resolveModelKey("gemini-3.1-flash-image")).toBe("gemini-3.1-flash-image");
     expect(resolveModelKey("gemini-3.1-flash-image-preview")).toBe("gemini-3.1-flash-image-preview");
     expect(resolveModelKey("grok-imagine-image-quality")).toBe("grok-imagine-image-quality");
@@ -30,11 +32,11 @@ describe("canvas OpenAI image adapter", () => {
   });
 
   it("builds a valid internal generation input from an OpenAI request", () => {
-    const input = buildGenerationInput({ prompt: "  a white cat  ", model: "gpt-image-2-2k", size: "2048x2048", n: 3, quality: "hd" });
+    const input = buildGenerationInput({ prompt: "  a white cat  ", model: "gpt-image-2.5-2k", size: "2048x2048", n: 3, quality: "hd" });
     expect(input).toMatchObject({
       prompt: "a white cat",
       mode: "text-to-image",
-      model: "gpt-image-2-2k",
+      model: "gpt-image-2.5-2k",
       size: "2048x2048",
       resolution: "2K",
       quality: "high",

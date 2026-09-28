@@ -17,9 +17,9 @@ metadata:
 ## 设计
 
 - **目录权威：** [`src/server/domain/models.ts`](../../../../src/server/domain/models.ts) 的 `ModelKey` / `listModelOptionsByGroup()`。
-- **分组：** GPT（默认 `gpt-image-2.5`，其次 `gpt-image-2*`）、Gemini（preview / pro / flash）、Grok（`grok-imagine-image-quality` 优先，其次 `grok-imagine-image`、`grok-imagine`）。不提供 `grok-imagine-edit` 选项；有参考图时打 edits 端点。
+- **分组：** GPT（`gpt-image-2.5` / `gpt-image-2.5-2k` / `gpt-image-2.5-4k`）、Gemini（preview / pro / flash）、Grok（`grok-imagine-image-quality` 优先，其次 `grok-imagine-image`、`grok-imagine`）。不提供 `grok-imagine-edit` 选项；有参考图时打 edits 端点。`gpt-image-2` 及其 2K/4K 档已下架，不再接受。
 - **默认模型：** 工作台初始选中、画布默认图像模型、未知 model id 回落均为 `gpt-image-2.5`（`DEFAULT_IMAGE_MODEL`）。
-- **工作台：** 原生 `<optgroup>`。仅 GPT Image 2 分辨率族随 1K/2K/4K 换模型；Grok 最高 2K，选 4K 钳到 2K。
+- **工作台：** 原生 `<optgroup>`。仅 GPT Image 2.5 分辨率族随 1K/2K/4K 换成 `gpt-image-2.5` / `gpt-image-2.5-2k` / `gpt-image-2.5-4k`；Grok 最高 2K，选 4K 钳到 2K。
 - **画布：** `SelectGroup`；默认渠道硬编码追加与 `modelKeys` 相同的图像模型（`canvas-app` 的 `DEFAULT_IMAGE_MODEL_IDS`）。改目录后必须重建 `public/canvas/`；不要在启动后再拉 `/v1/models` 覆盖 zustand（曾导致 React #185）。前端仍打本站 OpenAI 兼容图像接口。
 - **Grok 适配：** JSON body，`size` 为计费层级 `1K`/`2K`，`response_format: b64_json`，参考图转 data URL。GPT 仍走 multipart edits。登录 Key 优先 Grok/xAI 分组，否则回退 OpenAI 生图 Key。
 

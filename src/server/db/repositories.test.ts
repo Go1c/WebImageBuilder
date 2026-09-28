@@ -519,10 +519,11 @@ function buildGeneration(): NormalizedGenerationInput {
   return {
     prompt: "A blue circle",
     mode: "text-to-image",
-    model: "gpt-image-2",
+    model: "gpt-image-2.5",
     provider: "openai",
-    providerModel: "gpt-image-2",
+    providerModel: "gpt-image-2.5",
     size: "1024x1024",
+    resolution: "1K",
     quality: "standard",
     count: 1,
     referenceAssets: []

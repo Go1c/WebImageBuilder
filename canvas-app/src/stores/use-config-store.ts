@@ -68,9 +68,8 @@ const LUMIO_CANVAS_API_BASE =
 // Hosted SPA is public/canvas — rebuild it after changing this list.
 const DEFAULT_IMAGE_MODEL_IDS = [
     "gpt-image-2.5",
-    "gpt-image-2",
-    "gpt-image-2-2k",
-    "gpt-image-2-4k",
+    "gpt-image-2.5-2k",
+    "gpt-image-2.5-4k",
     "gemini-3.1-flash-image-preview",
     "gemini-3-pro-image",
     "gemini-3.1-flash-image",
@@ -332,7 +331,7 @@ export function modelOptionName(value: string) {
 export function modelOptionLabel(_config: AiConfig, value: string) {
     // Unified product: the canvas uses the hosted Lumio backend's model list as
     // the single source of truth, so model options read as clean names
-    // ("gpt-image-2") with no channel suffix — matching the main studio picker.
+    // ("gpt-image-2.5") with no channel suffix — matching the main studio picker.
     const decoded = decodeChannelModel(value);
     return decoded ? decoded.model : value;
 }

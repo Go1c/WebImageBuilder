@@ -54,7 +54,7 @@ export async function getOverview(): Promise<OverviewData> {
       pending: { shares: 7, safety: 3, errors: 12 },
       trend: base.map((success, i) => ({ day: `D-${13 - i}`, success, failed: fails[i] })),
       models: [
-        { model: "gpt-image-2", count: 18240 },
+        { model: "gpt-image-2.5", count: 18240 },
         { model: "gemini-2.5-flash-image", count: 7980 },
         { model: "gpt-image-2 · edit", count: 1710 },
         { model: "其它", count: 570 }

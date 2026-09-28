@@ -82,7 +82,9 @@ export default function ErrorsPage() {
         <div className="ad-spacer" />
         <select className="ad-chip" value={model} onChange={(e) => setModel(e.target.value)}>
           <option value="">全部模型</option>
-          <option value="gpt-image-2">gpt-image-2</option>
+          <option value="gpt-image-2.5">gpt-image-2.5</option>
+          <option value="gpt-image-2.5-2k">gpt-image-2.5-2k</option>
+          <option value="gpt-image-2.5-4k">gpt-image-2.5-4k</option>
           <option value="gemini-2.5-flash-image">gemini-2.5-flash-image</option>
         </select>
         <select className="ad-chip" value={hours} onChange={(e) => setHours(e.target.value)}>

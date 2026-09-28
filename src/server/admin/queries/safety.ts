@@ -29,9 +29,9 @@ const MOCK_TERMS: BlockedTermRow[] = [
 ];
 
 const MOCK_REVIEW: ReviewQueueRow[] = [
-  { id: "rq_1", email: "art_lover@qq.com", actorType: "user", model: "gpt-image-2", prompt: "海滩泳装写真，超写实，暴露", errorCode: "content_policy_violation", createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
+  { id: "rq_1", email: "art_lover@qq.com", actorType: "user", model: "gpt-image-2.5", prompt: "海滩泳装写真，超写实，暴露", errorCode: "content_policy_violation", createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
   { id: "rq_2", email: null, actorType: "anonymous", model: "gemini-2.5-flash-image", prompt: "战争血腥场面，断肢，特写", errorCode: "safety", createdAt: new Date(Date.now() - 46 * 60000).toISOString() },
-  { id: "rq_3", email: "neo@gmail.com", actorType: "user", model: "gpt-image-2", prompt: "政治敏感人物讽刺海报", errorCode: "content_filter", createdAt: new Date(Date.now() - 3 * 3600000).toISOString() }
+  { id: "rq_3", email: "neo@gmail.com", actorType: "user", model: "gpt-image-2.5", prompt: "政治敏感人物讽刺海报", errorCode: "content_filter", createdAt: new Date(Date.now() - 3 * 3600000).toISOString() }
 ];
 
 export async function listBlockedTerms(search?: string): Promise<BlockedTermRow[]> {

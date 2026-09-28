@@ -339,7 +339,7 @@ describe("OpenAI image provider", () => {
     );
     const form = editRequest?.[1]?.body as FormData;
     expect(form).toBeInstanceOf(FormData);
-    expect(form.get("model")).toBe("gpt-image-2");
+    expect(form.get("model")).toBe("gpt-image-2.5");
     expect(form.get("prompt")).toContain("keep this pose");
     expect(form.getAll("image[]")).toHaveLength(1);
   });
@@ -657,7 +657,7 @@ describe("OpenAI image provider", () => {
         contentType: "application/json",
         endpoint: "/v1/images/generations",
         mode: "text-to-image",
-        providerModel: "gpt-image-2",
+        providerModel: "gpt-image-2.5",
         requestId: "upstream-request-id",
         resolution: "1K",
         size: "1024x1024",
@@ -673,9 +673,9 @@ function buildInput(): NormalizedGenerationInput {
   return {
     prompt: "A blue circle icon",
     mode: "text-to-image",
-    model: "gpt-image-2",
+    model: "gpt-image-2.5",
     provider: "openai",
-    providerModel: "gpt-image-2",
+    providerModel: "gpt-image-2.5",
     size: "1024x1024",
     resolution: "1K",
     quality: "standard",

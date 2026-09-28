@@ -13,36 +13,29 @@ import {
 
 describe("model and generation request rules", () => {
   it("exposes the selectable concrete image model keys", () => {
-    expect(getModelOption("gpt-image-2")).toMatchObject({
-      key: "gpt-image-2",
+    expect(getModelOption("gpt-image-2.5")).toMatchObject({
+      key: "gpt-image-2.5",
       provider: "openai",
-      label: "gpt-image-2",
-      providerModel: "gpt-image-2"
+      label: "gpt-image-2.5",
+      providerModel: "gpt-image-2.5"
     });
 
-    expect(getModelOption("gpt-image-2-2k")).toMatchObject({
-      key: "gpt-image-2-2k",
+    expect(getModelOption("gpt-image-2.5-2k")).toMatchObject({
+      key: "gpt-image-2.5-2k",
       provider: "openai",
-      providerModel: "gpt-image-2-2k"
+      providerModel: "gpt-image-2.5-2k"
     });
 
-    expect(getModelOption("gpt-image-2-4k")).toMatchObject({
-      key: "gpt-image-2-4k",
+    expect(getModelOption("gpt-image-2.5-4k")).toMatchObject({
+      key: "gpt-image-2.5-4k",
       provider: "openai",
-      providerModel: "gpt-image-2-4k"
+      providerModel: "gpt-image-2.5-4k"
     });
 
     expect(getModelOption("gemini-3.1-flash-image-preview")).toMatchObject({
       key: "gemini-3.1-flash-image-preview",
       provider: "gemini",
       providerModel: "gemini-3.1-flash-image-preview"
-    });
-
-    expect(getModelOption("gpt-image-2.5")).toMatchObject({
-      key: "gpt-image-2.5",
-      group: "GPT",
-      provider: "openai",
-      providerModel: "gpt-image-2.5"
     });
 
     expect(getModelOption("gemini-3-pro-image")).toMatchObject({
@@ -82,9 +75,8 @@ describe("model and generation request rules", () => {
     expect(DEFAULT_IMAGE_MODEL).toBe("gpt-image-2.5");
     expect(groups[0].models.map((model) => model.key)).toEqual([
       "gpt-image-2.5",
-      "gpt-image-2",
-      "gpt-image-2-2k",
-      "gpt-image-2-4k"
+      "gpt-image-2.5-2k",
+      "gpt-image-2.5-4k"
     ]);
     expect(groups[1].models.map((model) => model.key)).toEqual([
       "gemini-3.1-flash-image-preview",
@@ -109,6 +101,19 @@ describe("model and generation request rules", () => {
     ).toThrow();
   });
 
+  it("rejects retired gpt-image-2 family ids", () => {
+    for (const model of ["gpt-image-2", "gpt-image-2-2k", "gpt-image-2-4k"]) {
+      expect(() =>
+        normalizeGenerationInput({
+          prompt: "A red robot",
+          mode: "text-to-image",
+          model,
+          size: "1024x1024"
+        })
+      ).toThrow();
+    }
+  });
+
   it("requires reference images for image editing modes", () => {
     expect(() =>
       normalizeGenerationInput({
@@ -126,7 +131,7 @@ describe("model and generation request rules", () => {
     const input = normalizeGenerationInput({
       prompt: "  A red robot holding a skateboard  ",
       mode: "text-to-image",
-      model: "gpt-image-2",
+      model: "gpt-image-2.5",
       count: 4,
       size: "1920x2560",
       resolution: "2K",
@@ -146,7 +151,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "A red robot",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         count: 5,
         size: "1024x1024"
       })
@@ -163,28 +168,28 @@ describe("model and generation request rules", () => {
     expect(
       normalizeGenerationInput({
         ...baseInput,
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         resolution: "1K"
       }).providerModel
-    ).toBe("gpt-image-2");
+    ).toBe("gpt-image-2.5");
 
     expect(
       normalizeGenerationInput({
         ...baseInput,
-        model: "gpt-image-2-2k",
+        model: "gpt-image-2.5-2k",
         size: "2048x1152",
         resolution: "2K"
       }).providerModel
-    ).toBe("gpt-image-2-2k");
+    ).toBe("gpt-image-2.5-2k");
 
     expect(
       normalizeGenerationInput({
         ...baseInput,
-        model: "gpt-image-2-4k",
+        model: "gpt-image-2.5-4k",
         size: "3840x2160",
         resolution: "4K"
       }).providerModel
-    ).toBe("gpt-image-2-4k");
+    ).toBe("gpt-image-2.5-4k");
   });
 
   it("uses the configured image request timeouts for each resolution", () => {
@@ -198,7 +203,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "A red robot",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "large"
       })
     ).toThrow();
@@ -209,7 +214,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "A red robot",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "3840x3840",
         resolution: "4K"
       })
@@ -219,7 +224,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "A red robot",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "576x1024",
         resolution: "1K"
       })
@@ -229,7 +234,7 @@ describe("model and generation request rules", () => {
       normalizeGenerationInput({
         prompt: "A red robot",
         mode: "text-to-image",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5",
         size: "721x1280",
         resolution: "1K"
       })
@@ -240,7 +245,7 @@ describe("model and generation request rules", () => {
     const baseInput = {
       prompt: "A red robot",
       mode: "text-to-image" as const,
-      model: "gpt-image-2" as const,
+      model: "gpt-image-2.5" as const,
       quality: "standard" as const
     };
 
@@ -265,7 +270,7 @@ describe("model and generation request rules", () => {
     const baseInput = {
       prompt: "A red robot",
       mode: "text-to-image" as const,
-      model: "gpt-image-2" as const,
+      model: "gpt-image-2.5" as const,
       resolution: "4K" as const
     };
 
@@ -294,14 +299,14 @@ describe("model and generation request rules", () => {
     expect(getGrokBillingSize("2K")).toBe("2K");
     expect(getGrokBillingSize("4K")).toBe("2K");
     expect(clampResolutionForModel("grok-imagine-image", "4K")).toBe("2K");
-    expect(clampResolutionForModel("gpt-image-2", "4K")).toBe("4K");
+    expect(clampResolutionForModel("gpt-image-2.5", "4K")).toBe("4K");
     expect(clampResolutionForModel("gemini-3-pro-image", "4K")).toBe("4K");
   });
 
-  it("only remaps GPT Image 2 family models when the studio resolution changes", () => {
-    expect(nextStudioModelForResolutionChange("gpt-image-2", "2K")).toBe("gpt-image-2-2k");
-    expect(nextStudioModelForResolutionChange("gpt-image-2-4k", "1K")).toBe("gpt-image-2");
-    expect(nextStudioModelForResolutionChange("gpt-image-2.5", "4K")).toBe("gpt-image-2.5");
+  it("only remaps GPT Image 2.5 family models when the studio resolution changes", () => {
+    expect(nextStudioModelForResolutionChange("gpt-image-2.5", "2K")).toBe("gpt-image-2.5-2k");
+    expect(nextStudioModelForResolutionChange("gpt-image-2.5-4k", "1K")).toBe("gpt-image-2.5");
+    expect(nextStudioModelForResolutionChange("gpt-image-2.5-2k", "4K")).toBe("gpt-image-2.5-4k");
     expect(nextStudioModelForResolutionChange("gemini-3-pro-image", "2K")).toBe("gemini-3-pro-image");
     expect(nextStudioModelForResolutionChange("grok-imagine-image-quality", "2K")).toBe(
       "grok-imagine-image-quality"
