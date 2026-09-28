@@ -66,9 +66,9 @@ try {
     const result = await pool.query(
       `
         insert into material_items (title, category, prompt, image_url, legacy_case_number, sort_order, status, created_by)
-        select $1, $2, $3, $4, $5, $6, 'active', 'migration'
-        where $5 is null or not exists (
-          select 1 from material_items where legacy_case_number = $5
+        select $1::text, $2::text, $3::text, $4::text, $5::integer, $6::numeric, 'active', 'migration'
+        where $5::integer is null or not exists (
+          select 1 from material_items where legacy_case_number = $5::integer
         )
       `,
       [
